@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
     QGraphicsScene, QGraphicsObject, QGraphicsItem, QFrame,
     QCheckBox, QMessageBox, QMenu, QSplitter, QGridLayout, QProgressDialog,
     QToolButton, QButtonGroup, QScrollArea, QStackedWidget, QAbstractSpinBox,
-    QListView, QSizePolicy
+    QListView, QSizePolicy, QStyledItemDelegate, QStyle
 )
 from PIL import Image, ImageOps, ImageCms
 
@@ -84,6 +84,22 @@ def ui_font(px: int, weight: QFont.Weight = QFont.Weight.Normal, role: str = "te
 
 
 # ================= ICONE DISEGNATE (nessun file esterno) =================
+# Schemi degli stili Mosaico (coordinate su 24×24; True = foto in evidenza, riempita)
+MOSAIC_ICON_CELLS = {
+    "auto": ((4, 4, 16, 9, True), (4, 15, 7, 5, False), (13, 15, 7, 5, False)),
+    "top": ((4, 4, 16, 9, True), (4, 15, 7, 5, False), (13, 15, 7, 5, False)),
+    "bottom": ((4, 11, 16, 9, True), (4, 4, 7, 5, False), (13, 4, 7, 5, False)),
+    "left": ((4, 4, 9, 16, True), (15, 4, 5, 7, False), (15, 13, 5, 7, False)),
+    "right": ((11, 4, 9, 16, True), (4, 4, 5, 7, False), (4, 13, 5, 7, False)),
+    "center": ((8.5, 4, 7, 16, True), (3, 4, 3.8, 7.2, False), (3, 12.8, 3.8, 7.2, False),
+               (17.2, 4, 3.8, 7.2, False), (17.2, 12.8, 3.8, 7.2, False)),
+    "two": ((4, 4, 7.5, 10, True), (12.5, 4, 7.5, 10, True), (4, 16, 4.6, 4, False),
+            (9.7, 16, 4.6, 4, False), (15.4, 16, 4.6, 4, False)),
+    "masonry": ((4, 4, 4.6, 9, True), (4, 15, 4.6, 5, False), (9.7, 4, 4.6, 5, False),
+                (9.7, 11, 4.6, 9, False), (15.4, 4, 4.6, 7, False), (15.4, 13, 4.6, 7, False)),
+}
+
+
 def _icon_pixmap(name: str, color: str, size: int) -> QPixmap:
     pm = QPixmap(size * 2, size * 2)
     pm.setDevicePixelRatio(2.0)
@@ -239,6 +255,9 @@ def _icon_pixmap(name: str, color: str, size: int) -> QPixmap:
         rr(4, 6, 16, 12, 1.8)
         poly((7, 11), (7, 9), (9, 9))
         poly((17, 13), (17, 15), (15, 15))
+    elif name.startswith("mosaic_"):
+        for x, y, w, h, filled in MOSAIC_ICON_CELLS.get(name[len("mosaic_"):], ()):
+            rr(x, y, w, h, 1.2, brush=tint if filled else None)
     elif name == "logo":
         p.setPen(Qt.PenStyle.NoPen)
         faded = QColor(col)
@@ -249,6 +268,26 @@ def _icon_pixmap(name: str, color: str, size: int) -> QPixmap:
         rr(6.5, 3.5, 11, 17, 2.2, brush=QBrush(col))
     p.end()
     return pm
+
+
+def app_icon() -> QIcon:
+    """Icona della finestra: il logo blu su un quadrato scuro arrotondato, in più risoluzioni."""
+    icon = QIcon()
+    for size in (16, 20, 24, 32, 40, 48, 64, 128, 256):
+        pm = QPixmap(size, size)
+        pm.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(THEME["header"]))
+        p.drawRoundedRect(QRectF(0, 0, size, size), size * 0.22, size * 0.22)
+        logo = _icon_pixmap("logo", THEME["accent"], size)
+        inset = size * 0.08
+        p.drawPixmap(QRectF(inset, inset, size - 2 * inset, size - 2 * inset), logo, QRectF(logo.rect()))
+        p.end()
+        icon.addPixmap(pm)
+    return icon
 
 
 def make_icon(name: str, color: str = THEME["muted"], size: int = 18, on_color: Optional[str] = None) -> QIcon:
@@ -1222,6 +1261,30 @@ class ToggleSwitch(QCheckBox):
         p.end()
 
 
+class LibraryCheckDelegate(QStyledItemDelegate):
+    """Miniatura della libreria con un segno di spunta blu ben visibile quando è selezionata."""
+
+    def paint(self, painter: QPainter, option, index):
+        super().paint(painter, option, index)
+        if not option.state & QStyle.StateFlag.State_Selected:
+            return
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        r = QRectF(option.rect)
+        badge = QRectF(r.right() - 22, r.top() + 5, 17, 17)
+        painter.setPen(QPen(QColor("#FFFFFF"), 1.5))
+        painter.setBrush(QColor(THEME["accent"]))
+        painter.drawEllipse(badge)
+        tick = QPen(QColor("#FFFFFF"), 2.0)
+        tick.setCapStyle(Qt.PenCapStyle.RoundCap)
+        tick.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(tick)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        x, y = badge.x(), badge.y()
+        painter.drawPolyline(QPolygonF([QPointF(x + 4.5, y + 8.8), QPointF(x + 7.4, y + 11.6), QPointF(x + 12.6, y + 5.8)]))
+        painter.restore()
+
+
 class DropZone(QFrame):
     """Stato vuoto della libreria: area tratteggiata cliccabile che invita a caricare le foto."""
     clicked = pyqtSignal()
@@ -1287,6 +1350,16 @@ class MainWindow(QMainWindow):
         ("scatter", "Polaroid", "Foto sparse e leggermente inclinate, con bordo bianco"),
         ("scrl_seam", "A cavallo", "Foto che attraversano le giunzioni tra le pagine del carosello"),
     ]
+    MOSAIC_STYLES = [
+        ("auto", "Automatico", "Grande in alto sulle pagine verticali, a sinistra su quelle orizzontali"),
+        ("top", "Grande in alto", "La prima foto in alto, le altre sotto"),
+        ("bottom", "Grande in basso", "La prima foto in basso, le altre sopra"),
+        ("left", "Grande a sinistra", "La prima foto a sinistra, le altre a destra"),
+        ("right", "Grande a destra", "La prima foto a destra, le altre a sinistra"),
+        ("center", "Grande al centro", "La prima foto al centro, le altre divise ai due lati"),
+        ("two", "Due grandi", "Le prime due foto grandi affiancate, le altre in griglia"),
+        ("masonry", "Muratura", "Colonne con foto di altezze diverse, sfalsate (stile Pinterest)"),
+    ]
     HISTORY_LIMIT = 100
 
     def __init__(self):
@@ -1294,9 +1367,11 @@ class MainWindow(QMainWindow):
         self.resize(1520, 940)
         self.setMinimumSize(1100, 680)
         self.setAcceptDrops(True)
+        self.setWindowIcon(app_icon())
 
         self.loaded_library: List[str] = []
         self.current_layout_mode = "grid"  # "grid", "mosaic", "strips_h", "strips_v", "scatter", "scrl_seam"
+        self.mosaic_style = "auto"  # chiave di MOSAIC_STYLES
         self._layout_seed = random.randrange(1 << 30)
         # Pagine aggiunte in automatico da "A cavallo": (pagine di prima, pagine impostate dal layout)
         self._seam_added_frames: Optional[Tuple[int, int]] = None
@@ -1704,14 +1779,49 @@ class MainWindow(QMainWindow):
         self.list_library.setResizeMode(QListView.ResizeMode.Adjust)
         self.list_library.setMovement(QListView.Movement.Static)
         self.list_library.setUniformItemSizes(True)
-        self.list_library.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        # Un clic seleziona/deseleziona la foto (senza dover tenere premuto Ctrl)
+        self.list_library.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        self.list_library.setItemDelegate(LibraryCheckDelegate(self.list_library))
         self.list_library.setMinimumHeight(100)
-        self.list_library.setToolTip("Doppio clic per aggiungere la foto alla tela.\nClic destro per altre opzioni.")
+        self.list_library.setToolTip("Clic per scegliere le foto (di nuovo per toglierle),\n"
+                                     "poi «Metti le selezionate».\nClic destro per altre opzioni.")
+        self.list_library.itemSelectionChanged.connect(self._update_library_selection_ui)
         self.list_library.itemDoubleClicked.connect(self._on_library_item_double_clicked)
         self.list_library.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.list_library.customContextMenuRequested.connect(self._show_library_context_menu)
         self.library_stack.addWidget(self.list_library)
         lay.addWidget(self.library_stack, 1)
+
+        sel_row = QHBoxLayout()
+        sel_row.setSpacing(6)
+        self.lbl_library_sel = self._label("Clicca le foto per sceglierle", "Hint")
+        sel_row.addWidget(self.lbl_library_sel, 1)
+        self.btn_library_sel_all = self._button("Tutte", self.list_library.selectAll, obj="Ghost",
+                                                tooltip="Seleziona tutte le foto della libreria")
+        self.btn_library_sel_none = self._button("Nessuna", self.list_library.clearSelection, obj="Ghost",
+                                                 tooltip="Togli la selezione")
+        sel_row.addWidget(self.btn_library_sel_all)
+        sel_row.addWidget(self.btn_library_sel_none)
+        self.library_sel_box = QWidget()
+        self.library_sel_box.setLayout(sel_row)
+        sel_row.setContentsMargins(0, 0, 0, 0)
+        self.library_sel_box.setVisible(False)
+        lay.addWidget(self.library_sel_box)
+
+        # Azioni sulle foto selezionate: compaiono solo quando ce n'è almeno una
+        self.library_actions_box = QWidget()
+        act_row = QVBoxLayout(self.library_actions_box)
+        act_row.setContentsMargins(0, 0, 0, 0)
+        act_row.setSpacing(4)
+        self.btn_library_add = self._button("Aggiungi alla tela", self._add_selected_library_to_canvas, "plus",
+                                            tooltip="Aggiunge le foto selezionate a quelle già sulla tela e ridispone tutto")
+        self.btn_library_remove = self._button("Rimuovi dalla libreria", self._remove_selected_from_library, "trash",
+                                               "Danger", tooltip="Toglie le foto selezionate dalla libreria\n"
+                                                                 "(quelle già sulla tela restano)")
+        act_row.addWidget(self.btn_library_add)
+        act_row.addWidget(self.btn_library_remove)
+        self.library_actions_box.setVisible(False)
+        lay.addWidget(self.library_actions_box)
 
         lib_btns = QHBoxLayout()
         lib_btns.setSpacing(6)
@@ -1750,6 +1860,22 @@ class MainWindow(QMainWindow):
             self.layout_tiles[mode] = tile
             tiles.addWidget(tile, i // 3, i % 3)
         lay.addLayout(tiles)
+
+        self.mosaic_style_box = QWidget()
+        ms = QHBoxLayout(self.mosaic_style_box)
+        ms.setContentsMargins(0, 2, 0, 0)
+        ms.setSpacing(8)
+        ms.addWidget(self._label("Stile mosaico", "FieldLabel"))
+        self.combo_mosaic = QComboBox()
+        self.combo_mosaic.setIconSize(QSize(18, 18))
+        for key, text, tip in self.MOSAIC_STYLES:
+            self.combo_mosaic.addItem(make_icon("mosaic_" + key, THEME["text"], 18), text, key)
+            self.combo_mosaic.setItemData(self.combo_mosaic.count() - 1, tip, Qt.ItemDataRole.ToolTipRole)
+        self.combo_mosaic.setToolTip("Dove va la foto in evidenza (la prima) e come si dispongono le altre")
+        self.combo_mosaic.currentIndexChanged.connect(self._on_mosaic_style_changed)
+        ms.addWidget(self.combo_mosaic, 1)
+        self.mosaic_style_box.setVisible(False)
+        lay.addWidget(self.mosaic_style_box)
 
         self.chk_per_frame = ToggleSwitch("Una disposizione per ogni pagina")
         self.chk_per_frame.setChecked(True)
@@ -2561,6 +2687,32 @@ class MainWindow(QMainWindow):
         self.lbl_library_count.setText("" if n == 0 else ("1 foto" if n == 1 else f"{n} foto"))
         self.library_stack.setCurrentIndex(1 if n else 0)
         self.btn_add_all.setEnabled(n > 0)
+        self._update_library_selection_ui()
+
+    def _library_selected_paths(self) -> List[str]:
+        """Percorsi selezionati nella libreria, nell'ordine della libreria (non in quello dei clic)."""
+        items = sorted(self.list_library.selectedItems(), key=self.list_library.row)
+        return [it.data(Qt.ItemDataRole.UserRole) for it in items]
+
+    def _update_library_selection_ui(self):
+        n_lib = len(self.loaded_library)
+        n_sel = len(self.list_library.selectedItems())
+        self.library_sel_box.setVisible(n_lib > 0)
+        self.library_actions_box.setVisible(n_sel > 0)
+        self.btn_library_sel_none.setEnabled(n_sel > 0)
+        self.btn_library_sel_all.setEnabled(n_sel < n_lib)
+        if n_sel:
+            self.lbl_library_sel.setText("1 selezionata" if n_sel == 1 else f"{n_sel} selezionate")
+            self.btn_add_all.setText("Metti solo la selezionata" if n_sel == 1 else f"Metti le {n_sel} selezionate")
+            self.btn_add_all.setToolTip("Sostituisce le foto sulla tela con quelle selezionate e le dispone")
+            self.btn_add_all.setObjectName("Primary")
+        else:
+            self.lbl_library_sel.setText("Clicca le foto per sceglierle")
+            self.btn_add_all.setText("Metti tutte sulla tela")
+            self.btn_add_all.setToolTip("Sostituisce le foto sulla tela con tutte quelle della libreria")
+            self.btn_add_all.setObjectName("Ghost")
+        self.btn_add_all.style().unpolish(self.btn_add_all)
+        self.btn_add_all.style().polish(self.btn_add_all)
 
     def _update_canvas_count(self):
         self._update_tool_states()
@@ -2611,23 +2763,49 @@ class MainWindow(QMainWindow):
         if not items:
             return
         menu = QMenu(self)
-        act_add = menu.addAction(make_icon("plus", THEME["text"], 16), "Aggiungi alla tela")
+        act_only = menu.addAction(make_icon("grid", THEME["text"], 16), "Metti sulla tela solo queste")
+        act_add = menu.addAction(make_icon("plus", THEME["text"], 16), "Aggiungi alla tela (tieni le altre)")
+        menu.addSeparator()
         act_remove = menu.addAction(make_icon("trash", THEME["text"], 16), "Rimuovi dalla libreria")
         chosen = menu.exec(self.list_library.mapToGlobal(pos))
-        paths = [it.data(Qt.ItemDataRole.UserRole) for it in items]
-        if chosen == act_add:
+        paths = self._library_selected_paths()
+        if chosen == act_only:
+            self._put_paths_on_canvas(paths)
+        elif chosen == act_add:
             self._add_library_paths_to_canvas(paths)
         elif chosen == act_remove:
-            for it in items:
-                self.loaded_library.remove(it.data(Qt.ItemDataRole.UserRole))
-                self.list_library.takeItem(self.list_library.row(it))
-            self._update_library_ui()
+            self._remove_selected_from_library()
+
+    def _add_selected_library_to_canvas(self):
+        paths = [p for p in self._library_selected_paths() if IMAGE_CACHE.has(p)]
+        if not paths:
+            return
+        for path in paths:
+            self._spawn_photo_item(path)
+        self.list_library.clearSelection()
+        self._relayout_keep()
+        self._schedule_commit()
+
+    def _remove_selected_from_library(self):
+        items = self.list_library.selectedItems()
+        for it in items:
+            path = it.data(Qt.ItemDataRole.UserRole)
+            if path in self.loaded_library:
+                self.loaded_library.remove(path)
+            self.list_library.takeItem(self.list_library.row(it))
+        self._update_library_ui()
 
     def add_all_library_to_canvas(self):
-        if not self.loaded_library:
+        # Con delle foto selezionate nella libreria mette solo quelle, altrimenti tutte
+        self._put_paths_on_canvas(self._library_selected_paths() or list(self.loaded_library))
+
+    def _put_paths_on_canvas(self, paths: List[str]):
+        """Sostituisce le foto sulla tela con queste e le dispone con la disposizione attuale."""
+        paths = [p for p in paths if IMAGE_CACHE.has(p)]
+        if not paths:
             return
         self._remove_all_photos()
-        for path in self.loaded_library:
+        for path in paths:
             self._spawn_photo_item(path)
         self._relayout_keep()
         self._schedule_commit()
@@ -2662,6 +2840,17 @@ class MainWindow(QMainWindow):
         tile = self.layout_tiles.get(self.current_layout_mode)
         if tile is not None:
             tile.setChecked(True)
+        self.mosaic_style_box.setVisible(self.current_layout_mode == "mosaic")
+        idx = self.combo_mosaic.findData(self.mosaic_style)
+        if idx >= 0 and idx != self.combo_mosaic.currentIndex():
+            self.combo_mosaic.blockSignals(True)
+            self.combo_mosaic.setCurrentIndex(idx)
+            self.combo_mosaic.blockSignals(False)
+
+    def _on_mosaic_style_changed(self, index: int):
+        self.mosaic_style = self.combo_mosaic.itemData(index) or "auto"
+        if self.current_layout_mode == "mosaic":
+            self._relayout_keep()
 
     def _relayout_keep(self, *_):
         if self._restoring:
@@ -2775,20 +2964,102 @@ class MainWindow(QMainWindow):
                 idx += 1
 
     def _layout_mosaic(self, photos: List[PhotoItem], area: QRectF, gap: float):
-        # 1 Foto "Hero" grande in alto (formato verticale) o a sinistra (orizzontale) + griglia per le altre
+        # Foto "Hero" in evidenza + griglia per le altre; la posizione dipende dallo stile scelto
+        style = self.mosaic_style
+        portrait = area.height() >= area.width()
+        if style == "masonry":
+            self._layout_masonry(photos, area, gap)
+            return
         hero, others = photos[0], photos[1:]
         if not others:
             self._place(hero, area.x(), area.y(), area.width(), area.height())
             return
-        if area.height() >= area.width():
-            hero_h = (area.height() - gap) * 0.55
-            self._place(hero, area.x(), area.y(), area.width(), hero_h)
-            rest = QRectF(area.x(), area.y() + hero_h + gap, area.width(), area.height() - hero_h - gap)
+        x, y, w, h = area.x(), area.y(), area.width(), area.height()
+
+        if style == "two" and len(others) >= 2:
+            heroes, rest_photos = photos[:2], photos[2:]
+            if portrait:
+                band = (h - gap) * 0.55
+                half = (w - gap) / 2.0
+                self._place(heroes[0], x, y, half, band)
+                self._place(heroes[1], x + half + gap, y, half, band)
+                rest = QRectF(x, y + band + gap, w, h - band - gap)
+            else:
+                band = (w - gap) * 0.55
+                half = (h - gap) / 2.0
+                self._place(heroes[0], x, y, band, half)
+                self._place(heroes[1], x, y + half + gap, band, half)
+                rest = QRectF(x + band + gap, y, w - band - gap, h)
+            self._layout_grid(rest_photos, rest, gap)
+            return
+
+        if style == "center" and len(others) >= 2:
+            k = math.ceil(len(others) / 2)
+            first, second = others[:k], others[k:]
+            if portrait:
+                mid = (h - 2 * gap) * 0.56
+                side = (h - 2 * gap - mid) / 2.0
+                self._layout_grid(first, QRectF(x, y, w, side), gap)
+                self._place(hero, x, y + side + gap, w, mid)
+                self._layout_grid(second, QRectF(x, y + side + mid + 2 * gap, w, side), gap)
+            else:
+                mid = (w - 2 * gap) * 0.56
+                side = (w - 2 * gap - mid) / 2.0
+                self._layout_grid(first, QRectF(x, y, side, h), gap)
+                self._place(hero, x + side + gap, y, mid, h)
+                self._layout_grid(second, QRectF(x + side + mid + 2 * gap, y, side, h), gap)
+            return
+
+        where = style if style in ("top", "bottom", "left", "right") else ("top" if portrait else "left")
+        if where in ("top", "bottom"):
+            hero_h = (h - gap) * 0.55
+            rest_h = h - hero_h - gap
+            if where == "top":
+                self._place(hero, x, y, w, hero_h)
+                rest = QRectF(x, y + hero_h + gap, w, rest_h)
+            else:
+                self._place(hero, x, y + rest_h + gap, w, hero_h)
+                rest = QRectF(x, y, w, rest_h)
         else:
-            hero_w = (area.width() - gap) * 0.55
-            self._place(hero, area.x(), area.y(), hero_w, area.height())
-            rest = QRectF(area.x() + hero_w + gap, area.y(), area.width() - hero_w - gap, area.height())
+            hero_w = (w - gap) * 0.55
+            rest_w = w - hero_w - gap
+            if where == "left":
+                self._place(hero, x, y, hero_w, h)
+                rest = QRectF(x + hero_w + gap, y, rest_w, h)
+            else:
+                self._place(hero, x + rest_w + gap, y, hero_w, h)
+                rest = QRectF(x, y, rest_w, h)
         self._layout_grid(others, rest, gap)
+
+    def _layout_masonry(self, photos: List[PhotoItem], area: QRectF, gap: float):
+        # Colonne riempite a tutta altezza con foto di altezze diverse e giunzioni sfalsate
+        n = len(photos)
+        cols = min(n, max(1, round(math.sqrt(n * area.width() / area.height()))))
+        if n >= 4:
+            cols = max(2, cols)
+        col_w = (area.width() - gap * (cols - 1)) / cols
+        columns: List[List[Tuple[PhotoItem, float]]] = [[] for _ in range(cols)]
+        heights = [0.0] * cols
+        for p in photos:
+            pm = p.pixmap
+            ratio = pm.height() / pm.width() if pm.width() > 0 and pm.height() > 0 else 1.0
+            ratio = min(1.8, max(0.55, ratio))
+            c = heights.index(min(heights))
+            columns[c].append((p, ratio))
+            heights[c] += ratio
+        for c, items in enumerate(columns):
+            if not items:
+                continue
+            # Alterna foto alte e basse, sfasate tra colonne vicine, così le giunzioni non si allineano mai
+            weights = [r * (1.3 if (c + j) % 2 == 0 else 0.77) for j, (_p, r) in enumerate(items)]
+            avail = area.height() - gap * (len(items) - 1)
+            total = sum(weights)
+            cy = area.y()
+            cx = area.x() + c * (col_w + gap)
+            for (p, _r), wt in zip(items, weights):
+                ph = avail * wt / total
+                self._place(p, cx, cy, col_w, ph)
+                cy += ph + gap
 
     def _layout_strips(self, photos: List[PhotoItem], area: QRectF, gap: float, horizontal: bool):
         n = len(photos)
@@ -3095,6 +3366,7 @@ class MainWindow(QMainWindow):
                 "margin": self.slider_margin.value(),
                 "per_frame": self.chk_per_frame.isChecked(),
                 "layout_mode": self.current_layout_mode,
+                "mosaic_style": self.mosaic_style,
                 "layout_seed": self._layout_seed,
             },
             "items": [p.get_state() for p in self.get_canvas_photos()],
@@ -3129,6 +3401,7 @@ class MainWindow(QMainWindow):
             self._refresh_bg_swatches()
             self.scene.update_canvas_rect()
             self.current_layout_mode = c["layout_mode"]
+            self.mosaic_style = c.get("mosaic_style", "auto")
             self._layout_seed = c["layout_seed"]
             self._sync_layout_tiles()
 
@@ -3482,7 +3755,15 @@ def apply_app_style(app: QApplication):
 
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        # Senza un ID proprio Windows mostra l'icona di Python sulla barra delle applicazioni
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SCRL.Studio")
+        except Exception:
+            pass
     app = QApplication(sys.argv)
+    app.setWindowIcon(app_icon())
     apply_app_style(app)
     window = MainWindow()
     window.showMaximized()
