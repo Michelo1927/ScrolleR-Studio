@@ -6,7 +6,7 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QSlider, QListWidget,
     QGridLayout, QToolButton, QButtonGroup, QStackedWidget, QListView, QSizePolicy, QPlainTextEdit,
-    QFontComboBox
+    QFontComboBox, QSpinBox, QAbstractSpinBox
 )
 
 from scrollr.icons import icon_pixmap, make_icon, swatch_icon
@@ -159,6 +159,31 @@ class PanelsMixin:
         )
         self.chk_per_frame.toggled.connect(self._relayout_keep)
         lay.addWidget(self.chk_per_frame)
+
+        # Foto per pagina: Auto = divise in parti uguali tra le pagine, N = pagine calcolate da sole
+        self.per_page_box = QWidget()
+        pp = QHBoxLayout(self.per_page_box)
+        pp.setContentsMargins(0, 0, 0, 0)
+        pp.setSpacing(2)
+        pp.addWidget(self._label("Foto per pagina", "FieldLabel"))
+        pp.addStretch()
+        self.spin_per_page = QSpinBox()
+        self.spin_per_page.setRange(0, 20)
+        self.spin_per_page.setSpecialValueText("Auto")
+        self.spin_per_page.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.spin_per_page.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.spin_per_page.setFixedWidth(56)
+        self.spin_per_page.setToolTip(
+            "Auto = le foto si dividono in parti uguali tra le pagine impostate.\n"
+            "Un numero = ogni pagina ne contiene al massimo tante e le pagine si calcolano da sole.\n"
+            "Per una singola pagina: clic destro sulla pagina → Foto in questa pagina."
+        )
+        self.spin_per_page.valueChanged.connect(self._on_per_page_changed)
+        pp.addWidget(self._icon_button("minus", "Una foto in meno per pagina", lambda: self.spin_per_page.stepBy(-1)))
+        pp.addWidget(self.spin_per_page)
+        pp.addWidget(self._icon_button("plus", "Una foto in più per pagina", lambda: self.spin_per_page.stepBy(1)))
+        self.chk_per_frame.toggled.connect(self.per_page_box.setEnabled)
+        lay.addWidget(self.per_page_box)
 
         lay.addSpacing(4)
         self.slider_gap = self._make_slider(lay, "Spaziatura", 0, 80, 16, " px", resettable=True)

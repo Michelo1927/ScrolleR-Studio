@@ -501,6 +501,9 @@ class UiMixin:
         make("Sposta la pagina corrente a sinistra", lambda: self._move_page(self._current_page(), -1), None, m_pages)
         make("Sposta la pagina corrente a destra", lambda: self._move_page(self._current_page(), 1), None, m_pages)
         m_pages.addSeparator()
+        self.menu_page_count = m_pages.addMenu("Foto nella pagina corrente")
+        self.menu_page_count.aboutToShow.connect(self._rebuild_current_page_count_menu)
+        m_pages.addSeparator()
         make("Elimina la pagina corrente…", lambda: self._delete_page(self._current_page()), None, m_pages)
         hint = m_pages.addAction("(Pagina corrente = quella dell'elemento selezionato o al centro della vista)")
         hint.setEnabled(False)
@@ -517,6 +520,10 @@ class UiMixin:
         make("Pagina del progetto su GitHub", lambda *_: QDesktopServices.openUrl(QUrl(REPO_URL)), None, m_help)
         make("Scarica l'ultima versione", lambda *_: QDesktopServices.openUrl(QUrl(REPO_URL + "/releases/latest")),
              None, m_help)
+        make("Controlla aggiornamenti…", self.check_updates_now, None, m_help)
+        act_auto = make("Controlla aggiornamenti all'avvio", self._set_auto_update, None, m_help)
+        act_auto.setCheckable(True)
+        act_auto.setChecked(self._auto_update_enabled())
         m_help.addSeparator()
         about = make("Informazioni su ScrolleR Studio", self.show_about, None, m_help)
         about.setMenuRole(QAction.MenuRole.AboutRole)  # Su Mac va nel menu dell'app, come si aspetta l'utente

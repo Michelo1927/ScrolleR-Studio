@@ -62,6 +62,7 @@ def main():
             window._load_project_file(project)
         else:
             window.offer_recovery()
+        window.check_updates_on_startup()
 
     QTimer.singleShot(300, open_startup_project)
     sys.exit(app.exec())

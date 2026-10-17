@@ -22,10 +22,11 @@ from scrollr.window.panels import PanelsMixin
 from scrollr.window.project import ProjectMixin
 from scrollr.window.text import TextMixin
 from scrollr.window.ui import UiMixin
+from scrollr.window.updates import UpdatesMixin
 
 
 class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin, TextMixin,
-                 PagesMixin, HistoryMixin, ProjectMixin, ExportMixin, QMainWindow):
+                 PagesMixin, HistoryMixin, ProjectMixin, ExportMixin, UpdatesMixin, QMainWindow):
     """Finestra principale. Le funzioni sono divise nei mixin del pacchetto window."""
 
     ASPECT_RATIOS = {
@@ -110,6 +111,7 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self._apply_theme()
         self._build_ui()
         self._build_status_bar()
+        self._build_update_notice()
         self._build_actions()
         self._update_library_ui()
         self._sync_layout_tiles()
@@ -148,6 +150,12 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
 
     def _on_frames_changed(self, value: int):
         self._seam_added_frames = None  # Scelta manuale dell'utente: da ora vale la sua
+        if self.spin_per_page.value() > 0:
+            # Con un numero fisso di foto per pagina le pagine si calcolano da sole: torna su Auto
+            self.spin_per_page.blockSignals(True)
+            self.spin_per_page.setValue(0)
+            self.spin_per_page.blockSignals(False)
+            self.statusBar().showMessage("Pagine scelte a mano: Foto per pagina torna su Auto", 5000)
         self.scene.num_frames = value
         self.scene.update_canvas_rect()
         self._relayout_keep()

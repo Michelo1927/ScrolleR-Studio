@@ -29,6 +29,8 @@ class CollageScene(QGraphicsScene):
         self.frame_w = 1080
         self.frame_h = 1440  # Default 3:4
         self.num_frames = 1
+        # Foto fissate pagina per pagina (None = automatico); vale con "Una disposizione per ogni pagina"
+        self.page_counts: List[Optional[int]] = []
         self.bg_color = QColor("#FFFFFF")
         # Sfondo: "solid" = tinta unita, "gradient" = sfumatura tra due colori, "blur" = foto sfocata
         self.bg_mode = "solid"
@@ -200,6 +202,9 @@ class CollageScene(QGraphicsScene):
         for i in range(self.num_frames):
             top_left = t.map(QPointF(i * self.frame_w, 0))
             label = f"Pagina {i + 1}" if self.num_frames > 1 else f"{self.frame_w} × {self.frame_h} px"
+            fixed = self.page_counts[i] if i < len(self.page_counts) else None
+            if fixed is not None:
+                label += f"  ·  {fixed} foto" if fixed != 1 else "  ·  1 foto"
             painter.setPen(QColor(THEME["muted"]))
             painter.drawText(QPointF(top_left.x() + 1, top_left.y() - 8), label)
 

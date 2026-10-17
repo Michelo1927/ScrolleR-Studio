@@ -81,6 +81,7 @@ scrollr/
     history.py          undo / redo
     project.py          save / open, recent files, autosave
     export.py           high-resolution export
+    updates.py          new-version notice (checks the latest GitHub release)
 ```
 
 `MainWindow` is composed of mixins, one per area: each method lives in the file for its feature,

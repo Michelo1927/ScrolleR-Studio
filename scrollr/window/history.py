@@ -23,6 +23,8 @@ class HistoryMixin:
                 "gap": self.slider_gap.value(),
                 "margin": self.slider_margin.value(),
                 "per_frame": self.chk_per_frame.isChecked(),
+                "per_page": self.spin_per_page.value(),
+                "page_counts": list(self.scene.page_counts),
                 "layout_mode": self.current_layout_mode,
                 "mosaic_style": self.mosaic_style,
                 "layout_seed": self._layout_seed,
@@ -43,7 +45,8 @@ class HistoryMixin:
         try:
             c = snap["canvas"]
             widgets = (self.combo_ratio, self.spin_custom_w, self.spin_custom_h,
-                       self.spin_frames, self.slider_gap, self.slider_margin, self.chk_per_frame)
+                       self.spin_frames, self.slider_gap, self.slider_margin, self.chk_per_frame,
+                       self.spin_per_page)
             for w in widgets:
                 w.blockSignals(True)
             self.combo_ratio.setCurrentIndex(c["ratio_index"])
@@ -53,15 +56,18 @@ class HistoryMixin:
             self.slider_gap.setValue(c["gap"])
             self.slider_margin.setValue(c["margin"])
             self.chk_per_frame.setChecked(c["per_frame"])
+            self.spin_per_page.setValue(c.get("per_page", 0))
             for w in widgets:
                 w.blockSignals(False)
             self.chk_per_frame.update()
+            self.per_page_box.setEnabled(c["per_frame"])
             self.custom_size_box.setVisible(self.ASPECT_RATIOS.get(self.combo_ratio.currentText()) is None)
 
             canvas_changed = (self.scene.frame_w, self.scene.frame_h, self.scene.num_frames) != \
                 (c["frame_w"], c["frame_h"], c["num_frames"])
             self.scene.frame_w, self.scene.frame_h = c["frame_w"], c["frame_h"]
             self.scene.num_frames = c["num_frames"]
+            self.scene.page_counts = list(c.get("page_counts", []))
             self.scene.bg_color = QColor(c["bg_color"])
             self.scene.bg_mode = c.get("bg_mode", "solid")
             self.scene.bg_color2 = QColor(c.get("bg_color2", "#FF2680EB"))

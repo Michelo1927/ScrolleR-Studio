@@ -1,7 +1,7 @@
 """Algoritmi di disposizione automatica, mescola e scambia."""
 import math
 import random
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from PyQt6.QtCore import QRectF, QPointF
 from PyQt6.QtWidgets import QMessageBox
@@ -83,13 +83,18 @@ class LayoutMixin:
             canvas = self.scene.canvas_rect().adjusted(margin, margin, -margin, -margin)
             self._layout_seam(photos, self._safe_rect(canvas), rng)
         else:
+            per_page = self.spin_per_page.value()
+            if self.chk_per_frame.isChecked() and per_page > 0:
+                # Numero fisso di foto per pagina: le pagine si adeguano (tenendo quelle con dei testi)
+                needed = len(self._page_photo_counts(len(photos)))
+                text_pages = [self._page_of(t) + 1 for t in self.get_canvas_texts()]
+                frames = max([1, needed] + [p for p in text_pages if p <= self.spin_frames.maximum()])
+                if frames != self.scene.num_frames:
+                    self._set_frames_silently(frames)
             frames = self.scene.num_frames
-            if self.chk_per_frame.isChecked() and frames > 1:
-                # Distribuisce le foto tra i frame in modo equilibrato (le prime pagine prendono l'eccedenza)
-                base, extra = divmod(len(photos), frames)
+            if self.chk_per_frame.isChecked() and (frames > 1 or per_page > 0):
                 start = 0
-                for f in range(frames):
-                    count = base + (1 if f < extra else 0)
+                for f, count in enumerate(self._page_photo_counts(len(photos))):
                     chunk = photos[start:start + count]
                     start += count
                     if chunk:
@@ -102,6 +107,55 @@ class LayoutMixin:
 
         self.scene.update()
         self._sync_inspector_from_item(self._get_primary_selected())
+
+    def _page_photo_counts(self, n: int) -> List[int]:
+        """
+        Quante foto vanno in ogni pagina, nell'ordine delle pagine. Le pagine con un numero fissato
+        (clic destro → Foto in questa pagina) lo rispettano; le altre prendono "Foto per pagina"
+        oppure, su Auto, si dividono in parti uguali le foto rimaste.
+        """
+        fixed = self.scene.page_counts
+        per_page = self.spin_per_page.value()
+
+        def fixed_at(i: int) -> Optional[int]:
+            return fixed[i] if i < len(fixed) else None
+
+        if per_page > 0:
+            counts, left = [], n
+            while left > 0 and len(counts) < self.spin_frames.maximum():
+                f = fixed_at(len(counts))
+                c = min(per_page if f is None else f, left)
+                counts.append(c)
+                left -= c
+            if left and counts:
+                counts[-1] += left  # Raggiunto il massimo di pagine: le foto in più vanno nell'ultima
+            return counts
+
+        frames = self.scene.num_frames
+        counts: List[Optional[int]] = [None] * frames
+        left = n
+        for i in range(frames):
+            f = fixed_at(i)
+            if f is not None:
+                counts[i] = min(f, left)
+                left -= counts[i]
+        free = [i for i in range(frames) if counts[i] is None]
+        if free:
+            # Le prime pagine libere prendono l'eccedenza
+            base, extra = divmod(left, len(free))
+            for j, i in enumerate(free):
+                counts[i] = base + (1 if j < extra else 0)
+        elif left:
+            counts[-1] += left  # Tutte le pagine sono fissate: le foto in più vanno nell'ultima
+        return counts
+
+    def _on_per_page_changed(self, *_):
+        if self._restoring:
+            return
+        if self.spin_per_page.value() == 0:
+            self.statusBar().showMessage("Foto per pagina su Auto: le foto si dividono tra le pagine impostate", 4000)
+        self._relayout_keep()
+        self._schedule_commit()
 
     def _set_frames_silently(self, frames: int):
         """Cambia il numero di pagine senza far scattare un secondo relayout."""
