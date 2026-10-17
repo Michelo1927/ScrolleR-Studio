@@ -4,6 +4,7 @@ import io
 import json
 import math
 import random
+import tempfile
 from collections import OrderedDict
 from typing import Dict, List, Optional, Tuple
 
@@ -38,23 +39,29 @@ PROJECT_EXT = ".scrlproj"
 PROJECT_VERSION = 1
 
 
-# ================= TEMA "TAVOLO LUMINOSO" =================
-# Grafite tinta viola come piano di lavoro neutro (per giudicare i colori delle foto)
-# e un unico accento calendula, riservato ad azioni, selezione e giunzioni tra pagine.
+# ================= TEMA "STUDIO PRO" (stile Adobe Photoshop) =================
+# Grigi neutri senza dominanti (per giudicare correttamente i colori delle foto),
+# pannelli compatti con bordi netti e un unico accento blu, riservato a azioni e selezione.
+# Guide in ciano e guide smart in magenta, come negli editor professionali.
 THEME = {
-    "backdrop": "#1E1D25",
-    "panel": "#272630",
-    "raised": "#322F3C",
-    "hover": "#3C3948",
-    "line": "#423F50",
-    "text": "#EEECF4",
-    "muted": "#A6A3B8",
-    "faint": "#6F6C82",
-    "accent": "#F4B63F",
-    "accent_hover": "#F8C865",
-    "accent_ink": "#2B1D00",
-    "danger": "#F0646F",
-    "snap": "#F472D0",
+    "frame": "#252525",      # Cornice dell'applicazione: menu, barra opzioni, strumenti, stato
+    "backdrop": "#1E1E1E",   # Area di lavoro attorno alla tela (pasteboard)
+    "panel": "#323232",      # Corpo dei pannelli
+    "header": "#282828",     # Intestazioni a schede dei pannelli
+    "field": "#1F1F1F",      # Campi di input
+    "raised": "#3D3D3D",     # Pulsanti
+    "hover": "#4A4A4A",
+    "line": "#181818",       # Separatori scuri tra le aree
+    "edge": "#4F4F4F",       # Contorni chiari di pulsanti e campi
+    "text": "#DADADA",
+    "muted": "#A3A3A3",
+    "faint": "#696969",
+    "accent": "#2680EB",
+    "accent_hover": "#378EF0",
+    "accent_ink": "#FFFFFF",
+    "danger": "#E34850",
+    "guide": "#29D5F5",
+    "snap": "#FF3DCB",
 }
 
 _FONT_CACHE: Dict[str, str] = {}
@@ -205,6 +212,9 @@ def _icon_pixmap(name: str, color: str, size: int) -> QPixmap:
         arc_arrow(-135, 270)
     elif name == "rot_right":
         arc_arrow(315, -270)
+    elif name == "reset":
+        arc_arrow(120, 290)
+        p.drawEllipse(QPointF(12, 12.5), 1.3, 1.3)
     elif name == "level":
         rr(5, 7, 14, 9, 1.6)
         line(3.5, 19.5, 20.5, 19.5)
@@ -255,14 +265,18 @@ def swatch_icon(color: QColor, size: int = 16) -> QIcon:
     pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)
     p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-    p.setPen(QPen(QColor(THEME["line"]), 1.5))
+    # Campione quadrato con doppio filo, come i colori di primo piano/sfondo di Photoshop
+    p.setPen(QPen(QColor("#000000"), 1.0))
     p.setBrush(QBrush(color))
-    p.drawEllipse(QRectF(1, 1, size - 2, size - 2))
+    p.drawRect(QRectF(1.5, 1.5, size - 3, size - 3))
+    p.setPen(QPen(QColor(255, 255, 255, 90), 1.0))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawRect(QRectF(2.5, 2.5, size - 5, size - 5))
     p.end()
     return QIcon(pm)
 
 
-def rounded_thumb(pm: QPixmap, size: int, radius: float = 8.0) -> QPixmap:
+def rounded_thumb(pm: QPixmap, size: int, radius: float = 2.0) -> QPixmap:
     """Miniatura quadrata ritagliata al centro, con angoli arrotondati."""
     out = QPixmap(size * 2, size * 2)
     out.setDevicePixelRatio(2.0)
@@ -428,6 +442,7 @@ class PhotoItem(QGraphicsObject):
         self.inner_zoom = 1.0       # 1.0 = riempie esattamente la cella (object-fit: cover)
         self.pan_x = 0.0            # Offset orizzontale interno (-1.0 a +1.0)
         self.pan_y = 0.0            # Offset verticale interno (-1.0 a +1.0)
+        self.inner_rotation = 0.0   # Rotazione del contenuto dentro la cella (gradi), il riquadro resta fermo
 
         # Stile cornice
         self.border_radius = 0.0
@@ -472,6 +487,7 @@ class PhotoItem(QGraphicsObject):
             "inner_zoom": round(self.inner_zoom, 4),
             "pan_x": round(self.pan_x, 4),
             "pan_y": round(self.pan_y, 4),
+            "inner_rotation": round(self.inner_rotation, 3),
             "border_radius": self.border_radius,
             "border_width": self.border_width,
             "border_color": self.border_color.name(QColor.NameFormat.HexArgb),
@@ -487,6 +503,7 @@ class PhotoItem(QGraphicsObject):
         self.inner_zoom = s["inner_zoom"]
         self.pan_x = s["pan_x"]
         self.pan_y = s["pan_y"]
+        self.inner_rotation = s.get("inner_rotation", 0.0)
         self.border_radius = s["border_radius"]
         self.border_width = s["border_width"]
         self.border_color = QColor(s["border_color"])
@@ -545,15 +562,33 @@ class PhotoItem(QGraphicsObject):
         self.geometry_changed.emit(self)
         self.edit_finished.emit()
 
+    def _rotated_cell_extent(self) -> Tuple[float, float]:
+        """Ingombro della cella vista nel sistema di riferimento ruotato dell'immagine."""
+        th = math.radians(self.inner_rotation)
+        c, s = abs(math.cos(th)), abs(math.sin(th))
+        return self.cell_w * c + self.cell_h * s, self.cell_w * s + self.cell_h * c
+
+    def _image_transform(self) -> QTransform:
+        """Dal sistema dell'immagine (origine al centro della cella, assi ruotati) alle coordinate della cella."""
+        t = QTransform()
+        t.translate(self.cell_w / 2.0, self.cell_h / 2.0)
+        t.rotate(self.inner_rotation)
+        return t
+
     def _cover_geometry(self, img_w: float, img_h: float) -> Tuple[float, float, float, float, float]:
-        """Restituisce (scala, dx, dy, draw_w, draw_h) per object-fit: cover + zoom + pan."""
-        scale_cover = max(self.cell_w / img_w, self.cell_h / img_h) * self.inner_zoom
+        """
+        Restituisce (scala, dx, dy, draw_w, draw_h) per object-fit: cover + zoom + pan + rotazione interna.
+        Il rettangolo (dx, dy, draw_w, draw_h) è nel sistema di _image_transform(): la foto ruotata
+        copre sempre l'intera cella, così non compaiono mai angoli vuoti.
+        """
+        need_w, need_h = self._rotated_cell_extent()
+        scale_cover = max(need_w / img_w, need_h / img_h) * self.inner_zoom
         draw_w = img_w * scale_cover
         draw_h = img_h * scale_cover
-        max_dx = max(0.0, (draw_w - self.cell_w) / 2.0)
-        max_dy = max(0.0, (draw_h - self.cell_h) / 2.0)
-        dx = (self.cell_w - draw_w) / 2.0 + (self.pan_x * max_dx)
-        dy = (self.cell_h - draw_h) / 2.0 + (self.pan_y * max_dy)
+        max_dx = max(0.0, (draw_w - need_w) / 2.0)
+        max_dy = max(0.0, (draw_h - need_h) / 2.0)
+        dx = -draw_w / 2.0 + (self.pan_x * max_dx)
+        dy = -draw_h / 2.0 + (self.pan_y * max_dy)
         return scale_cover, dx, dy, draw_w, draw_h
 
     def _pan_margins(self) -> Tuple[float, float]:
@@ -561,7 +596,8 @@ class PhotoItem(QGraphicsObject):
         if pm.width() <= 0 or pm.height() <= 0:
             return 0.0, 0.0
         _, _, _, draw_w, draw_h = self._cover_geometry(float(pm.width()), float(pm.height()))
-        return max(0.0, (draw_w - self.cell_w) / 2.0), max(0.0, (draw_h - self.cell_h) / 2.0)
+        need_w, need_h = self._rotated_cell_extent()
+        return max(0.0, (draw_w - need_w) / 2.0), max(0.0, (draw_h - need_h) / 2.0)
 
     def boundingRect(self) -> QRectF:
         margin = self._handle_size() + 4.0 / self._view_scale()
@@ -619,6 +655,7 @@ class PhotoItem(QGraphicsObject):
             img_w, img_h = float(pm.width()), float(pm.height())
             if img_w > 0 and img_h > 0:
                 _, dx, dy, draw_w, draw_h = self._cover_geometry(img_w, img_h)
+                painter.setTransform(self._image_transform(), True)
                 painter.drawPixmap(QRectF(dx, dy, draw_w, draw_h), pm, QRectF(0, 0, img_w, img_h))
         painter.restore()
 
@@ -640,23 +677,34 @@ class PhotoItem(QGraphicsObject):
 
         accent = QColor(THEME["accent"])
         if self.isSelected():
-            # Contorno di selezione che segue gli angoli arrotondati + maniglie circolari
-            sel_pen = QPen(accent, 2.0)
+            # Riquadro di trasformazione: filo sottile sul bordo + maniglie quadrate bianche
+            sel_pen = QPen(accent, 1.5)
             sel_pen.setCosmetic(True)
             painter.setPen(sel_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawPath(path)
+            painter.drawRect(cell_rect)
+            if radius > 0:
+                soft = QColor(accent)
+                soft.setAlpha(120)
+                soft_pen = QPen(soft, 1.0, Qt.PenStyle.DashLine)
+                soft_pen.setCosmetic(True)
+                painter.setPen(soft_pen)
+                painter.drawPath(path)
 
-            handle_pen = QPen(accent, 2.0)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+            handle_pen = QPen(QColor("#1A1A1A"), 1.0)
             handle_pen.setCosmetic(True)
             painter.setPen(handle_pen)
             painter.setBrush(QBrush(QColor("#FFFFFF")))
             for rect in self._get_handle_rects().values():
-                painter.drawEllipse(rect)
+                c = rect.center()
+                s = rect.width() * 0.36
+                painter.drawRect(QRectF(c.x() - s, c.y() - s, 2 * s, 2 * s))
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         elif self._hovered:
             hover = QColor(accent)
-            hover.setAlpha(150)
-            hover_pen = QPen(hover, 1.5)
+            hover.setAlpha(170)
+            hover_pen = QPen(hover, 1.0)
             hover_pen.setCosmetic(True)
             painter.setPen(hover_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -665,6 +713,8 @@ class PhotoItem(QGraphicsObject):
     def _paint_full_resolution(self, painter: QPainter, cell_rect: QRectF):
         """In esportazione ricampiona dall'originale solo la porzione visibile, alla risoluzione di uscita."""
         full = IMAGE_CACHE.full(self.image_path)
+        img_t = self._image_transform()
+        painter.setTransform(img_t, True)
         if full is None:
             pm = self.pixmap
             if pm.width() > 0 and pm.height() > 0:
@@ -674,7 +724,8 @@ class PhotoItem(QGraphicsObject):
 
         img_w, img_h = float(full.width), float(full.height)
         scale, dx, dy, draw_w, draw_h = self._cover_geometry(img_w, img_h)
-        visible = QRectF(dx, dy, draw_w, draw_h).intersected(cell_rect)
+        cell_in_img = img_t.inverted()[0].mapRect(cell_rect)
+        visible = QRectF(dx, dy, draw_w, draw_h).intersected(cell_in_img)
         if visible.isEmpty():
             return
 
@@ -759,7 +810,7 @@ class PhotoItem(QGraphicsObject):
             delta = event.scenePos() - self._last_mouse_scene_pos
             self._last_mouse_scene_pos = event.scenePos()
             # Il pan segue esattamente il cursore, nel sistema di riferimento (ruotato) della foto
-            local = QTransform().rotate(-self.rotation()).map(delta)
+            local = QTransform().rotate(-(self.rotation() + self.inner_rotation)).map(delta)
             max_dx, max_dy = self._pan_margins()
             if max_dx > 0.5:
                 self.pan_x = max(-1.0, min(1.0, self.pan_x + local.x() / max_dx))
@@ -878,21 +929,15 @@ class CollageScene(QGraphicsScene):
         self._snap_x: List[float] = []
         self._snap_y: List[float] = []
         self._dot_tile = self._make_dot_tile()
-        self._empty_icon_dark = _icon_pixmap("image", "#55526A", 44)
-        self._empty_icon_light = _icon_pixmap("image", "#C9C6D8", 44)
+        self._empty_icon_dark = _icon_pixmap("image", "#555555", 44)
+        self._empty_icon_light = _icon_pixmap("image", "#C8C8C8", 44)
         self.update_canvas_rect()
 
     def _make_dot_tile(self) -> QPixmap:
-        # Piano di lavoro "tappetino da taglio": puntini regolari in coordinate schermo
+        # Area di lavoro (pasteboard) a tinta unita, grigio neutro come negli editor professionali
         s = self.DOT_SPACING
         tile = QPixmap(s, s)
         tile.fill(QColor(THEME["backdrop"]))
-        p = QPainter(tile)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(255, 255, 255, 38))
-        p.drawEllipse(QPointF(s / 2.0, s / 2.0), 1.2, 1.2)
-        p.end()
         return tile
 
     def canvas_rect(self) -> QRectF:
@@ -921,13 +966,15 @@ class CollageScene(QGraphicsScene):
             brush.setTransform(QTransform.fromTranslate(origin.x() % self.DOT_SPACING, origin.y() % self.DOT_SPACING))
             painter.fillRect(t.mapRect(rect), brush)
 
-            # Ombra morbida a strati sotto la tela (come una stampa appoggiata sul tavolo)
+            # Ombra netta e corta sotto il documento, con filo scuro di contorno
             canvas_dev = t.mapRect(canvas_rect)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
             painter.setPen(Qt.PenStyle.NoPen)
-            for i in range(1, 16):
-                painter.setBrush(QColor(0, 0, 0, 9))
-                painter.drawRoundedRect(canvas_dev.adjusted(-i, -i + 6, i, i + 6), i, i)
+            for i in range(1, 7):
+                painter.setBrush(QColor(0, 0, 0, 22))
+                painter.drawRect(canvas_dev.adjusted(-i + 2, -i + 3, i + 2, i + 3))
+            painter.setPen(QPen(QColor(0, 0, 0, 200), 1.0))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(canvas_dev.adjusted(-1, -1, 0, 0))
             painter.restore()
         painter.fillRect(canvas_rect, self.bg_color)
 
@@ -950,7 +997,8 @@ class CollageScene(QGraphicsScene):
         has_photos = any(isinstance(it, PhotoItem) for it in self.items())
         if self.show_guides and has_photos:
             # Linee guida centrali leggere
-            guide = QColor(0, 0, 0, 40) if light_bg else QColor(255, 255, 255, 45)
+            guide = QColor(THEME["guide"])
+            guide.setAlpha(130)
             guide_pen = QPen(guide, 1.0, Qt.PenStyle.DashLine)
             guide_pen.setCosmetic(True)
             painter.setPen(guide_pen)
@@ -959,9 +1007,9 @@ class CollageScene(QGraphicsScene):
                 cx = i * self.frame_w + self.frame_w / 2.0
                 painter.drawLine(QPointF(cx, 0), QPointF(cx, self.frame_h))
 
-        # Giunzioni tra le pagine del carosello: sempre visibili, nel colore d'accento
+        # Giunzioni tra le pagine del carosello: sempre visibili, come guide piene
         if self.num_frames > 1:
-            sep_pen = QPen(QColor(THEME["accent"]), 1.5, Qt.PenStyle.DashLine)
+            sep_pen = QPen(QColor(THEME["guide"]), 1.0, Qt.PenStyle.SolidLine)
             sep_pen.setCosmetic(True)
             painter.setPen(sep_pen)
             for i in range(1, self.num_frames):
@@ -984,12 +1032,12 @@ class CollageScene(QGraphicsScene):
         painter.resetTransform()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
-        painter.setFont(ui_font(12, QFont.Weight.DemiBold))
+        painter.setFont(ui_font(11))
         for i in range(self.num_frames):
             top_left = t.map(QPointF(i * self.frame_w, 0))
             label = f"Pagina {i + 1}" if self.num_frames > 1 else f"{self.frame_w} × {self.frame_h} px"
             painter.setPen(QColor(THEME["muted"]))
-            painter.drawText(QPointF(top_left.x() + 2, top_left.y() - 10), label)
+            painter.drawText(QPointF(top_left.x() + 1, top_left.y() - 8), label)
 
         if not has_photos:
             canvas_dev = t.mapRect(canvas_rect)
@@ -997,11 +1045,11 @@ class CollageScene(QGraphicsScene):
                 c = canvas_dev.center()
                 icon = self._empty_icon_light if not light_bg else self._empty_icon_dark
                 painter.drawPixmap(QPointF(c.x() - 22, c.y() - 58), icon)
-                painter.setPen(QColor("#3A3748") if light_bg else QColor(THEME["text"]))
+                painter.setPen(QColor("#3A3A3A") if light_bg else QColor(THEME["text"]))
                 painter.setFont(ui_font(19, QFont.Weight.DemiBold, "display"))
                 painter.drawText(QRectF(canvas_dev.left(), c.y() - 4, canvas_dev.width(), 30),
                                  Qt.AlignmentFlag.AlignHCenter, "Trascina qui le tue foto")
-                painter.setPen(QColor("#7A7690") if light_bg else QColor(THEME["muted"]))
+                painter.setPen(QColor("#7A7A7A") if light_bg else QColor(THEME["muted"]))
                 painter.setFont(ui_font(13))
                 painter.drawText(QRectF(canvas_dev.left(), c.y() + 28, canvas_dev.width(), 24),
                                  Qt.AlignmentFlag.AlignHCenter, "oppure usa Aggiungi foto (Ctrl+O)")
@@ -1115,43 +1163,62 @@ class CanvasView(QGraphicsView):
 
 # ================= WIDGET PERSONALIZZATI =================
 class ToggleSwitch(QCheckBox):
-    """Interruttore a levetta al posto della classica casella di spunta."""
-    TRACK_W, TRACK_H = 32, 18
+    """Casella di spunta compatta in stile pannello Adobe (quadratino blu con segno di spunta)."""
+    BOX = 14
 
     def __init__(self, text: str, parent=None):
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._hover = False
 
     def sizeHint(self) -> QSize:
         fm = self.fontMetrics()
-        return QSize(self.TRACK_W + 10 + fm.horizontalAdvance(self.text()), max(self.TRACK_H + 4, fm.height() + 6))
+        return QSize(self.BOX + 8 + fm.horizontalAdvance(self.text()), max(self.BOX + 6, fm.height() + 6))
 
     def hitButton(self, pos) -> bool:
         return self.rect().contains(pos)
 
+    def enterEvent(self, event):
+        self._hover = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hover = False
+        self.update()
+        super().leaveEvent(event)
+
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        y = (self.height() - self.TRACK_H) / 2.0
-        track = QRectF(0, y, self.TRACK_W, self.TRACK_H)
+        y = (self.height() - self.BOX) / 2.0
+        box = QRectF(0.5, y + 0.5, self.BOX - 1, self.BOX - 1)
         on = self.isChecked()
-        track_color = QColor(THEME["accent"] if on else THEME["hover"])
+        if on:
+            fill = QColor(THEME["accent_hover"] if self._hover else THEME["accent"])
+            border = fill
+        else:
+            fill = QColor(THEME["field"])
+            border = QColor(THEME["text"] if self._hover else "#8A8A8A")
         if not self.isEnabled():
-            track_color.setAlphaF(0.4)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(track_color)
-        p.drawRoundedRect(track, self.TRACK_H / 2.0, self.TRACK_H / 2.0)
-        knob_x = self.TRACK_W - self.TRACK_H + 2 if on else 2
-        p.setBrush(QColor(THEME["accent_ink"] if on else THEME["text"]))
-        p.drawEllipse(QRectF(knob_x, y + 2, self.TRACK_H - 4, self.TRACK_H - 4))
+            fill.setAlphaF(0.4)
+            border.setAlphaF(0.4)
+        p.setPen(QPen(border, 1.0))
+        p.setBrush(fill)
+        p.drawRoundedRect(box, 2, 2)
+        if on:
+            tick = QPen(QColor(THEME["accent_ink"]), 1.8)
+            tick.setCapStyle(Qt.PenCapStyle.RoundCap)
+            tick.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            p.setPen(tick)
+            p.drawPolyline(QPolygonF([QPointF(3.5, y + 7.2), QPointF(6.0, y + 9.8), QPointF(10.6, y + 4.4)]))
         p.setPen(QColor(THEME["text"] if self.isEnabled() else THEME["faint"]))
-        p.drawText(QRectF(self.TRACK_W + 10, 0, self.width() - self.TRACK_W - 10, self.height()),
+        p.drawText(QRectF(self.BOX + 8, 0, self.width() - self.BOX - 8, self.height()),
                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self.text())
         if self.hasFocus():
-            focus = QPen(QColor(THEME["accent"]), 1.2)
-            p.setPen(focus)
+            p.setPen(QPen(QColor(THEME["accent"]), 1.2))
             p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawRoundedRect(track.adjusted(-2, -2, 2, 2), self.TRACK_H / 2.0 + 2, self.TRACK_H / 2.0 + 2)
+            p.drawRoundedRect(box.adjusted(-2, -2, 2, 2), 3, 3)
         p.end()
 
 
@@ -1161,7 +1228,7 @@ class DropZone(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(190)
+        self.setMinimumHeight(120)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._icon = _icon_pixmap("image", THEME["muted"], 34)
         self._hover = False
@@ -1182,19 +1249,19 @@ class DropZone(QFrame):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         r = QRectF(self.rect()).adjusted(1, 1, -1, -1)
-        pen = QPen(QColor(THEME["accent"] if self._hover else THEME["line"]), 1.5, Qt.PenStyle.DashLine)
-        pen.setDashPattern([4, 4])
+        pen = QPen(QColor(THEME["accent"] if self._hover else THEME["edge"]), 1.0, Qt.PenStyle.DashLine)
+        pen.setDashPattern([3, 3])
         p.setPen(pen)
-        p.setBrush(QColor(THEME["raised"]) if self._hover else Qt.BrushStyle.NoBrush)
-        p.drawRoundedRect(r, 12, 12)
+        p.setBrush(QColor(THEME["field"]))
+        p.drawRoundedRect(r, 3, 3)
         c = r.center()
-        p.drawPixmap(QPointF(c.x() - 17, c.y() - 46), self._icon)
+        p.drawPixmap(QPointF(c.x() - 17, c.y() - 52), self._icon)
         p.setPen(QColor(THEME["text"]))
-        p.setFont(ui_font(14, QFont.Weight.DemiBold))
-        p.drawText(QRectF(r.left(), c.y() - 4, r.width(), 22), Qt.AlignmentFlag.AlignHCenter, "Trascina qui le foto")
+        p.setFont(ui_font(13, QFont.Weight.DemiBold))
+        p.drawText(QRectF(r.left(), c.y() - 12, r.width(), 22), Qt.AlignmentFlag.AlignHCenter, "Trascina qui le foto")
         p.setPen(QColor(THEME["muted"]))
-        p.setFont(ui_font(12))
-        p.drawText(QRectF(r.left() + 16, c.y() + 20, r.width() - 32, 40),
+        p.setFont(ui_font(11))
+        p.drawText(QRectF(r.left() + 16, c.y() + 12, r.width() - 32, 40),
                    Qt.AlignmentFlag.AlignHCenter | Qt.TextFlag.TextWordWrap,
                    "oppure clicca per sceglierle dal PC.\nNessun limite di numero.")
         p.end()
@@ -1231,6 +1298,8 @@ class MainWindow(QMainWindow):
         self.loaded_library: List[str] = []
         self.current_layout_mode = "grid"  # "grid", "mosaic", "strips_h", "strips_v", "scatter", "scrl_seam"
         self._layout_seed = random.randrange(1 << 30)
+        # Pagine aggiunte in automatico da "A cavallo": (pagine di prima, pagine impostate dal layout)
+        self._seam_added_frames: Optional[Tuple[int, int]] = None
         self._updating_inspector = False
         self._restoring = False
         self.project_path: Optional[str] = None
@@ -1344,39 +1413,178 @@ class MainWindow(QMainWindow):
         content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         return scroll
 
+    @staticmethod
+    def _styled(widget: QWidget, obj: str) -> QWidget:
+        widget.setObjectName(obj)
+        widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        return widget
+
+    def _dock(self, title: str, content: QWidget) -> QWidget:
+        """Pannello agganciato con intestazione a scheda, come i pannelli di Photoshop."""
+        dock = self._styled(QWidget(), "Dock")
+        lay = QVBoxLayout(dock)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        header = self._styled(QWidget(), "DockHeader")
+        header.setFixedHeight(28)
+        hl = QHBoxLayout(header)
+        hl.setContentsMargins(0, 0, 0, 0)
+        hl.setSpacing(0)
+        tab = self._label(title, "DockTab")
+        tab.setFixedHeight(28)
+        hl.addWidget(tab)
+        hl.addStretch()
+        lay.addWidget(header)
+        lay.addWidget(content, 1)
+        return dock
+
+    def _build_tool_strip(self) -> QWidget:
+        """
+        Colonna strumenti a sinistra: tutte le azioni sulle foto della tela, ognuna con icona ED etichetta.
+        I pulsanti che richiedono una selezione si spengono quando non servono (vedi _update_tool_states).
+        """
+        strip = self._styled(QWidget(), "ToolStrip")
+        strip.setFixedWidth(76)
+        lay = QVBoxLayout(strip)
+        lay.setContentsMargins(4, 6, 4, 8)
+        lay.setSpacing(1)
+        groups = [
+            ("Ordine", [
+                ("shuffle", "Rimescola", "Cambia a caso quale foto va in quale posizione", self.shuffle_canvas_photos),
+                ("swap", "Scambia", "Scambia di posto le 2 foto selezionate\n(Ctrl+clic per selezionare la seconda)",
+                 self.swap_two_selected_photos),
+            ]),
+            ("Ruota", [
+                ("rot_left", "90° sx", "Ruota la foto di 90° a sinistra", lambda: self._rotate_selected_by(-90)),
+                ("rot_right", "90° dx", "Ruota la foto di 90° a destra", lambda: self._rotate_selected_by(90)),
+                ("level", "Dritta", "Raddrizza la foto (angolo 0°)", lambda: self._set_selected_rotation(0)),
+            ]),
+            ("Livello", [
+                ("front", "Davanti", "Porta la foto sopra le altre", self._bring_to_front),
+                ("back", "Dietro", "Manda la foto sotto le altre", self._send_to_back),
+            ]),
+            ("Foto", [
+                ("duplicate", "Duplica", "Crea una copia della foto (Ctrl+D)", self._duplicate_selected),
+                ("trash", "Elimina", "Togli la foto dalla tela (Canc)", self._delete_selected),
+            ]),
+        ]
+        self._tool_buttons: Dict[str, QToolButton] = {}
+        for gi, (caption, items) in enumerate(groups):
+            if gi:
+                lay.addSpacing(3)
+                sep = self._styled(QFrame(), "ToolSep")
+                sep.setFixedHeight(1)
+                lay.addWidget(sep)
+                lay.addSpacing(2)
+            cap = self._label(caption, "ToolCaption")
+            cap.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+            lay.addWidget(cap)
+            for icon, text, tip, slot in items:
+                btn = self._icon_button(icon, tip, slot, text, obj="ToolButton")
+                color = THEME["danger"] if icon == "trash" else THEME["text"]
+                btn.setIcon(make_icon(icon, color, 18))
+                btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+                if icon == "trash":
+                    btn.setProperty("danger", True)
+                btn.setFixedSize(66, 44)
+                lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignHCenter)
+                self._tool_buttons[icon] = btn
+        lay.addStretch()
+        return strip
+
+    def _update_tool_states(self):
+        """Accende solo gli strumenti utilizzabili adesso, e spiega nella barra di stato cosa serve."""
+        if not hasattr(self, "_tool_buttons"):
+            return
+        n_sel = len(self._selected_photos())
+        n_canvas = len(self.get_canvas_photos())
+        for icon, btn in self._tool_buttons.items():
+            if icon == "shuffle":
+                btn.setEnabled(n_canvas >= 2)
+            elif icon == "swap":
+                btn.setEnabled(n_sel == 2)
+            else:
+                btn.setEnabled(n_sel > 0)
+
+    def _build_document_area(self) -> QWidget:
+        """Finestra documento: scheda col nome del progetto e zoom sopra la tela."""
+        area = self._styled(QWidget(), "DocArea")
+        lay = QVBoxLayout(area)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        tabs = self._styled(QWidget(), "DocTabBar")
+        tabs.setFixedHeight(28)
+        tl = QHBoxLayout(tabs)
+        tl.setContentsMargins(0, 0, 0, 0)
+        tl.setSpacing(0)
+        self.lbl_doc_tab = self._label("", "DocTab")
+        self.lbl_doc_tab.setFixedHeight(28)
+        tl.addWidget(self.lbl_doc_tab)
+        tl.addStretch()
+        lay.addWidget(tabs)
+        lay.addWidget(self.view, 1)
+        return area
+
+    def _update_doc_tab(self):
+        if not hasattr(self, "lbl_doc_tab"):
+            return
+        name = os.path.basename(self.project_path) if self.project_path else "Senza titolo"
+        star = "*" if self._history and self._is_dirty() else ""
+        zoom = round(self.view.current_scale() * 100)
+        self.lbl_doc_tab.setText(f"{name} @ {zoom}% (RGB/8){star}")
+
+    def _refresh_bg_swatches(self):
+        self.btn_bg_color.setIcon(swatch_icon(self.scene.bg_color))
+
     def _build_ui(self):
-        central = QWidget()
-        central.setObjectName("Root")
-        central.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        central = self._styled(QWidget(), "Root")
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
-        root.setContentsMargins(14, 10, 14, 4)
-        root.setSpacing(10)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
 
-        root.addLayout(self._build_top_bar())
+        options = self._styled(QWidget(), "OptionsBar")
+        options.setLayout(self._build_top_bar())
+        root.addWidget(options)
+
+        # Da sinistra: Libreria | colonna strumenti | documento | Proprietà
+        workspace = QWidget()
+        ws = QHBoxLayout(workspace)
+        ws.setContentsMargins(0, 0, 0, 0)
+        ws.setSpacing(0)
+        ws.addWidget(self._build_tool_strip())
+        ws.addWidget(self._build_document_area(), 1)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setHandleWidth(12)
+        splitter.setHandleWidth(1)
         splitter.setChildrenCollapsible(False)
-        splitter.addWidget(self._scroll_panel(self._build_left_panel(), 312))
-        splitter.addWidget(self.view)
-        splitter.addWidget(self._scroll_panel(self._build_inspector(), 300))
+        splitter.addWidget(self._dock("Libreria", self._scroll_panel(self._build_left_panel(), 296)))
+        splitter.addWidget(workspace)
+        splitter.addWidget(self._dock("Proprietà", self._scroll_panel(self._build_inspector(), 286)))
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
         root.addWidget(splitter, 1)
+        self._refresh_bg_swatches()
+
+        # Icona dell'app nell'angolo della barra dei menu
+        badge = self._styled(QLabel(), "AppBadge")
+        badge.setPixmap(_icon_pixmap("logo", THEME["accent"], 18))
+        badge.setFixedSize(30, 26)
+        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        badge.setToolTip("SCRL Studio")
+        self.menuBar().setCornerWidget(badge, Qt.Corner.TopLeftCorner)
 
     def _build_top_bar(self) -> QHBoxLayout:
         bar = QHBoxLayout()
-        bar.setSpacing(10)
+        bar.setContentsMargins(10, 4, 10, 4)
+        bar.setSpacing(8)
 
-        logo = QLabel()
-        logo.setPixmap(_icon_pixmap("logo", THEME["accent"], 26))
-        bar.addWidget(logo)
-        bar.addWidget(self._label("SCRL Studio", "Brand"))
-        bar.addSpacing(8)
+        tool = QLabel()
+        tool.setPixmap(_icon_pixmap("ratio", THEME["text"], 18))
+        tool.setToolTip("Impostazioni del documento")
+        bar.addWidget(tool)
         bar.addWidget(self._vsep())
-        bar.addSpacing(4)
 
         # Formato della pagina (3:4 di default)
         bar.addWidget(self._label("Formato"))
@@ -1432,7 +1640,6 @@ class MainWindow(QMainWindow):
         self.btn_bg_color.setObjectName("IconButton")
         self.btn_bg_color.setText("Sfondo")
         self.btn_bg_color.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.btn_bg_color.setIcon(swatch_icon(self.scene.bg_color))
         self.btn_bg_color.setToolTip("Colore di sfondo della tela")
         self.btn_bg_color.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_bg_color.clicked.connect(self._pick_bg_color)
@@ -1475,8 +1682,8 @@ class MainWindow(QMainWindow):
     def _build_left_panel(self) -> QWidget:
         panel = QWidget()
         lay = QVBoxLayout(panel)
-        lay.setContentsMargins(16, 16, 16, 16)
-        lay.setSpacing(10)
+        lay.setContentsMargins(12, 10, 12, 12)
+        lay.setSpacing(8)
 
         # --- Foto ---
         self.lbl_library_count = self._label("", "Hint")
@@ -1493,12 +1700,12 @@ class MainWindow(QMainWindow):
         self.list_library = QListWidget()
         self.list_library.setViewMode(QListView.ViewMode.IconMode)
         self.list_library.setIconSize(QSize(80, 80))
-        self.list_library.setGridSize(QSize(88, 88))
+        self.list_library.setGridSize(QSize(86, 86))
         self.list_library.setResizeMode(QListView.ResizeMode.Adjust)
         self.list_library.setMovement(QListView.Movement.Static)
         self.list_library.setUniformItemSizes(True)
         self.list_library.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
-        self.list_library.setMinimumHeight(200)
+        self.list_library.setMinimumHeight(100)
         self.list_library.setToolTip("Doppio clic per aggiungere la foto alla tela.\nClic destro per altre opzioni.")
         self.list_library.itemDoubleClicked.connect(self._on_library_item_double_clicked)
         self.list_library.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1514,14 +1721,14 @@ class MainWindow(QMainWindow):
         lib_btns.addWidget(self.btn_clear_canvas)
         lay.addLayout(lib_btns)
 
-        lay.addSpacing(6)
+        lay.addSpacing(2)
         lay.addWidget(self._divider())
-        lay.addSpacing(6)
+        lay.addSpacing(2)
 
         # --- Disposizione ---
         self._section_header(lay, "Disposizione")
         tiles = QGridLayout()
-        tiles.setSpacing(8)
+        tiles.setSpacing(4)
         self.layout_group = QButtonGroup(self)
         self.layout_group.setExclusive(True)
         self.layout_tiles: Dict[str, QToolButton] = {}
@@ -1531,12 +1738,12 @@ class MainWindow(QMainWindow):
             tile.setText(text)
             tile.setToolTip(tip)
             icon_name = "seam" if mode == "scrl_seam" else mode
-            tile.setIcon(make_icon(icon_name, THEME["muted"], 30, on_color=THEME["accent"]))
-            tile.setIconSize(QSize(30, 30))
+            tile.setIcon(make_icon(icon_name, THEME["muted"], 22, on_color=THEME["text"]))
+            tile.setIconSize(QSize(22, 22))
             tile.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
             tile.setCheckable(True)
             tile.setCursor(Qt.CursorShape.PointingHandCursor)
-            tile.setFixedHeight(72)
+            tile.setFixedHeight(50)
             tile.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             tile.clicked.connect(lambda _checked=False, m=mode: self._on_layout_button(m))
             self.layout_group.addButton(tile)
@@ -1555,25 +1762,17 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.chk_per_frame)
 
         lay.addSpacing(4)
-        self.slider_gap = self._make_slider(lay, "Spaziatura", 0, 80, 16, " px")
+        self.slider_gap = self._make_slider(lay, "Spaziatura", 0, 80, 16, " px", resettable=True)
         self.slider_gap.valueChanged.connect(self._relayout_keep)
-        self.slider_margin = self._make_slider(lay, "Margine", 0, 120, 24, " px")
+        self.slider_margin = self._make_slider(lay, "Margine", 0, 120, 24, " px", resettable=True)
         self.slider_margin.valueChanged.connect(self._relayout_keep)
 
-        lay.addSpacing(4)
-        action_btns = QHBoxLayout()
-        action_btns.setSpacing(6)
-        action_btns.addWidget(self._button("Rimescola", self.shuffle_canvas_photos, "shuffle",
-                                           tooltip="Cambia a caso quale foto va in quale posizione"))
-        action_btns.addWidget(self._button("Scambia due", self.swap_two_selected_photos, "swap",
-                                           tooltip="Seleziona 2 foto (Ctrl+clic sulla seconda) e scambiale di posto"))
-        lay.addLayout(action_btns)
         return panel
 
     def _build_inspector(self) -> QWidget:
         panel = QWidget()
         outer = QVBoxLayout(panel)
-        outer.setContentsMargins(16, 16, 16, 16)
+        outer.setContentsMargins(12, 6, 12, 6)
         outer.setSpacing(0)
 
         self.insp_stack = QStackedWidget()
@@ -1603,12 +1802,12 @@ class MainWindow(QMainWindow):
         self.insp_controls = QWidget()
         lay = QVBoxLayout(self.insp_controls)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(10)
+        lay.setSpacing(6)
 
         head = QHBoxLayout()
         head.setSpacing(12)
         self.lbl_selection_thumb = QLabel()
-        self.lbl_selection_thumb.setFixedSize(52, 52)
+        self.lbl_selection_thumb.setFixedSize(40, 40)
         head.addWidget(self.lbl_selection_thumb)
         head_text = QVBoxLayout()
         head_text.setSpacing(2)
@@ -1620,9 +1819,7 @@ class MainWindow(QMainWindow):
         head.addLayout(head_text, 1)
         lay.addLayout(head)
 
-        lay.addSpacing(4)
         lay.addWidget(self._divider())
-        lay.addSpacing(4)
 
         # Ogni slider modifica SOLO la sua proprietà, su tutte le foto selezionate
         self._section_header(lay, "Inquadratura")
@@ -1632,21 +1829,24 @@ class MainWindow(QMainWindow):
         self.slider_pan_x.valueChanged.connect(lambda v: self._on_inspector_slider("pan_x", v))
         self.slider_pan_y = self._make_slider(lay, "Verticale", -100, 100, 0, signed=True)
         self.slider_pan_y.valueChanged.connect(lambda v: self._on_inspector_slider("pan_y", v))
-        lay.addWidget(self._button("Usa le proporzioni della foto", self._restore_selected_original_ratio, "ratio", "Ghost",
-                                   "Adatta il riquadro alle proporzioni originali dello scatto"))
+        self.slider_inner_rot = self._make_slider(lay, "Ruota contenuto", -180, 180, 0, "°", signed=True, resettable=True)
+        self.slider_inner_rot.setToolTip("Ruota la foto dentro il riquadro, senza ruotare il riquadro.\n"
+                                         "Lo zoom si adatta da solo per non lasciare angoli vuoti.")
+        self.slider_inner_rot.valueChanged.connect(lambda v: self._on_inspector_slider("inner_rotation", v))
+        frame_btns = QHBoxLayout()
+        frame_btns.setSpacing(6)
+        frame_btns.addWidget(self._icon_button("reset", "Reimposta zoom, posizione e rotazione del contenuto (Ctrl+R):\n"
+                                               "zoom al 100%, foto centrata e dritta nel riquadro",
+                                               self._reset_selected_framing, "Reimposta", "SoftButton"))
+        frame_btns.addWidget(self._icon_button("ratio", "Usa le proporzioni della foto:\n"
+                                               "adatta il riquadro alle proporzioni originali dello scatto",
+                                               self._restore_selected_original_ratio, "Proporzioni foto", "SoftButton"))
+        lay.addLayout(frame_btns)
 
-        lay.addSpacing(4)
         self._section_header(lay, "Rotazione")
         self.slider_rotation = self._make_slider(lay, "Angolo", -180, 180, 0, "°", signed=True)
         self.slider_rotation.valueChanged.connect(lambda v: self._on_inspector_slider("rotation", v))
-        rot_btns = QHBoxLayout()
-        rot_btns.setSpacing(6)
-        rot_btns.addWidget(self._icon_button("rot_left", "Ruota di 90° a sinistra", lambda: self._rotate_selected_by(-90), "90° sx", "SoftButton"))
-        rot_btns.addWidget(self._icon_button("level", "Raddrizza (0°)", lambda: self._set_selected_rotation(0), "Dritta", "SoftButton"))
-        rot_btns.addWidget(self._icon_button("rot_right", "Ruota di 90° a destra", lambda: self._rotate_selected_by(90), "90° dx", "SoftButton"))
-        lay.addLayout(rot_btns)
 
-        lay.addSpacing(4)
         self._section_header(lay, "Cornice")
         self.slider_radius = self._make_slider(lay, "Angoli arrotondati", 0, 200, 0, " px")
         self.slider_radius.valueChanged.connect(lambda v: self._on_inspector_slider("radius", v))
@@ -1661,22 +1861,6 @@ class MainWindow(QMainWindow):
                                           tooltip="Copia angoli, bordo e colore su tutte le foto della tela"))
         lay.addLayout(style_btns)
 
-        lay.addSpacing(4)
-        self._section_header(lay, "Livello")
-        z_btns = QHBoxLayout()
-        z_btns.setSpacing(6)
-        z_btns.addWidget(self._icon_button("front", "Porta sopra le altre foto", self._bring_to_front, "Davanti", "SoftButton"))
-        z_btns.addWidget(self._icon_button("back", "Manda sotto le altre foto", self._send_to_back, "Dietro", "SoftButton"))
-        lay.addLayout(z_btns)
-
-        lay.addSpacing(8)
-        lay.addWidget(self._divider())
-        lay.addSpacing(4)
-        foot = QHBoxLayout()
-        foot.setSpacing(6)
-        foot.addWidget(self._button("Duplica", self._duplicate_selected, "duplicate", tooltip="Ctrl+D"))
-        foot.addWidget(self._button("Elimina", self._delete_selected, "trash", "Danger", tooltip="Canc"))
-        lay.addLayout(foot)
         lay.addStretch()
 
         self.insp_stack.addWidget(self.insp_controls)
@@ -1701,15 +1885,22 @@ class MainWindow(QMainWindow):
         sb.addPermanentWidget(self._icon_button("fit", "Adatta la tela alla finestra (Ctrl+0)", self.fit_canvas_in_view, "Adatta"))
 
     def _make_slider(self, layout, title: str, lo: int, hi: int, value: int, suffix: str = "",
-                     signed: bool = False) -> QSlider:
-        """Riga con titolo e valore corrente (a destra), seguita dallo slider."""
+                     signed: bool = False, resettable: bool = False) -> QSlider:
+        """Riga con titolo e valore corrente (a destra), seguita dallo slider.
+        Con resettable=True compare un'icona che riporta lo slider al valore iniziale."""
         row = QHBoxLayout()
-        row.setContentsMargins(0, 2, 0, 0)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(4)
         row.addWidget(self._label(title))
         row.addStretch()
+        slider = QSlider(Qt.Orientation.Horizontal)
+        if resettable:
+            reset = self._icon_button("reset", f"Ripristina il valore iniziale ({value}{suffix})",
+                                      lambda: slider.setValue(value))
+            reset.setIconSize(QSize(14, 14))
+            row.addWidget(reset)
         chip = self._label("", "ValueChip")
         row.addWidget(chip)
-        slider = QSlider(Qt.Orientation.Horizontal)
         slider.setRange(lo, hi)
         slider.setValue(value)
         slider.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1722,8 +1913,12 @@ class MainWindow(QMainWindow):
 
         refresh(value)
         slider.valueChanged.connect(refresh)
-        layout.addLayout(row)
-        layout.addWidget(slider)
+        block = QVBoxLayout()
+        block.setContentsMargins(0, 0, 0, 0)
+        block.setSpacing(0)
+        block.addLayout(row)
+        block.addWidget(slider)
+        layout.addLayout(block)
         return slider
 
     def _build_actions(self):
@@ -1759,6 +1954,7 @@ class MainWindow(QMainWindow):
         self.act_redo = make("Ripeti", self.redo, [QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")], m_edit)
         m_edit.addSeparator()
         make("Duplica", self._duplicate_selected, QKeySequence("Ctrl+D"), m_edit)
+        make("Reimposta zoom e posizione", self._reset_selected_framing, QKeySequence("Ctrl+R"), m_edit)
         make("Seleziona tutte", self._select_all, QKeySequence.StandardKey.SelectAll, m_edit)
         m_edit.addSeparator()
         make("Rimescola ordine foto", self.shuffle_canvas_photos, None, m_edit)
@@ -1780,172 +1976,223 @@ class MainWindow(QMainWindow):
             QWidget {
                 color: @text;
                 font-family: '@font';
-                font-size: 13px;
+                font-size: 12px;
             }
             QMainWindow, #Root {
-                background-color: @backdrop;
+                background-color: @frame;
             }
             QToolTip {
-                background-color: @raised;
+                background-color: @panel;
                 color: @text;
-                border: 1px solid @line;
-                border-radius: 6px;
-                padding: 6px 8px;
+                border: 1px solid @edge;
+                border-radius: 2px;
+                padding: 4px 7px;
             }
 
             /* ---- Barra dei menu e menu ---- */
             QMenuBar {
-                background-color: @backdrop;
-                color: @muted;
-                padding: 2px 8px;
+                background-color: @frame;
+                color: @text;
+                border-bottom: 1px solid @line;
+                padding: 0 4px;
             }
             QMenuBar::item {
-                padding: 5px 10px;
-                border-radius: 6px;
+                padding: 5px 9px;
                 background: transparent;
             }
-            QMenuBar::item:selected {
-                background-color: @raised;
-                color: @text;
+            QMenuBar::item:selected, QMenuBar::item:pressed {
+                background-color: @hover;
+            }
+            #AppBadge {
+                background-color: @field;
+                border: 1px solid @line;
+                border-radius: 3px;
+                margin: 2px 4px 2px 6px;
             }
             QMenu {
                 background-color: @panel;
                 border: 1px solid @line;
-                border-radius: 10px;
-                padding: 6px;
+                padding: 4px 0;
             }
             QMenu::item {
-                padding: 7px 18px 7px 12px;
-                border-radius: 6px;
+                padding: 5px 28px 5px 14px;
+                background: transparent;
             }
             QMenu::item:selected {
-                background-color: @hover;
+                background-color: @accent;
+                color: @accent_ink;
             }
             QMenu::item:disabled {
                 color: @faint;
             }
             QMenu::separator {
                 height: 1px;
-                background: @line;
-                margin: 5px 6px;
+                background: @edge;
+                margin: 4px 0;
+            }
+            QMenu::icon {
+                padding-left: 6px;
             }
 
-            /* ---- Pannelli ---- */
+            /* ---- Barra opzioni, colonna strumenti, pannelli ---- */
+            #OptionsBar {
+                background-color: @frame;
+                border-bottom: 1px solid @line;
+            }
+            #ToolStrip {
+                background-color: @frame;
+                border-right: 1px solid @line;
+            }
+            #ToolSep {
+                background-color: @edge;
+                margin: 0 6px;
+            }
+            #Dock {
+                background-color: @panel;
+            }
+            #DockHeader, #DocTabBar {
+                background-color: @header;
+                border-bottom: 1px solid @line;
+            }
+            #DockTab {
+                background-color: @panel;
+                color: @text;
+                font-weight: 600;
+                font-size: 11px;
+                padding: 0 14px;
+                border-right: 1px solid @line;
+            }
+            #DocArea {
+                background-color: @backdrop;
+            }
+            #DocTab {
+                background-color: @panel;
+                color: @text;
+                font-size: 11px;
+                padding: 0 16px;
+                border-right: 1px solid @line;
+            }
             #PanelScroll, #PanelScroll > QWidget {
                 background: transparent;
             }
             QWidget#Panel {
                 background-color: @panel;
-                border-radius: 14px;
             }
             QSplitter::handle {
-                background: transparent;
+                background: @line;
             }
             #Divider {
                 background-color: @line;
             }
             #VSep {
-                background-color: @line;
+                background-color: @edge;
             }
 
             /* ---- Testi ---- */
             #Brand {
                 font-family: '@display';
-                font-size: 17px;
+                font-size: 14px;
                 font-weight: 600;
-                color: @text;
             }
             #SectionTitle {
-                font-family: '@display';
-                font-size: 15px;
-                font-weight: 600;
+                font-size: 11px;
+                font-weight: 700;
                 color: @text;
+                padding-top: 2px;
             }
             #FieldLabel {
                 color: @muted;
+                font-size: 11px;
             }
             #Hint {
                 color: @muted;
-                font-size: 12px;
+                font-size: 11px;
             }
             #EmptyTitle {
-                font-family: '@display';
-                font-size: 15px;
+                font-size: 13px;
                 font-weight: 600;
             }
             #SelName {
                 font-weight: 600;
-                font-size: 14px;
+                font-size: 12px;
             }
             #ValueChip {
                 color: @text;
-                background-color: @raised;
-                border-radius: 6px;
-                padding: 1px 7px;
-                font-size: 12px;
+                background-color: @field;
+                border: 1px solid @line;
+                border-radius: 2px;
+                padding: 1px 6px;
+                min-width: 34px;
+                font-size: 11px;
+                qproperty-alignment: AlignCenter;
             }
             #StatusText {
                 color: @muted;
-                font-size: 12px;
+                font-size: 11px;
                 padding: 0 6px;
             }
             QStatusBar {
-                background-color: @backdrop;
-                padding: 2px 10px 4px 10px;
+                background-color: @frame;
+                border-top: 1px solid @line;
+                padding: 0 6px;
+                min-height: 24px;
             }
             QStatusBar::item {
                 border: none;
             }
 
-            /* ---- Pulsanti ---- */
+            /* ---- Pulsanti (pillole con contorno; azione primaria blu piena) ---- */
             QPushButton {
-                background-color: @raised;
-                border: none;
-                border-radius: 9px;
-                padding: 8px 12px;
-                font-weight: 500;
+                background-color: transparent;
+                border: 1px solid #707070;
+                border-radius: 12px;
+                padding: 4px 12px;
+                min-height: 16px;
+                font-weight: 600;
             }
             QPushButton:hover {
                 background-color: @hover;
+                border-color: #9A9A9A;
             }
             QPushButton:pressed {
-                background-color: @line;
+                background-color: @field;
             }
             QPushButton:disabled {
                 color: @faint;
+                border-color: @hover;
             }
             QPushButton:focus {
                 outline: none;
             }
             QPushButton#Primary {
                 background-color: @accent;
+                border: 1px solid @accent;
                 color: @accent_ink;
-                font-weight: 600;
-                padding: 8px 18px;
+                padding: 4px 16px;
             }
             QPushButton#Primary:hover {
                 background-color: @accent_hover;
+                border-color: @accent_hover;
             }
             QPushButton#Primary::menu-indicator {
                 image: none;
                 width: 0;
             }
             QPushButton#Ghost {
-                background-color: transparent;
-                border: 1px solid @line;
+                border-color: @edge;
                 color: @muted;
+                font-weight: 500;
             }
             QPushButton#Ghost:hover {
-                background-color: @raised;
                 color: @text;
+                border-color: #8A8A8A;
             }
             QPushButton#Danger {
-                background-color: transparent;
-                border: 1px solid @line;
+                border-color: @edge;
                 color: @danger;
             }
             QPushButton#Danger:hover {
-                background-color: rgba(240, 100, 111, 0.14);
+                background-color: rgba(227, 72, 80, 0.14);
                 border-color: @danger;
             }
             QToolButton {
@@ -1953,48 +2200,92 @@ class MainWindow(QMainWindow):
                 background: transparent;
             }
             QToolButton#IconButton {
-                border-radius: 7px;
-                padding: 4px 6px;
+                border: 1px solid transparent;
+                border-radius: 2px;
+                padding: 2px 5px;
                 color: @text;
             }
             QToolButton#IconButton:hover {
-                background-color: @raised;
+                background-color: @hover;
+            }
+            QToolButton#IconButton:pressed {
+                background-color: @field;
+            }
+            QToolButton#ToolButton {
+                border: 1px solid transparent;
+                border-radius: 3px;
+                color: @text;
+                font-size: 11px;
+                padding: 3px 0 2px 0;
+            }
+            QToolButton#ToolButton:disabled {
+                color: @faint;
+            }
+            QToolButton#ToolButton[danger="true"] {
+                color: @danger;
+            }
+            QToolButton#ToolButton[danger="true"]:disabled {
+                color: @faint;
+            }
+            #ToolCaption {
+                color: @faint;
+                font-size: 10px;
+                font-weight: 600;
+                padding: 2px 0 1px 0;
+            }
+            QToolButton#ToolButton:hover {
+                background-color: @hover;
+            }
+            QToolButton#ToolButton:pressed {
+                background-color: @field;
+                border-color: @line;
+            }
+            QToolButton#ColorChip {
+                border: none;
+                padding: 0;
             }
             QToolButton#ToggleButton {
-                border-radius: 8px;
-                padding: 5px 10px;
+                border: 1px solid transparent;
+                border-radius: 2px;
+                padding: 2px 8px;
                 color: @muted;
             }
             QToolButton#ToggleButton:hover {
-                background-color: @raised;
+                background-color: @hover;
             }
             QToolButton#ToggleButton:checked {
                 color: @text;
-                background-color: rgba(244, 182, 63, 0.13);
+                background-color: @field;
+                border-color: @line;
             }
             QToolButton#SoftButton {
                 background-color: @raised;
-                border-radius: 9px;
-                padding: 7px 8px;
+                border: 1px solid @line;
+                border-radius: 2px;
+                padding: 4px 6px;
                 color: @text;
+                font-size: 11px;
             }
             QToolButton#SoftButton:hover {
                 background-color: @hover;
             }
+            QToolButton#SoftButton:pressed {
+                background-color: @field;
+            }
             QToolButton#LayoutTile {
-                background-color: @raised;
-                border: 1.5px solid transparent;
-                border-radius: 12px;
-                padding: 6px 2px 4px 2px;
+                background-color: @field;
+                border: 1px solid @line;
+                border-radius: 2px;
+                padding: 4px 2px 3px 2px;
                 color: @muted;
-                font-size: 12px;
+                font-size: 11px;
             }
             QToolButton#LayoutTile:hover {
-                background-color: @hover;
+                border-color: @edge;
                 color: @text;
             }
             QToolButton#LayoutTile:checked {
-                background-color: rgba(244, 182, 63, 0.12);
+                background-color: rgba(38, 128, 235, 0.22);
                 border-color: @accent;
                 color: @text;
                 font-weight: 600;
@@ -2002,92 +2293,105 @@ class MainWindow(QMainWindow):
 
             /* ---- Campi ---- */
             QComboBox, QSpinBox {
-                background-color: @raised;
-                border: 1px solid transparent;
-                border-radius: 9px;
-                padding: 6px 10px;
+                background-color: @field;
+                border: 1px solid @line;
+                border-radius: 2px;
+                padding: 3px 8px;
                 min-height: 18px;
+                selection-background-color: @accent;
             }
             QComboBox:hover, QSpinBox:hover {
-                background-color: @hover;
+                border-color: @edge;
             }
             QComboBox:focus, QSpinBox:focus {
                 border-color: @accent;
             }
             QComboBox::drop-down {
                 border: none;
-                width: 22px;
+                width: 18px;
+            }
+            QComboBox::down-arrow {
+                image: url(@arrow);
+                width: 9px;
+                height: 9px;
+                margin-right: 4px;
             }
             QComboBox QAbstractItemView {
                 background-color: @panel;
                 border: 1px solid @line;
-                border-radius: 8px;
-                padding: 4px;
+                padding: 2px 0;
                 outline: none;
-                selection-background-color: @hover;
-                selection-color: @text;
+                selection-background-color: @accent;
+                selection-color: @accent_ink;
             }
 
             /* ---- Libreria a miniature ---- */
             QListWidget {
-                background-color: transparent;
-                border: none;
+                background-color: @field;
+                border: 1px solid @line;
+                border-radius: 0;
                 outline: none;
             }
             QListWidget::item {
-                border-radius: 10px;
-                padding: 2px;
+                border: 1px solid transparent;
+                padding: 1px;
             }
             QListWidget::item:hover {
-                background-color: @raised;
+                background-color: @hover;
             }
             QListWidget::item:selected {
-                background-color: rgba(244, 182, 63, 0.22);
+                background-color: rgba(38, 128, 235, 0.30);
+                border-color: @accent;
             }
 
             /* ---- Slider ---- */
             QSlider {
-                min-height: 22px;
+                min-height: 18px;
             }
             QSlider::groove:horizontal {
-                height: 4px;
-                background: @hover;
-                border-radius: 2px;
+                height: 2px;
+                background: #5C5C5C;
+                border-radius: 1px;
             }
             QSlider::sub-page:horizontal {
-                background: @accent;
-                border-radius: 2px;
+                background: #B4B4B4;
+                border-radius: 1px;
             }
             QSlider::handle:horizontal {
-                background: #FFFFFF;
-                width: 14px;
-                height: 14px;
-                margin: -5px 0;
+                background: @panel;
+                border: 2px solid #B4B4B4;
+                width: 10px;
+                height: 10px;
+                margin: -6px 0;
                 border-radius: 7px;
             }
             QSlider::handle:horizontal:hover {
-                background: @accent_hover;
+                border-color: #FFFFFF;
+            }
+            QSlider::handle:horizontal:pressed {
+                border-color: @accent;
             }
             QSlider::sub-page:horizontal:disabled {
                 background: @faint;
             }
             QSlider#Signed::sub-page:horizontal {
-                background: @hover;
+                background: #5C5C5C;
             }
 
-            /* ---- Barre di scorrimento sottili ---- */
+            /* ---- Barre di scorrimento ---- */
             QScrollBar:vertical {
-                background: transparent;
-                width: 8px;
-                margin: 4px 2px;
+                background: @panel;
+                width: 10px;
+                margin: 0;
             }
             QScrollBar::handle:vertical {
                 background: @hover;
                 border-radius: 3px;
                 min-height: 30px;
+                margin: 2px;
             }
             QScrollBar::handle:vertical:hover {
-                background: @faint;
+                background: #6A6A6A;
             }
             QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page {
                 background: none;
@@ -2099,19 +2403,31 @@ class MainWindow(QMainWindow):
                 background-color: @panel;
             }
             QProgressBar {
-                background-color: @raised;
-                border: none;
-                border-radius: 4px;
-                height: 8px;
+                background-color: @field;
+                border: 1px solid @line;
+                border-radius: 2px;
+                height: 6px;
                 text-align: center;
                 color: transparent;
             }
             QProgressBar::chunk {
                 background-color: @accent;
-                border-radius: 4px;
+                border-radius: 1px;
             }
         """
-        tokens = dict(THEME, font=font_family("text"), display=font_family("display"))
+        # Freccina delle tendine: disegnata al volo e salvata come immagine temporanea per il QSS
+        arrow_path = os.path.join(tempfile.gettempdir(), "scrl_studio_arrow.png")
+        arrow = QPixmap(18, 18)
+        arrow.fill(Qt.GlobalColor.transparent)
+        ap = QPainter(arrow)
+        ap.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        ap.setPen(Qt.PenStyle.NoPen)
+        ap.setBrush(QColor(THEME["muted"]))
+        ap.drawPolygon(QPolygonF([QPointF(2, 5), QPointF(16, 5), QPointF(9, 13)]))
+        ap.end()
+        arrow.save(arrow_path, "PNG")
+        tokens = dict(THEME, font=font_family("text"), display=font_family("display"),
+                      arrow=arrow_path.replace("\\", "/"))
         for key in sorted(tokens, key=len, reverse=True):
             qss = qss.replace("@" + key, tokens[key])
         self.setStyleSheet(qss)
@@ -2140,6 +2456,7 @@ class MainWindow(QMainWindow):
         self._schedule_commit()
 
     def _on_frames_changed(self, value: int):
+        self._seam_added_frames = None  # Scelta manuale dell'utente: da ora vale la sua
         self.scene.num_frames = value
         self.scene.update_canvas_rect()
         self._relayout_keep()
@@ -2150,7 +2467,7 @@ class MainWindow(QMainWindow):
         col = QColorDialog.getColor(self.scene.bg_color, self, "Colore di sfondo della tela")
         if col.isValid():
             self.scene.bg_color = col
-            self.btn_bg_color.setIcon(swatch_icon(col))
+            self._refresh_bg_swatches()
             self.scene.update()
             self._schedule_commit()
 
@@ -2168,6 +2485,7 @@ class MainWindow(QMainWindow):
 
     def _on_zoom_changed(self, scale: float):
         self.lbl_zoom.setText(f"{round(scale * 100)}%")
+        self._update_doc_tab()
         for p in self.get_canvas_photos():
             p.view_scale_changed()
 
@@ -2245,6 +2563,7 @@ class MainWindow(QMainWindow):
         self.btn_add_all.setEnabled(n > 0)
 
     def _update_canvas_count(self):
+        self._update_tool_states()
         n = len(self.get_canvas_photos())
         self.lbl_count.setText("Tela vuota" if n == 0 else ("1 foto sulla tela" if n == 1 else f"{n} foto sulla tela"))
         self.btn_clear_canvas.setEnabled(n > 0)
@@ -2370,14 +2689,22 @@ class MainWindow(QMainWindow):
 
         if mode == "scrl_seam":
             if self.scene.num_frames < 2:
-                # Cambia il numero di frame senza far scattare un secondo relayout
+                # "A cavallo" richiede almeno 2 pagine: le aggiunge e ricorda quante ce n'erano prima
                 frames = max(2, math.ceil(len(photos) / 2))
-                self.spin_frames.blockSignals(True)
-                self.spin_frames.setValue(frames)
-                self.spin_frames.blockSignals(False)
-                self.scene.num_frames = frames
-                self.scene.update_canvas_rect()
-                self.fit_canvas_in_view()
+                self._seam_added_frames = (self.scene.num_frames, frames)
+                self._set_frames_silently(frames)
+                self.statusBar().showMessage(
+                    f"«A cavallo» ha bisogno di più pagine: ne ho impostate {frames}. "
+                    "Scegliendo un'altra disposizione torni al formato di prima.", 8000)
+        elif self._seam_added_frames is not None:
+            # Si lascia "A cavallo": ripristina il numero di pagine originale, se non è stato cambiato a mano
+            before, added = self._seam_added_frames
+            self._seam_added_frames = None
+            if self.scene.num_frames == added:
+                self._set_frames_silently(before)
+                self.statusBar().showMessage(f"Formato ripristinato: {before} pagina" if before == 1
+                                             else f"Formato ripristinato: {before} pagine", 5000)
+        if mode == "scrl_seam":
             canvas = self.scene.canvas_rect().adjusted(margin, margin, -margin, -margin)
             self._layout_seam(photos, self._safe_rect(canvas), rng)
         else:
@@ -2400,6 +2727,15 @@ class MainWindow(QMainWindow):
 
         self.scene.update()
         self._sync_inspector_from_item(self._get_primary_selected())
+
+    def _set_frames_silently(self, frames: int):
+        """Cambia il numero di pagine senza far scattare un secondo relayout."""
+        self.spin_frames.blockSignals(True)
+        self.spin_frames.setValue(frames)
+        self.spin_frames.blockSignals(False)
+        self.scene.num_frames = frames
+        self.scene.update_canvas_rect()
+        self.fit_canvas_in_view()
 
     @staticmethod
     def _safe_rect(r: QRectF) -> QRectF:
@@ -2560,7 +2896,7 @@ class MainWindow(QMainWindow):
             self.lbl_hint.setText("Clicca una foto per selezionarla.   Rotella: zoom della vista.   "
                                   "Tasto centrale + trascina: sposta la vista.")
         else:
-            self.lbl_selection_thumb.setPixmap(rounded_thumb(item.pixmap, 52, 9))
+            self.lbl_selection_thumb.setPixmap(rounded_thumb(item.pixmap, 40, 2))
             if count > 1:
                 self.lbl_selection_name.setText(f"{count} foto selezionate")
                 self.lbl_selection_info.setText("Le modifiche valgono per tutte")
@@ -2574,6 +2910,7 @@ class MainWindow(QMainWindow):
             self.slider_inner_zoom.setValue(round(item.inner_zoom * 100))
             self.slider_pan_x.setValue(round(item.pan_x * 100))
             self.slider_pan_y.setValue(round(item.pan_y * 100))
+            self.slider_inner_rot.setValue(round(item.inner_rotation))
             self.slider_rotation.setValue(round(item.rotation()))
             self.slider_radius.setValue(round(item.border_radius))
             self.slider_border.setValue(round(item.border_width))
@@ -2590,6 +2927,8 @@ class MainWindow(QMainWindow):
                 item.pan_x = value / 100.0
             elif prop == "pan_y":
                 item.pan_y = value / 100.0
+            elif prop == "inner_rotation":
+                item.inner_rotation = float(value)
             elif prop == "rotation":
                 item.setRotation(float(value))
             elif prop == "radius":
@@ -2598,6 +2937,20 @@ class MainWindow(QMainWindow):
                 item.border_width = float(value)
                 item.auto_border = False
             item.update()
+        self._schedule_commit()
+
+    def _reset_selected_framing(self):
+        """Annulla zoom interno e spostamento X/Y delle foto selezionate (riquadro e rotazione restano)."""
+        selected = self._selected_photos()
+        if not selected:
+            return
+        for item in selected:
+            item.inner_zoom = 1.0
+            item.pan_x = 0.0
+            item.pan_y = 0.0
+            item.inner_rotation = 0.0
+            item.update()
+        self._sync_inspector_from_item(self._get_primary_selected())
         self._schedule_commit()
 
     def _rotate_selected_by(self, delta_deg: float):
@@ -2711,6 +3064,7 @@ class MainWindow(QMainWindow):
             ("back", "Manda dietro", self._send_to_back, has_sel),
             None,
             ("swap", "Scambia le 2 foto selezionate", self.swap_two_selected_photos, n_sel == 2),
+            ("reset", "Reimposta zoom e posizione", self._reset_selected_framing, has_sel),
             ("ratio", "Usa le proporzioni della foto", self._restore_selected_original_ratio, has_sel),
             ("duplicate", "Duplica", self._duplicate_selected, has_sel),
             None,
@@ -2748,6 +3102,7 @@ class MainWindow(QMainWindow):
 
     def _restore_snapshot(self, snap: dict):
         self._restoring = True
+        self._seam_added_frames = None
         try:
             c = snap["canvas"]
             widgets = (self.combo_ratio, self.spin_custom_w, self.spin_custom_h,
@@ -2771,7 +3126,7 @@ class MainWindow(QMainWindow):
             self.scene.frame_w, self.scene.frame_h = c["frame_w"], c["frame_h"]
             self.scene.num_frames = c["num_frames"]
             self.scene.bg_color = QColor(c["bg_color"])
-            self.btn_bg_color.setIcon(swatch_icon(self.scene.bg_color))
+            self._refresh_bg_swatches()
             self.scene.update_canvas_rect()
             self.current_layout_mode = c["layout_mode"]
             self._layout_seed = c["layout_seed"]
@@ -2857,6 +3212,7 @@ class MainWindow(QMainWindow):
         name = os.path.basename(self.project_path) if self.project_path else "Senza titolo"
         star = " •" if self._is_dirty() else ""
         self.setWindowTitle(f"{name}{star} — SCRL Studio")
+        self._update_doc_tab()
 
     # ================= PROGETTO (SALVA / APRI) =================
     def save_project(self) -> bool:
@@ -3105,7 +3461,7 @@ def apply_app_style(app: QApplication):
     roles = {
         QPalette.ColorRole.Window: THEME["panel"],
         QPalette.ColorRole.WindowText: THEME["text"],
-        QPalette.ColorRole.Base: THEME["raised"],
+        QPalette.ColorRole.Base: THEME["field"],
         QPalette.ColorRole.AlternateBase: THEME["panel"],
         QPalette.ColorRole.Text: THEME["text"],
         QPalette.ColorRole.Button: THEME["raised"],
@@ -3122,12 +3478,12 @@ def apply_app_style(app: QApplication):
     pal.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(THEME["faint"]))
     pal.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(THEME["faint"]))
     app.setPalette(pal)
-    app.setFont(ui_font(13))
+    app.setFont(ui_font(12))
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     apply_app_style(app)
     window = MainWindow()
-    window.show()
+    window.showMaximized()
     sys.exit(app.exec())
