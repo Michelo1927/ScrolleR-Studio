@@ -9,11 +9,12 @@ from collections import OrderedDict
 from typing import Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import (
-    Qt, QRectF, QPointF, pyqtSignal, QSize, QTimer, QKeyCombination
+    Qt, QRectF, QPointF, pyqtSignal, QSize, QTimer, QKeyCombination, QSettings, QStandardPaths
 )
 from PyQt6.QtGui import (
     QPixmap, QImage, QPainter, QPen, QColor, QBrush, QFont, QFontDatabase,
-    QPainterPath, QAction, QIcon, QCursor, QTransform, QKeySequence, QPolygonF, QPalette
+    QPainterPath, QAction, QIcon, QCursor, QTransform, QKeySequence, QPolygonF, QPalette,
+    QLinearGradient, QFontMetricsF
 )
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -22,9 +23,10 @@ from PyQt6.QtWidgets import (
     QGraphicsScene, QGraphicsObject, QGraphicsItem, QFrame,
     QCheckBox, QMessageBox, QMenu, QSplitter, QGridLayout, QProgressDialog,
     QToolButton, QButtonGroup, QScrollArea, QStackedWidget, QAbstractSpinBox,
-    QListView, QSizePolicy, QStyledItemDelegate, QStyle
+    QListView, QSizePolicy, QStyledItemDelegate, QStyle, QDialog, QPlainTextEdit, QFontComboBox,
+    QRadioButton
 )
-from PIL import Image, ImageOps, ImageCms
+from PIL import Image, ImageOps, ImageCms, ImageEnhance, ImageFilter
 
 # Supporto HEIC/HEIF (foto iPhone) opzionale: pip install pillow-heif
 try:
@@ -255,6 +257,48 @@ def _icon_pixmap(name: str, color: str, size: int) -> QPixmap:
         rr(4, 6, 16, 12, 1.8)
         poly((7, 11), (7, 9), (9, 9))
         poly((17, 13), (17, 15), (15, 15))
+    elif name == "text":
+        line(6, 6, 18, 6)
+        line(12, 6, 12, 19)
+        line(9.5, 19, 14.5, 19)
+        line(6, 6, 6, 8.5)
+        line(18, 6, 18, 8.5)
+    elif name in ("flip_h", "flip_v"):
+        if name == "flip_v":
+            p.translate(12, 12)
+            p.rotate(90)
+            p.translate(-12, -12)
+        dash = QPen(pen)
+        dash.setDashPattern([2, 2])
+        p.setPen(dash)
+        line(12, 3, 12, 21)
+        p.setPen(pen)
+        p.setBrush(tint)
+        p.drawPolygon(QPolygonF([QPointF(9.5, 6.5), QPointF(9.5, 17.5), QPointF(3, 17.5)]))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawPolygon(QPolygonF([QPointF(14.5, 6.5), QPointF(14.5, 17.5), QPointF(21, 17.5)]))
+    elif name == "lock":
+        rr(5.5, 11, 13, 9.5, 1.8, brush=tint)
+        p.drawArc(QRectF(8.2, 4.5, 7.6, 11), 0, 180 * 16)
+        line(8.2, 10, 8.2, 11)
+        line(15.8, 10, 15.8, 11)
+    elif name == "phone":
+        rr(7, 3, 10, 18, 2.2)
+        line(10.5, 18, 13.5, 18)
+    elif name == "chevron_left":
+        poly((14.5, 6), (8.5, 12), (14.5, 18))
+    elif name == "chevron_right":
+        poly((9.5, 6), (15.5, 12), (9.5, 18))
+    elif name == "fit_cover":
+        rr(4, 4, 16, 16, 1.4, brush=tint)
+        poly((4, 15), (9, 10), (13, 14), (16, 12), (20, 16))
+    elif name == "fit_contain":
+        rr(4, 4, 16, 16, 1.4)
+        rr(4, 8, 16, 8, 0.6, brush=tint)
+    elif name == "page":
+        rr(5.5, 3.5, 13, 17, 1.6)
+        line(9, 9, 15, 9)
+        line(9, 12.5, 15, 12.5)
     elif name.startswith("mosaic_"):
         for x, y, w, h, filled in MOSAIC_ICON_CELLS.get(name[len("mosaic_"):], ()):
             rr(x, y, w, h, 1.2, brush=tint if filled else None)
@@ -384,6 +428,65 @@ def pil_to_qimage(pil_img: Image.Image) -> QImage:
     return qimg.copy()
 
 
+def qimage_to_pil(img: QImage) -> Image.Image:
+    img = img.convertToFormat(QImage.Format.Format_RGBA8888)
+    ptr = img.constBits()
+    ptr.setsize(img.sizeInBytes())
+    return Image.frombuffer("RGBA", (img.width(), img.height()), bytes(ptr), "raw", "RGBA", img.bytesPerLine(), 1)
+
+
+# Regolazioni colore di una foto (0 = nessuna modifica)
+NEUTRAL_ADJUST = {"brightness": 0, "contrast": 0, "saturation": 0, "warmth": 0, "bw": False}
+
+
+def adjustments_active(adj: dict) -> bool:
+    return any(adj.get(k) for k in NEUTRAL_ADJUST)
+
+
+def apply_adjustments(img: Image.Image, adj: dict) -> Image.Image:
+    """Applica luminosità, contrasto, saturazione, calore e bianco e nero (valori da -100 a +100)."""
+    if not adjustments_active(adj):
+        return img
+    alpha = img.getchannel("A") if img.mode == "RGBA" else None
+    rgb = img.convert("RGB")
+    if adj.get("brightness"):
+        rgb = ImageEnhance.Brightness(rgb).enhance(1.0 + adj["brightness"] / 100.0)
+    if adj.get("contrast"):
+        rgb = ImageEnhance.Contrast(rgb).enhance(1.0 + adj["contrast"] / 100.0)
+    if adj.get("bw"):
+        rgb = ImageOps.grayscale(rgb).convert("RGB")
+    elif adj.get("saturation"):
+        rgb = ImageEnhance.Color(rgb).enhance(1.0 + adj["saturation"] / 100.0)
+    if adj.get("warmth"):
+        # Caldo = più rosso e meno blu; freddo il contrario (su una foto in bianco e nero dà un viraggio)
+        k = adj["warmth"] / 100.0 * 0.18
+        r, g, b = rgb.split()
+        r = r.point(lambda v: max(0, min(255, int(v * (1.0 + k)))))
+        b = b.point(lambda v: max(0, min(255, int(v * (1.0 - k)))))
+        rgb = Image.merge("RGB", (r, g, b))
+    if alpha is not None:
+        rgb.putalpha(alpha)
+    return rgb
+
+
+_LOCK_BADGE: Dict[str, QPixmap] = {}
+
+
+def draw_lock_badge(painter: QPainter, view_scale: float):
+    """Piccolo lucchetto nell'angolo in alto a sinistra di un elemento bloccato (dimensione fissa a schermo)."""
+    if "pm" not in _LOCK_BADGE:
+        _LOCK_BADGE["pm"] = _icon_pixmap("lock", "#FFFFFF", 16)
+    vs = max(0.01, view_scale)
+    box = QRectF(6.0 / vs, 6.0 / vs, 22.0 / vs, 22.0 / vs)
+    painter.save()
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor(0, 0, 0, 170))
+    painter.drawRoundedRect(box, 3.0 / vs, 3.0 / vs)
+    pm = _LOCK_BADGE["pm"]
+    painter.drawPixmap(box.adjusted(3.0 / vs, 3.0 / vs, -3.0 / vs, -3.0 / vs), pm, QRectF(pm.rect()))
+    painter.restore()
+
+
 class ImageCache:
     """
     Tiene in memoria una sola anteprima ridotta per ogni file (condivisa da tutte le copie
@@ -489,6 +592,16 @@ class PhotoItem(QGraphicsObject):
         self.border_color = QColor("#FFFFFF")
         self.auto_border = False    # Bordo aggiunto automaticamente dal layout Polaroid
 
+        # Colore, specchio, riempimento, opacità, ombra, blocco
+        self.adjust = dict(NEUTRAL_ADJUST)
+        self.flip_h = False
+        self.flip_v = False
+        self.fit_mode = "cover"     # "cover" = riempie il riquadro, "contain" = foto intera senza tagli
+        self.photo_opacity = 100
+        self.shadow = 0             # Intensità dell'ombra 0..100
+        self.locked = False
+        self._adjusted_cache: Optional[Tuple[tuple, QPixmap]] = None
+
         # Stato interazione maniglie
         self._resizing_handle: Optional[str] = None
         self._resize_anchor_scene = QPointF()
@@ -511,6 +624,31 @@ class PhotoItem(QGraphicsObject):
     def pixmap(self) -> QPixmap:
         return IMAGE_CACHE.preview(self.image_path)
 
+    def display_pixmap(self) -> QPixmap:
+        """Anteprima con le regolazioni colore applicate (ricalcolata solo quando cambiano)."""
+        pm = self.pixmap
+        if pm.isNull() or not adjustments_active(self.adjust):
+            return pm
+        key = (pm.cacheKey(), tuple(sorted(self.adjust.items())))
+        if self._adjusted_cache is None or self._adjusted_cache[0] != key:
+            out = apply_adjustments(qimage_to_pil(pm.toImage()), self.adjust)
+            self._adjusted_cache = (key, QPixmap.fromImage(pil_to_qimage(out)))
+        return self._adjusted_cache[1]
+
+    def set_locked(self, locked: bool):
+        self.locked = bool(locked)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not self.locked)
+        self.update()
+
+    def set_photo_opacity(self, value: int):
+        self.photo_opacity = int(value)
+        self.setOpacity(self.photo_opacity / 100.0)
+
+    def set_shadow(self, value: int):
+        self.prepareGeometryChange()
+        self.shadow = int(value)
+        self.update()
+
     # ---------- Stato (per Annulla/Ripeti e salvataggio progetto) ----------
     def get_state(self) -> dict:
         return {
@@ -531,6 +669,13 @@ class PhotoItem(QGraphicsObject):
             "border_width": self.border_width,
             "border_color": self.border_color.name(QColor.NameFormat.HexArgb),
             "auto_border": self.auto_border,
+            "adjust": dict(self.adjust),
+            "flip_h": self.flip_h,
+            "flip_v": self.flip_v,
+            "fit_mode": self.fit_mode,
+            "opacity": self.photo_opacity,
+            "shadow": self.shadow,
+            "locked": self.locked,
         }
 
     def set_state(self, s: dict):
@@ -547,6 +692,13 @@ class PhotoItem(QGraphicsObject):
         self.border_width = s["border_width"]
         self.border_color = QColor(s["border_color"])
         self.auto_border = s.get("auto_border", False)
+        self.adjust = dict(NEUTRAL_ADJUST, **s.get("adjust", {}))
+        self.flip_h = s.get("flip_h", False)
+        self.flip_v = s.get("flip_v", False)
+        self.fit_mode = s.get("fit_mode", "cover")
+        self.set_photo_opacity(s.get("opacity", 100))
+        self.set_shadow(s.get("shadow", 0))
+        self.set_locked(s.get("locked", False))
         self.update()
 
     # ---------- Geometria ----------
@@ -612,6 +764,7 @@ class PhotoItem(QGraphicsObject):
         t = QTransform()
         t.translate(self.cell_w / 2.0, self.cell_h / 2.0)
         t.rotate(self.inner_rotation)
+        t.scale(-1.0 if self.flip_h else 1.0, -1.0 if self.flip_v else 1.0)
         return t
 
     def _cover_geometry(self, img_w: float, img_h: float) -> Tuple[float, float, float, float, float]:
@@ -621,7 +774,14 @@ class PhotoItem(QGraphicsObject):
         copre sempre l'intera cella, così non compaiono mai angoli vuoti.
         """
         need_w, need_h = self._rotated_cell_extent()
-        scale_cover = max(need_w / img_w, need_h / img_h) * self.inner_zoom
+        if self.fit_mode == "contain":
+            # Foto intera: l'immagine (ruotata) entra tutta nel riquadro
+            th = math.radians(self.inner_rotation)
+            c, s = abs(math.cos(th)), abs(math.sin(th))
+            box_w, box_h = img_w * c + img_h * s, img_w * s + img_h * c
+            scale_cover = min(self.cell_w / box_w, self.cell_h / box_h) * self.inner_zoom
+        else:
+            scale_cover = max(need_w / img_w, need_h / img_h) * self.inner_zoom
         draw_w = img_w * scale_cover
         draw_h = img_h * scale_cover
         max_dx = max(0.0, (draw_w - need_w) / 2.0)
@@ -639,7 +799,7 @@ class PhotoItem(QGraphicsObject):
         return max(0.0, (draw_w - need_w) / 2.0), max(0.0, (draw_h - need_h) / 2.0)
 
     def boundingRect(self) -> QRectF:
-        margin = self._handle_size() + 4.0 / self._view_scale()
+        margin = max(self._handle_size() + 4.0 / self._view_scale(), self._shadow_extent() * 1.4)
         return QRectF(-margin, -margin, self.cell_w + margin * 2, self.cell_h + margin * 2)
 
     def shape(self) -> QPainterPath:
@@ -663,7 +823,7 @@ class PhotoItem(QGraphicsObject):
         }
 
     def _handle_at(self, pos: QPointF) -> Optional[str]:
-        if not self.isSelected():
+        if not self.isSelected() or self.locked:
             return None
         grow = self._handle_size() * 0.4
         for name, rect in self._get_handle_rects().items():
@@ -672,6 +832,23 @@ class PhotoItem(QGraphicsObject):
         return None
 
     # ---------- Disegno ----------
+    def _shadow_extent(self) -> float:
+        return 0.0 if self.shadow <= 0 else min(self.cell_w, self.cell_h) * 0.05 + 8.0
+
+    def _paint_shadow(self, painter: QPainter, radius: float):
+        """Ombra morbida sotto la foto: rettangoli arrotondati sempre più piccoli e trasparenti."""
+        ext = self._shadow_extent()
+        steps = 12
+        alpha = max(1, min(255, round(255 * (self.shadow / 100.0) * 0.075)))
+        off = ext * 0.35
+        painter.save()
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(0, 0, 0, alpha))
+        for i in range(steps):
+            g = ext * (1.0 - i / steps) * 0.6
+            painter.drawRoundedRect(QRectF(-g, -g + off, self.cell_w + 2 * g, self.cell_h + 2 * g), radius + g, radius + g)
+        painter.restore()
+
     def paint(self, painter: QPainter, option, widget=None):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
@@ -679,18 +856,22 @@ class PhotoItem(QGraphicsObject):
         cell_rect = QRectF(0, 0, self.cell_w, self.cell_h)
         scene = self.scene()
         is_exporting = getattr(scene, "is_exporting", False) if scene else False
+        clean = is_exporting or (getattr(scene, "clean_render", False) if scene else False)
 
         # Creazione percorso con angoli arrotondati
         path = QPainterPath()
         radius = min(self.border_radius, self.cell_w / 2.0, self.cell_h / 2.0)
         path.addRoundedRect(cell_rect, radius, radius)
 
+        if self.shadow > 0:
+            self._paint_shadow(painter, radius)
+
         painter.save()
         painter.setClipPath(path)
         if is_exporting:
             self._paint_full_resolution(painter, cell_rect)
         else:
-            pm = self.pixmap
+            pm = self.display_pixmap()
             img_w, img_h = float(pm.width()), float(pm.height())
             if img_w > 0 and img_h > 0:
                 _, dx, dy, draw_w, draw_h = self._cover_geometry(img_w, img_h)
@@ -711,7 +892,7 @@ class PhotoItem(QGraphicsObject):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(border_path)
 
-        if is_exporting:
+        if clean:
             return
 
         accent = QColor(THEME["accent"])
@@ -730,16 +911,19 @@ class PhotoItem(QGraphicsObject):
                 painter.setPen(soft_pen)
                 painter.drawPath(path)
 
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-            handle_pen = QPen(QColor("#1A1A1A"), 1.0)
-            handle_pen.setCosmetic(True)
-            painter.setPen(handle_pen)
-            painter.setBrush(QBrush(QColor("#FFFFFF")))
-            for rect in self._get_handle_rects().values():
-                c = rect.center()
-                s = rect.width() * 0.36
-                painter.drawRect(QRectF(c.x() - s, c.y() - s, 2 * s, 2 * s))
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            if self.locked:
+                draw_lock_badge(painter, self._view_scale())
+            else:
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+                handle_pen = QPen(QColor("#1A1A1A"), 1.0)
+                handle_pen.setCosmetic(True)
+                painter.setPen(handle_pen)
+                painter.setBrush(QBrush(QColor("#FFFFFF")))
+                for rect in self._get_handle_rects().values():
+                    c = rect.center()
+                    s = rect.width() * 0.36
+                    painter.drawRect(QRectF(c.x() - s, c.y() - s, 2 * s, 2 * s))
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         elif self._hovered:
             hover = QColor(accent)
             hover.setAlpha(170)
@@ -755,7 +939,7 @@ class PhotoItem(QGraphicsObject):
         img_t = self._image_transform()
         painter.setTransform(img_t, True)
         if full is None:
-            pm = self.pixmap
+            pm = self.display_pixmap()
             if pm.width() > 0 and pm.height() > 0:
                 _, dx, dy, dw, dh = self._cover_geometry(float(pm.width()), float(pm.height()))
                 painter.drawPixmap(QRectF(dx, dy, dw, dh), pm, QRectF(0, 0, pm.width(), pm.height()))
@@ -780,6 +964,7 @@ class PhotoItem(QGraphicsObject):
             min(img_h, (visible.bottom() - dy) / scale),
         )
         resized = full.resize((out_w, out_h), Image.Resampling.LANCZOS, box=box)
+        resized = apply_adjustments(resized, self.adjust)
         painter.drawImage(visible, pil_to_qimage(resized))
 
     # ---------- Interazione ----------
@@ -808,7 +993,7 @@ class PhotoItem(QGraphicsObject):
                 diag = Qt.CursorShape.SizeHorCursor
             self.setCursor(QCursor(diag))
         else:
-            self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor if self.locked else Qt.CursorShape.OpenHandCursor))
         super().hoverMoveEvent(event)
 
     def mousePressEvent(self, event):
@@ -823,6 +1008,10 @@ class PhotoItem(QGraphicsObject):
                 self._resize_anchor_scene = self.mapToScene(anchor_local)
                 self._resize_ratio = self.cell_w / self.cell_h if self.cell_h > 0 else 1.0
                 event.accept()
+                return
+            elif self.locked:
+                # Foto bloccata: si può selezionare, ma non spostare né ridimensionare
+                super().mousePressEvent(event)
                 return
             elif event.modifiers() & Qt.KeyboardModifier.AltModifier:
                 # Alt + Trascina sposta l'inquadratura interna della foto (Pan interno)
@@ -850,11 +1039,13 @@ class PhotoItem(QGraphicsObject):
             self._last_mouse_scene_pos = event.scenePos()
             # Il pan segue esattamente il cursore, nel sistema di riferimento (ruotato) della foto
             local = QTransform().rotate(-(self.rotation() + self.inner_rotation)).map(delta)
+            sx = -1.0 if self.flip_h else 1.0
+            sy = -1.0 if self.flip_v else 1.0
             max_dx, max_dy = self._pan_margins()
             if max_dx > 0.5:
-                self.pan_x = max(-1.0, min(1.0, self.pan_x + local.x() / max_dx))
+                self.pan_x = max(-1.0, min(1.0, self.pan_x + sx * local.x() / max_dx))
             if max_dy > 0.5:
-                self.pan_y = max(-1.0, min(1.0, self.pan_y + local.y() / max_dy))
+                self.pan_y = max(-1.0, min(1.0, self.pan_y + sy * local.y() / max_dy))
             self.update()
             self.geometry_changed.emit(self)
             event.accept()
@@ -928,7 +1119,7 @@ class PhotoItem(QGraphicsObject):
 
         if off_x or off_y:
             for it in scene.selectedItems():
-                if isinstance(it, PhotoItem):
+                if isinstance(it, (PhotoItem, TextItem)) and not it.locked:
                     it.moveBy(off_x, off_y)
             if not self.isSelected():
                 self.moveBy(off_x, off_y)
@@ -949,6 +1140,230 @@ class PhotoItem(QGraphicsObject):
             self.edit_finished.emit()
 
 
+class TextItem(QGraphicsObject):
+    """
+    Testo sulla tela (titoli, didascalie, numeri delle slide): si sposta e si ruota come le foto,
+    si modifica dal pannello Proprietà. In esportazione è disegnato in vettoriale, sempre nitido.
+    """
+    geometry_changed = pyqtSignal(object)
+    edit_finished = pyqtSignal()
+    edit_requested = pyqtSignal(object)
+    _next_uid = 1
+
+    def __init__(self, text: str = "Scrivi qui", uid: Optional[int] = None):
+        super().__init__()
+        if uid is None:
+            uid = TextItem._next_uid
+        self.uid = uid
+        TextItem._next_uid = max(TextItem._next_uid, uid + 1)
+        self.text = text
+        self.font_family = font_family("display")
+        self.font_size = 72.0
+        self.bold = True
+        self.italic = False
+        self.align = "center"
+        self.color = QColor("#FFFFFF")
+        self.shadow = True
+        self.box = False
+        self.box_color = QColor(0, 0, 0, 150)
+        self.text_opacity = 100
+        self.locked = False
+        self._rect = QRectF()
+        self._pad = 0.0
+        self._hovered = False
+        self._dragging = False
+        self.setFlags(
+            QGraphicsItem.GraphicsItemFlag.ItemIsMovable |
+            QGraphicsItem.GraphicsItemFlag.ItemIsSelectable |
+            QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges
+        )
+        self.setAcceptHoverEvents(True)
+        self.relayout(keep_center=False)
+
+    # ---------- Stato ----------
+    def get_state(self) -> dict:
+        return {
+            "uid": self.uid,
+            "text": self.text,
+            "x": round(self.pos().x(), 3),
+            "y": round(self.pos().y(), 3),
+            "rotation": round(self.rotation(), 3),
+            "z": self.zValue(),
+            "font": self.font_family,
+            "size": self.font_size,
+            "bold": self.bold,
+            "italic": self.italic,
+            "align": self.align,
+            "color": self.color.name(QColor.NameFormat.HexArgb),
+            "shadow": self.shadow,
+            "box": self.box,
+            "box_color": self.box_color.name(QColor.NameFormat.HexArgb),
+            "opacity": self.text_opacity,
+            "locked": self.locked,
+        }
+
+    def set_state(self, s: dict):
+        self.text = s.get("text", "")
+        self.font_family = s.get("font", self.font_family)
+        self.font_size = float(s.get("size", 72.0))
+        self.bold = s.get("bold", True)
+        self.italic = s.get("italic", False)
+        self.align = s.get("align", "center")
+        self.color = QColor(s.get("color", "#FFFFFFFF"))
+        self.shadow = s.get("shadow", True)
+        self.box = s.get("box", False)
+        self.box_color = QColor(s.get("box_color", "#96000000"))
+        self.relayout(keep_center=False)
+        self.setPos(s["x"], s["y"])
+        self.setRotation(s.get("rotation", 0.0))
+        self.setZValue(s.get("z", 0.0))
+        self.set_text_opacity(s.get("opacity", 100))
+        self.set_locked(s.get("locked", False))
+
+    def set_locked(self, locked: bool):
+        self.locked = bool(locked)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not self.locked)
+        self.update()
+
+    def set_text_opacity(self, value: int):
+        self.text_opacity = int(value)
+        self.setOpacity(self.text_opacity / 100.0)
+
+    # ---------- Geometria ----------
+    def _font(self) -> QFont:
+        f = QFont(self.font_family)
+        f.setPixelSize(max(4, int(round(self.font_size))))
+        f.setBold(self.bold)
+        f.setItalic(self.italic)
+        return f
+
+    def _lines(self) -> List[str]:
+        return self.text.split("\n") if self.text else [" "]
+
+    def text_rect(self) -> QRectF:
+        return QRectF(self._rect)
+
+    def relayout(self, keep_center: bool = True):
+        """Ricalcola il riquadro dopo una modifica; il centro del testo resta dov'era."""
+        old_center = self._rect.center() if not self._rect.isNull() else None
+        self.prepareGeometryChange()
+        fm = QFontMetricsF(self._font())
+        lines = self._lines()
+        w = max(fm.horizontalAdvance(line) for line in lines)
+        h = fm.lineSpacing() * len(lines)
+        self._pad = self.font_size * (0.35 if self.box else 0.08)
+        self._rect = QRectF(0, 0, w + 2 * self._pad, h + 2 * self._pad)
+        self.setTransformOriginPoint(self._rect.center())
+        if keep_center and old_center is not None:
+            self.setPos(self.pos() + old_center - self._rect.center())
+        self.update()
+
+    def set_text(self, text: str):
+        self.text = text
+        self.relayout()
+
+    def _view_scale(self) -> float:
+        scene = self.scene()
+        views = scene.views() if scene else []
+        return max(0.01, views[0].transform().m11()) if views else 1.0
+
+    def boundingRect(self) -> QRectF:
+        m = max(self.font_size * 0.12, 8.0 / self._view_scale())
+        return self._rect.adjusted(-m, -m, m, m)
+
+    def shape(self) -> QPainterPath:
+        path = QPainterPath()
+        path.addRect(self._rect)
+        return path
+
+    # ---------- Disegno ----------
+    def paint(self, painter: QPainter, option, widget=None):
+        scene = self.scene()
+        clean = bool(scene) and (getattr(scene, "is_exporting", False) or getattr(scene, "clean_render", False))
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+
+        if self.box:
+            r = self.font_size * 0.18
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(self.box_color)
+            painter.drawRoundedRect(self._rect, r, r)
+
+        font = self._font()
+        painter.setFont(font)
+        fm = QFontMetricsF(font)
+        h_align = {"left": Qt.AlignmentFlag.AlignLeft, "right": Qt.AlignmentFlag.AlignRight}.get(
+            self.align, Qt.AlignmentFlag.AlignHCenter)
+        flags = h_align | Qt.AlignmentFlag.AlignVCenter
+        inner = self._rect.adjusted(self._pad, self._pad, -self._pad, -self._pad)
+        y = inner.top()
+        off = max(1.0, self.font_size * 0.035)
+        for line in self._lines():
+            line_rect = QRectF(inner.left(), y, inner.width(), fm.lineSpacing())
+            if self.shadow:
+                painter.setPen(QColor(0, 0, 0, 70))
+                painter.drawText(line_rect.translated(off * 0.9, off * 1.8), flags, line)
+                painter.setPen(QColor(0, 0, 0, 110))
+                painter.drawText(line_rect.translated(off * 0.5, off), flags, line)
+            painter.setPen(self.color)
+            painter.drawText(line_rect, flags, line)
+            y += fm.lineSpacing()
+
+        if clean:
+            return
+        accent = QColor(THEME["accent"])
+        if self.isSelected():
+            pen = QPen(accent, 1.5)
+            pen.setCosmetic(True)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(self._rect)
+            if self.locked:
+                draw_lock_badge(painter, self._view_scale())
+        elif self._hovered:
+            hover = QColor(accent)
+            hover.setAlpha(170)
+            pen = QPen(hover, 1.0, Qt.PenStyle.DashLine)
+            pen.setCosmetic(True)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(self._rect)
+
+    # ---------- Interazione ----------
+    def hoverEnterEvent(self, event):
+        self._hovered = True
+        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor if self.locked else Qt.CursorShape.OpenHandCursor))
+        self.update()
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        self._hovered = False
+        self.update()
+        super().hoverLeaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and not self.locked:
+            self._dragging = True
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        super().mouseMoveEvent(event)
+        if self._dragging:
+            self.geometry_changed.emit(self)
+
+    def mouseReleaseEvent(self, event):
+        was_dragging = self._dragging
+        self._dragging = False
+        super().mouseReleaseEvent(event)
+        if was_dragging:
+            self.geometry_changed.emit(self)
+            self.edit_finished.emit()
+
+    def mouseDoubleClickEvent(self, event):
+        self.edit_requested.emit(self)
+        event.accept()
+
+
 class CollageScene(QGraphicsScene):
     """
     Scena grafica che gestisce la tela del collage (in formato 3:4 o altro),
@@ -963,8 +1378,17 @@ class CollageScene(QGraphicsScene):
         self.frame_h = 1440  # Default 3:4
         self.num_frames = 1
         self.bg_color = QColor("#FFFFFF")
+        # Sfondo: "solid" = tinta unita, "gradient" = sfumatura tra due colori, "blur" = foto sfocata
+        self.bg_mode = "solid"
+        self.bg_color2 = QColor("#2680EB")
+        self.bg_direction = "vertical"   # "vertical", "horizontal", "diagonal"
+        self.bg_blur_path = ""
+        self.bg_blur_amount = 50
+        self.bg_dim = 15
+        self._blur_cache: Optional[Tuple[tuple, QPixmap]] = None
         self.show_guides = True
         self.is_exporting = False
+        self.clean_render = False        # Anteprima: niente guide, etichette né selezione
         self._snap_x: List[float] = []
         self._snap_y: List[float] = []
         self._dot_tile = self._make_dot_tile()
@@ -993,9 +1417,58 @@ class CollageScene(QGraphicsScene):
             self._snap_x, self._snap_y = xs, ys
             self.update()
 
+    def blurred_background(self) -> Optional[QPixmap]:
+        """Foto di sfondo sfocata e scurita (calcolata su una versione piccola: è sfocata comunque)."""
+        if not self.bg_blur_path:
+            return None
+        key = (self.bg_blur_path, self.bg_blur_amount, self.bg_dim)
+        if self._blur_cache is not None and self._blur_cache[0] == key:
+            return self._blur_cache[1]
+        src = IMAGE_CACHE.preview(self.bg_blur_path)
+        if src.isNull():
+            try:
+                src = IMAGE_CACHE.load(self.bg_blur_path)
+            except Exception:
+                return None
+        img = qimage_to_pil(src.toImage()).convert("RGB")
+        img.thumbnail((480, 480))
+        if self.bg_blur_amount > 0:
+            img = img.filter(ImageFilter.GaussianBlur(radius=self.bg_blur_amount / 4.0))
+        if self.bg_dim > 0:
+            img = ImageEnhance.Brightness(img).enhance(1.0 - self.bg_dim / 100.0)
+        pm = QPixmap.fromImage(pil_to_qimage(img))
+        self._blur_cache = (key, pm)
+        return pm
+
+    def paint_canvas_background(self, painter: QPainter, rect: QRectF):
+        if self.bg_mode == "gradient":
+            if self.bg_direction == "horizontal":
+                grad = QLinearGradient(rect.topLeft(), rect.topRight())
+            elif self.bg_direction == "diagonal":
+                grad = QLinearGradient(rect.topLeft(), rect.bottomRight())
+            else:
+                grad = QLinearGradient(rect.topLeft(), rect.bottomLeft())
+            grad.setColorAt(0.0, self.bg_color)
+            grad.setColorAt(1.0, self.bg_color2)
+            painter.fillRect(rect, QBrush(grad))
+            return
+        if self.bg_mode == "blur":
+            pm = self.blurred_background()
+            if pm is not None and pm.width() > 0 and pm.height() > 0:
+                # Copre tutta la tela (anche un carosello lungo) tagliando il necessario
+                scale = max(rect.width() / pm.width(), rect.height() / pm.height())
+                src_w, src_h = rect.width() / scale, rect.height() / scale
+                src = QRectF((pm.width() - src_w) / 2.0, (pm.height() - src_h) / 2.0, src_w, src_h)
+                painter.save()
+                painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+                painter.drawPixmap(rect, pm, src)
+                painter.restore()
+                return
+        painter.fillRect(rect, self.bg_color)
+
     def drawBackground(self, painter: QPainter, rect: QRectF):
         canvas_rect = self.canvas_rect()
-        if not self.is_exporting:
+        if not (self.is_exporting or self.clean_render):
             t = painter.worldTransform()
             painter.save()
             painter.resetTransform()
@@ -1015,10 +1488,10 @@ class CollageScene(QGraphicsScene):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(canvas_dev.adjusted(-1, -1, 0, 0))
             painter.restore()
-        painter.fillRect(canvas_rect, self.bg_color)
+        self.paint_canvas_background(painter, canvas_rect)
 
     def drawForeground(self, painter: QPainter, rect: QRectF):
-        if self.is_exporting:
+        if self.is_exporting or self.clean_render:
             return
 
         canvas_rect = self.canvas_rect()
@@ -1033,7 +1506,7 @@ class CollageScene(QGraphicsScene):
         painter.fillPath(outer_path.subtracted(inner_path), veil)
 
         light_bg = is_light(self.bg_color)
-        has_photos = any(isinstance(it, PhotoItem) for it in self.items())
+        has_photos = any(isinstance(it, (PhotoItem, TextItem)) for it in self.items())
         if self.show_guides and has_photos:
             # Linee guida centrali leggere
             guide = QColor(THEME["guide"])
@@ -1264,8 +1737,29 @@ class ToggleSwitch(QCheckBox):
 class LibraryCheckDelegate(QStyledItemDelegate):
     """Miniatura della libreria con un segno di spunta blu ben visibile quando è selezionata."""
 
+    def __init__(self, parent=None, on_canvas=None):
+        super().__init__(parent)
+        self._on_canvas = on_canvas
+
     def paint(self, painter: QPainter, option, index):
         super().paint(painter, option, index)
+        path = index.data(Qt.ItemDataRole.UserRole)
+        if self._on_canvas is not None and path and self._on_canvas(path):
+            # Etichetta "sulla tela" per le foto già usate nel collage
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            r = QRectF(option.rect)
+            font = ui_font(9, QFont.Weight.DemiBold)
+            painter.setFont(font)
+            label = "sulla tela"
+            w = QFontMetricsF(font).horizontalAdvance(label) + 10
+            pill = QRectF(r.left() + 6, r.bottom() - 20, w, 14)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(0, 0, 0, 175))
+            painter.drawRoundedRect(pill, 7, 7)
+            painter.setPen(QColor("#FFFFFF"))
+            painter.drawText(pill, Qt.AlignmentFlag.AlignCenter, label)
+            painter.restore()
         if not option.state & QStyle.StateFlag.State_Selected:
             return
         painter.save()
@@ -1330,6 +1824,214 @@ class DropZone(QFrame):
         p.end()
 
 
+class CarouselPreview(QDialog):
+    """Anteprima delle pagine una alla volta, come le vedrà chi scorre il carosello."""
+
+    def __init__(self, pages: List[QPixmap], page_ratio: float, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Anteprima carosello")
+        self.pages = pages
+        self.index = 0
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 16, 16, 12)
+        lay.setSpacing(10)
+        self.image = QLabel()
+        self.image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image.setMinimumSize(240, 240)
+        lay.addWidget(self.image, 1)
+
+        nav = QHBoxLayout()
+        self.btn_prev = QPushButton("Pagina precedente")
+        self.btn_prev.setIcon(make_icon("chevron_left", THEME["text"], 16))
+        self.btn_prev.clicked.connect(lambda: self.step(-1))
+        self.btn_next = QPushButton("Pagina successiva")
+        self.btn_next.setIcon(make_icon("chevron_right", THEME["text"], 16))
+        self.btn_next.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.btn_next.clicked.connect(lambda: self.step(1))
+        self.lbl = QLabel()
+        self.lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        nav.addWidget(self.btn_prev)
+        nav.addStretch()
+        nav.addWidget(self.lbl)
+        nav.addStretch()
+        nav.addWidget(self.btn_next)
+        lay.addLayout(nav)
+        hint = QLabel("Frecce ← → della tastiera per scorrere, Esc per chiudere")
+        hint.setObjectName("Hint")
+        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(hint)
+
+        screen = (parent.screen() if parent is not None else QApplication.primaryScreen()).availableGeometry()
+        img_h = int(screen.height() * 0.72)
+        img_w = int(img_h * page_ratio)
+        if img_w > screen.width() * 0.8:
+            img_w = int(screen.width() * 0.8)
+            img_h = int(img_w / page_ratio)
+        self.resize(max(460, img_w + 32), img_h + 110)
+        self._show()
+
+    def step(self, delta: int):
+        self.index = max(0, min(len(self.pages) - 1, self.index + delta))
+        self._show()
+
+    def _show(self):
+        if not self.pages:
+            return
+        pm = self.pages[self.index]
+        dpr = self.devicePixelRatioF()
+        target = self.image.size() * dpr
+        scaled = pm.scaled(target, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        scaled.setDevicePixelRatio(dpr)
+        self.image.setPixmap(scaled)
+        n = len(self.pages)
+        dots = "  ".join("●" if i == self.index else "○" for i in range(n)) if n <= 12 else ""
+        self.lbl.setText(f"Pagina {self.index + 1} di {n}" + (f"\n{dots}" if dots and n > 1 else ""))
+        self.btn_prev.setEnabled(self.index > 0)
+        self.btn_next.setEnabled(self.index < n - 1)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._show()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Left:
+            self.step(-1)
+        elif event.key() == Qt.Key.Key_Right:
+            self.step(1)
+        else:
+            super().keyPressEvent(event)
+
+
+class BackgroundDialog(QDialog):
+    """Sfondo della tela: tinta unita, sfumatura o foto sfocata. Le modifiche si vedono subito sulla tela."""
+    DIRECTIONS = [("vertical", "Dall'alto in basso"), ("horizontal", "Da sinistra a destra"), ("diagonal", "In diagonale")]
+
+    def __init__(self, win: "MainWindow"):
+        super().__init__(win)
+        self.win = win
+        sc = win.scene
+        self.setWindowTitle("Sfondo della tela")
+        self.setMinimumWidth(360)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 14, 16, 14)
+        lay.setSpacing(8)
+
+        lay.addWidget(win._label("Tipo di sfondo", "SectionTitle"))
+        self.radios: Dict[str, QRadioButton] = {}
+        group = QButtonGroup(self)
+        for key, text in (("solid", "Tinta unita"), ("gradient", "Sfumatura tra due colori"), ("blur", "Foto sfocata")):
+            rb = QRadioButton(text)
+            rb.setCursor(Qt.CursorShape.PointingHandCursor)
+            group.addButton(rb)
+            self.radios[key] = rb
+            lay.addWidget(rb)
+        self.radios[sc.bg_mode if sc.bg_mode in self.radios else "solid"].setChecked(True)
+        has_photos = bool(win.loaded_library)
+        self.radios["blur"].setEnabled(has_photos)
+        if not has_photos:
+            self.radios["blur"].setToolTip("Aggiungi prima delle foto alla libreria")
+
+        lay.addWidget(win._divider())
+
+        # Colori (tinta unita e sfumatura)
+        self.colors_box = QWidget()
+        cl = QVBoxLayout(self.colors_box)
+        cl.setContentsMargins(0, 0, 0, 0)
+        cl.setSpacing(6)
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        self.btn_c1 = win._icon_button("plus", "Scegli il colore", lambda: self._pick(1), "Colore", "SoftButton")
+        self.btn_c2 = win._icon_button("plus", "Scegli il colore finale della sfumatura", lambda: self._pick(2),
+                                       "Colore finale", "SoftButton")
+        row.addWidget(self.btn_c1)
+        row.addWidget(self.btn_c2)
+        cl.addLayout(row)
+        self.dir_row = QWidget()
+        dl = QHBoxLayout(self.dir_row)
+        dl.setContentsMargins(0, 0, 0, 0)
+        dl.addWidget(win._label("Direzione"))
+        self.combo_dir = QComboBox()
+        for key, text in self.DIRECTIONS:
+            self.combo_dir.addItem(text, key)
+        self.combo_dir.setCurrentIndex(max(0, [k for k, _ in self.DIRECTIONS].index(sc.bg_direction)
+                                           if sc.bg_direction in dict(self.DIRECTIONS) else 0))
+        self.combo_dir.currentIndexChanged.connect(self._apply)
+        dl.addWidget(self.combo_dir, 1)
+        cl.addWidget(self.dir_row)
+        lay.addWidget(self.colors_box)
+
+        # Foto sfocata
+        self.photo_box = QWidget()
+        pl = QVBoxLayout(self.photo_box)
+        pl.setContentsMargins(0, 0, 0, 0)
+        pl.setSpacing(6)
+        prow = QHBoxLayout()
+        prow.addWidget(win._label("Foto"))
+        self.combo_photo = QComboBox()
+        self.combo_photo.setIconSize(QSize(28, 28))
+        for path in win.loaded_library:
+            self.combo_photo.addItem(QIcon(rounded_thumb(IMAGE_CACHE.preview(path), 28)), os.path.basename(path), path)
+        start = sc.bg_blur_path or win._default_blur_photo()
+        idx = self.combo_photo.findData(start)
+        self.combo_photo.setCurrentIndex(max(0, idx))
+        self.combo_photo.currentIndexChanged.connect(self._apply)
+        prow.addWidget(self.combo_photo, 1)
+        pl.addLayout(prow)
+        self.slider_blur = win._make_slider(pl, "Sfocatura", 0, 100, 50, resettable=True)
+        self.slider_blur.setValue(sc.bg_blur_amount)
+        self.slider_blur.valueChanged.connect(self._apply)
+        self.slider_dim = win._make_slider(pl, "Scurisci", 0, 80, 15, "%", resettable=True)
+        self.slider_dim.setValue(sc.bg_dim)
+        self.slider_dim.valueChanged.connect(self._apply)
+        lay.addWidget(self.photo_box)
+
+        lay.addStretch()
+        done = QPushButton("Fatto")
+        done.setObjectName("Primary")
+        done.setCursor(Qt.CursorShape.PointingHandCursor)
+        done.clicked.connect(self.accept)
+        foot = QHBoxLayout()
+        foot.addStretch()
+        foot.addWidget(done)
+        lay.addLayout(foot)
+
+        for rb in self.radios.values():
+            rb.toggled.connect(self._apply)
+        self._c1 = QColor(sc.bg_color)
+        self._c2 = QColor(sc.bg_color2)
+        self._apply()
+
+    def _mode(self) -> str:
+        return next((k for k, rb in self.radios.items() if rb.isChecked()), "solid")
+
+    def _pick(self, which: int):
+        initial = self._c1 if which == 1 else self._c2
+        col = QColorDialog.getColor(initial, self, "Colore dello sfondo")
+        if col.isValid():
+            if which == 1:
+                self._c1 = col
+            else:
+                self._c2 = col
+            self._apply()
+
+    def _apply(self, *_):
+        mode = self._mode()
+        self.colors_box.setVisible(mode != "blur")
+        self.btn_c2.setVisible(mode == "gradient")
+        self.dir_row.setVisible(mode == "gradient")
+        self.btn_c1.setText("Colore iniziale" if mode == "gradient" else "Colore")
+        self.btn_c1.setIcon(swatch_icon(self._c1))
+        self.btn_c2.setIcon(swatch_icon(self._c2))
+        self.photo_box.setVisible(mode == "blur")
+        self.win._apply_background(
+            mode=mode, color=self._c1, color2=self._c2,
+            direction=self.combo_dir.currentData() or "vertical",
+            blur_path=self.combo_photo.currentData() or "",
+            blur_amount=self.slider_blur.value(), dim=self.slider_dim.value(),
+        )
+        self.adjustSize()
+
+
 class MainWindow(QMainWindow):
     ASPECT_RATIOS = {
         "3:4 verticale (1080×1440)": (1080, 1440),
@@ -1378,6 +2080,8 @@ class MainWindow(QMainWindow):
         self._updating_inspector = False
         self._restoring = False
         self.project_path: Optional[str] = None
+        self._style_clipboard: Optional[dict] = None   # Stile copiato con "Copia stile"
+        self._canvas_paths: set = set()                # Foto già sulla tela (segno nella libreria)
 
         # Cronologia Annulla/Ripeti (snapshot dello stato completo)
         self._history: List[dict] = []
@@ -1401,6 +2105,12 @@ class MainWindow(QMainWindow):
         self.view.zoom_changed.connect(self._on_zoom_changed)
         self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.view.customContextMenuRequested.connect(self._show_canvas_context_menu)
+
+        # Salvataggio automatico ogni minuto, per recuperare il lavoro dopo una chiusura improvvisa
+        self._autosave_timer = QTimer(self)
+        self._autosave_timer.setInterval(60_000)
+        self._autosave_timer.timeout.connect(self._autosave)
+        self._autosave_timer.start()
 
         self._apply_theme()
         self._build_ui()
@@ -1524,6 +2234,9 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(4, 6, 4, 8)
         lay.setSpacing(1)
         groups = [
+            ("Inserisci", [
+                ("text", "Testo", "Aggiungi un testo sulla tela: titolo, didascalia, numero (Ctrl+T)", self.add_text),
+            ]),
             ("Ordine", [
                 ("shuffle", "Rimescola", "Cambia a caso quale foto va in quale posizione", self.shuffle_canvas_photos),
                 ("swap", "Scambia", "Scambia di posto le 2 foto selezionate\n(Ctrl+clic per selezionare la seconda)",
@@ -1571,13 +2284,16 @@ class MainWindow(QMainWindow):
         """Accende solo gli strumenti utilizzabili adesso, e spiega nella barra di stato cosa serve."""
         if not hasattr(self, "_tool_buttons"):
             return
-        n_sel = len(self._selected_photos())
+        n_sel = len(self._selected_elements())
+        n_photos_sel = len(self._selected_photos())
         n_canvas = len(self.get_canvas_photos())
         for icon, btn in self._tool_buttons.items():
-            if icon == "shuffle":
+            if icon == "text":
+                btn.setEnabled(True)
+            elif icon == "shuffle":
                 btn.setEnabled(n_canvas >= 2)
             elif icon == "swap":
-                btn.setEnabled(n_sel == 2)
+                btn.setEnabled(n_photos_sel == 2)
             else:
                 btn.setEnabled(n_sel > 0)
 
@@ -1609,7 +2325,22 @@ class MainWindow(QMainWindow):
         self.lbl_doc_tab.setText(f"{name} @ {zoom}% (RGB/8){star}")
 
     def _refresh_bg_swatches(self):
-        self.btn_bg_color.setIcon(swatch_icon(self.scene.bg_color))
+        """Il campione del pulsante Sfondo mostra il tipo di sfondo: colore, sfumatura o foto."""
+        size = 16
+        pm = QPixmap(size * 2, size * 2)
+        pm.setDevicePixelRatio(2.0)
+        pm.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        rect = QRectF(1.5, 1.5, size - 3, size - 3)
+        self.scene.paint_canvas_background(p, rect)
+        p.setPen(QPen(QColor("#000000"), 1.0))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(rect)
+        p.setPen(QPen(QColor(255, 255, 255, 90), 1.0))
+        p.drawRect(QRectF(2.5, 2.5, size - 5, size - 5))
+        p.end()
+        self.btn_bg_color.setIcon(QIcon(pm))
 
     def _build_ui(self):
         central = self._styled(QWidget(), "Root")
@@ -1715,9 +2446,9 @@ class MainWindow(QMainWindow):
         self.btn_bg_color.setObjectName("IconButton")
         self.btn_bg_color.setText("Sfondo")
         self.btn_bg_color.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.btn_bg_color.setToolTip("Colore di sfondo della tela")
+        self.btn_bg_color.setToolTip("Sfondo della tela: tinta unita, sfumatura o foto sfocata")
         self.btn_bg_color.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_bg_color.clicked.connect(self._pick_bg_color)
+        self.btn_bg_color.clicked.connect(self._open_background_dialog)
         bar.addWidget(self.btn_bg_color)
 
         bar.addSpacing(4)
@@ -1739,7 +2470,16 @@ class MainWindow(QMainWindow):
 
         bar.addStretch()
 
-        # Qualità ed esportazione
+        btn_preview = self._icon_button("phone", "Guarda le pagine una alla volta, come nel carosello (F5)",
+                                        self.show_carousel_preview, "Anteprima")
+        bar.addWidget(btn_preview)
+        bar.addSpacing(4)
+
+        # Formato file, qualità ed esportazione
+        self.combo_format = QComboBox()
+        self.combo_format.addItems(["PNG (massima qualità)", "JPG (file leggeri)"])
+        self.combo_format.setToolTip("Tipo di file esportato.\nJPG pesa molto meno ed è ideale per Instagram.")
+        bar.addWidget(self.combo_format)
         self.combo_quality = QComboBox()
         self.combo_quality.addItems(["Qualità standard (1×)", "Alta definizione (2×)"])
         self.combo_quality.setCurrentIndex(1)  # 2× di default per massima nitidezza
@@ -1773,18 +2513,24 @@ class MainWindow(QMainWindow):
         self.library_stack.addWidget(drop)
 
         self.list_library = QListWidget()
-        self.list_library.setViewMode(QListView.ViewMode.IconMode)
+        # Griglia di miniature riordinabile trascinandole
+        self.list_library.setViewMode(QListView.ViewMode.ListMode)
+        self.list_library.setFlow(QListView.Flow.LeftToRight)
+        self.list_library.setWrapping(True)
         self.list_library.setIconSize(QSize(80, 80))
         self.list_library.setGridSize(QSize(86, 86))
         self.list_library.setResizeMode(QListView.ResizeMode.Adjust)
-        self.list_library.setMovement(QListView.Movement.Static)
         self.list_library.setUniformItemSizes(True)
+        self.list_library.setDragDropMode(QListView.DragDropMode.InternalMove)
+        self.list_library.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.list_library.model().rowsMoved.connect(self._on_library_reordered)
         # Un clic seleziona/deseleziona la foto (senza dover tenere premuto Ctrl)
         self.list_library.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
-        self.list_library.setItemDelegate(LibraryCheckDelegate(self.list_library))
+        self.list_library.setItemDelegate(LibraryCheckDelegate(self.list_library, lambda path: path in self._canvas_paths))
         self.list_library.setMinimumHeight(100)
         self.list_library.setToolTip("Clic per scegliere le foto (di nuovo per toglierle),\n"
-                                     "poi «Metti le selezionate».\nClic destro per altre opzioni.")
+                                     "poi «Metti le selezionate».\nTrascina una miniatura per cambiare l'ordine.\n"
+                                     "Clic destro per altre opzioni.")
         self.list_library.itemSelectionChanged.connect(self._update_library_selection_ui)
         self.list_library.itemDoubleClicked.connect(self._on_library_item_double_clicked)
         self.list_library.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1895,16 +2641,106 @@ class MainWindow(QMainWindow):
 
         return panel
 
+    def _tab_page(self) -> Tuple[QWidget, QVBoxLayout]:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 8, 0, 0)
+        lay.setSpacing(6)
+        return page, lay
+
+    def _seg_tabs(self, tabs: List[Tuple[str, str]], stack: QStackedWidget) -> QWidget:
+        """Schede a segmenti (come i pannelli a schede di Photoshop) che cambiano la pagina di `stack`."""
+        bar = QWidget()
+        hl = QHBoxLayout(bar)
+        hl.setContentsMargins(0, 0, 0, 0)
+        hl.setSpacing(0)
+        group = QButtonGroup(bar)
+        group.setExclusive(True)
+        for i, (name, tip) in enumerate(tabs):
+            b = QToolButton()
+            b.setObjectName("SegTab")
+            b.setText(name)
+            b.setToolTip(tip)
+            b.setCheckable(True)
+            b.setChecked(i == 0)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            b.setFixedHeight(26)
+            b.clicked.connect(lambda _c=False, k=i: stack.setCurrentIndex(k))
+            group.addButton(b)
+            hl.addWidget(b)
+        bar._group = group  # Mantiene vivo il gruppo
+        # Se la pagina cambia da codice (es. doppio clic su un testo) la scheda giusta si accende
+        stack.currentChanged.connect(lambda i: group.buttons()[i].setChecked(True) if 0 <= i < len(group.buttons()) else None)
+        return bar
+
+    def _soft_toggle(self, text: str, tooltip: str, slot, icon: Optional[str] = None) -> QToolButton:
+        btn = QToolButton()
+        btn.setObjectName("SoftButton")
+        btn.setText(text)
+        btn.setToolTip(tooltip)
+        btn.setCheckable(True)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        if icon:
+            btn.setIcon(make_icon(icon, THEME["text"]))
+            btn.setIconSize(QSize(16, 16))
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        else:
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        btn.clicked.connect(slot)
+        return btn
+
+    def _build_align_block(self, lay: QVBoxLayout):
+        """Allinea / distribuisci / blocca: usato sia per le foto sia per i testi."""
+        self._section_header(lay, "Allinea")
+        hint = self._label("", "Hint")
+        hint.setWordWrap(True)
+        lay.addWidget(hint)
+        self._align_hints.append(hint)
+        for caption, buttons in (
+            ("In orizzontale", [("A sinistra", "left"), ("Al centro", "hcenter"), ("A destra", "right")]),
+            ("In verticale", [("In alto", "top"), ("Al centro", "vcenter"), ("In basso", "bottom")]),
+        ):
+            lay.addWidget(self._label(caption))
+            row = QHBoxLayout()
+            row.setSpacing(4)
+            for text, how in buttons:
+                b = self._button(text, lambda _c=False, h=how: self._align_selected(h), obj="Ghost")
+                b.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                row.addWidget(b)
+            lay.addLayout(row)
+        self._section_header(lay, "Distribuisci a spazi uguali")
+        row = QHBoxLayout()
+        row.setSpacing(4)
+        for text, horiz in (("In orizzontale", True), ("In verticale", False)):
+            b = self._button(text, lambda _c=False, h=horiz: self._distribute_selected(h), obj="Ghost",
+                             tooltip="Stessa distanza tra 3 o più elementi selezionati")
+            b.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            self._distribute_buttons.append(b)
+            row.addWidget(b)
+        lay.addLayout(row)
+        lay.addSpacing(4)
+        lock = ToggleSwitch("Blocca posizione e dimensioni")
+        lock.setToolTip("L'elemento non si sposta né si ridimensiona per sbaglio (Ctrl+L).\n"
+                        "Puoi sempre modificarne colori e stile.")
+        lock.toggled.connect(self._set_lock_selected)
+        lay.addWidget(lock)
+        self._lock_switches.append(lock)
+
     def _build_inspector(self) -> QWidget:
         panel = QWidget()
         outer = QVBoxLayout(panel)
         outer.setContentsMargins(12, 6, 12, 6)
         outer.setSpacing(0)
+        self._align_hints: List[QLabel] = []
+        self._distribute_buttons: List[QPushButton] = []
+        self._lock_switches: List[ToggleSwitch] = []
 
         self.insp_stack = QStackedWidget()
         outer.addWidget(self.insp_stack)
 
-        # Pagina vuota: nessuna selezione
+        # Pagina 0: nessuna selezione
         empty = QWidget()
         el = QVBoxLayout(empty)
         el.setContentsMargins(4, 40, 4, 0)
@@ -1916,20 +2752,19 @@ class MainWindow(QMainWindow):
         title = self._label("Nessuna foto selezionata", "EmptyTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         el.addWidget(title)
-        body = self._label("Clicca una foto sulla tela per regolarne inquadratura, rotazione e cornice.\n\n"
-                           "Ctrl+clic per selezionarne più di una: le modifiche valgono per tutte.", "Hint")
+        body = self._label("Clicca una foto o un testo sulla tela per modificarli.\n\n"
+                           "Ctrl+clic per selezionarne più di uno: le modifiche valgono per tutti.", "Hint")
         body.setWordWrap(True)
         body.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         el.addWidget(body)
         el.addStretch()
         self.insp_stack.addWidget(empty)
 
-        # Pagina di modifica
+        # Pagina 1: foto
         self.insp_controls = QWidget()
         lay = QVBoxLayout(self.insp_controls)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(6)
-
         head = QHBoxLayout()
         head.setSpacing(12)
         self.lbl_selection_thumb = QLabel()
@@ -1945,15 +2780,52 @@ class MainWindow(QMainWindow):
         head.addLayout(head_text, 1)
         lay.addLayout(head)
 
-        lay.addWidget(self._divider())
+        self.photo_tabs = QStackedWidget()
+        lay.addWidget(self._seg_tabs([
+            ("Foto", "Riempimento, inquadratura, rotazione e specchio"),
+            ("Colore", "Luminosità, contrasto, saturazione, calore, bianco e nero"),
+            ("Stile", "Angoli, bordo, opacità, ombra, copia e incolla stile"),
+            ("Disponi", "Allinea, distribuisci, blocca"),
+        ], self.photo_tabs))
+        lay.addWidget(self.photo_tabs)
+        self.photo_tabs.addWidget(self._build_photo_tab_frame())
+        self.photo_tabs.addWidget(self._build_photo_tab_color())
+        self.photo_tabs.addWidget(self._build_photo_tab_style())
+        page, pl = self._tab_page()
+        self._build_align_block(pl)
+        pl.addStretch()
+        self.photo_tabs.addWidget(page)
+        lay.addStretch()
+        self.insp_stack.addWidget(self.insp_controls)
 
-        # Ogni slider modifica SOLO la sua proprietà, su tutte le foto selezionate
+        # Pagina 2: testo
+        self.insp_stack.addWidget(self._build_text_inspector())
+        outer.addStretch()
+        return panel
+
+    def _build_photo_tab_frame(self) -> QWidget:
+        page, lay = self._tab_page()
+        self._section_header(lay, "Riempimento")
+        fit_row = QHBoxLayout()
+        fit_row.setSpacing(6)
+        self.btn_fit_cover = self._soft_toggle("Riempi riquadro", "La foto riempie tutto il riquadro:\n"
+                                               "i bordi in eccesso vengono tagliati", lambda: self._set_fit_mode("cover"), "fit_cover")
+        self.btn_fit_contain = self._soft_toggle("Foto intera", "Mostra tutta la foto senza tagli:\n"
+                                                 "attorno resta visibile lo sfondo", lambda: self._set_fit_mode("contain"), "fit_contain")
+        fit_group = QButtonGroup(page)
+        fit_group.setExclusive(True)
+        for b in (self.btn_fit_cover, self.btn_fit_contain):
+            fit_group.addButton(b)
+            fit_row.addWidget(b)
+        page._fit_group = fit_group
+        lay.addLayout(fit_row)
+
         self._section_header(lay, "Inquadratura")
-        self.slider_inner_zoom = self._make_slider(lay, "Zoom", 100, 400, 100, "%")
+        self.slider_inner_zoom = self._make_slider(lay, "Zoom", 100, 400, 100, "%", resettable=True)
         self.slider_inner_zoom.valueChanged.connect(lambda v: self._on_inspector_slider("zoom", v))
-        self.slider_pan_x = self._make_slider(lay, "Orizzontale", -100, 100, 0, signed=True)
+        self.slider_pan_x = self._make_slider(lay, "Orizzontale", -100, 100, 0, signed=True, resettable=True)
         self.slider_pan_x.valueChanged.connect(lambda v: self._on_inspector_slider("pan_x", v))
-        self.slider_pan_y = self._make_slider(lay, "Verticale", -100, 100, 0, signed=True)
+        self.slider_pan_y = self._make_slider(lay, "Verticale", -100, 100, 0, signed=True, resettable=True)
         self.slider_pan_y.valueChanged.connect(lambda v: self._on_inspector_slider("pan_y", v))
         self.slider_inner_rot = self._make_slider(lay, "Ruota contenuto", -180, 180, 0, "°", signed=True, resettable=True)
         self.slider_inner_rot.setToolTip("Ruota la foto dentro il riquadro, senza ruotare il riquadro.\n"
@@ -1969,29 +2841,173 @@ class MainWindow(QMainWindow):
                                                self._restore_selected_original_ratio, "Proporzioni foto", "SoftButton"))
         lay.addLayout(frame_btns)
 
-        self._section_header(lay, "Rotazione")
-        self.slider_rotation = self._make_slider(lay, "Angolo", -180, 180, 0, "°", signed=True)
+        self._section_header(lay, "Rotazione e specchio")
+        self.slider_rotation = self._make_slider(lay, "Angolo", -180, 180, 0, "°", signed=True, resettable=True)
         self.slider_rotation.valueChanged.connect(lambda v: self._on_inspector_slider("rotation", v))
+        flip_row = QHBoxLayout()
+        flip_row.setSpacing(6)
+        flip_row.addWidget(self._icon_button("flip_h", "Specchia la foto da sinistra a destra", lambda: self._flip_selected("h"),
+                                             "Specchia orizz.", "SoftButton"))
+        flip_row.addWidget(self._icon_button("flip_v", "Capovolgi la foto dall'alto in basso", lambda: self._flip_selected("v"),
+                                             "Specchia vert.", "SoftButton"))
+        lay.addLayout(flip_row)
+        lay.addStretch()
+        return page
 
+    def _build_photo_tab_color(self) -> QWidget:
+        page, lay = self._tab_page()
+        self._section_header(lay, "Regolazioni")
+        self.adjust_sliders: Dict[str, QSlider] = {}
+        for key, title, tip in (
+            ("brightness", "Luminosità", "Schiarisci (+) o scurisci (−) la foto"),
+            ("contrast", "Contrasto", "Più (+) o meno (−) differenza tra chiari e scuri"),
+            ("saturation", "Saturazione", "Colori più vivi (+) o più spenti (−)"),
+            ("warmth", "Calore", "Toni più caldi, verso l'arancio (+), o più freddi, verso il blu (−)"),
+        ):
+            slider = self._make_slider(lay, title, -100, 100, 0, signed=True, resettable=True)
+            slider.setToolTip(tip)
+            slider.valueChanged.connect(lambda v, k=key: self._on_inspector_slider(k, v))
+            self.adjust_sliders[key] = slider
+        self.chk_bw = ToggleSwitch("Bianco e nero")
+        self.chk_bw.setToolTip("Converte la foto in bianco e nero (con Calore ottieni un viraggio seppia o freddo)")
+        self.chk_bw.toggled.connect(self._set_bw)
+        lay.addWidget(self.chk_bw)
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        row.addWidget(self._icon_button("reset", "Riporta tutte le regolazioni colore a zero", self._reset_colors,
+                                        "Reimposta colori", "SoftButton"))
+        row.addWidget(self._button("Applica a tutte", self._apply_colors_to_all, obj="Ghost",
+                                   tooltip="Copia queste regolazioni colore su tutte le foto della tela"))
+        lay.addLayout(row)
+        lay.addStretch()
+        return page
+
+    def _build_photo_tab_style(self) -> QWidget:
+        page, lay = self._tab_page()
         self._section_header(lay, "Cornice")
         self.slider_radius = self._make_slider(lay, "Angoli arrotondati", 0, 200, 0, " px")
         self.slider_radius.valueChanged.connect(lambda v: self._on_inspector_slider("radius", v))
         self.slider_border = self._make_slider(lay, "Spessore bordo", 0, 40, 0, " px")
         self.slider_border.valueChanged.connect(lambda v: self._on_inspector_slider("border", v))
-        style_btns = QHBoxLayout()
-        style_btns.setSpacing(6)
-        self.btn_border_color = self._icon_button("plus", "Colore del bordo", self._pick_photo_border_color, "Colore", "SoftButton")
+        self.btn_border_color = self._icon_button("plus", "Colore del bordo", self._pick_photo_border_color, "Colore bordo", "SoftButton")
         self.btn_border_color.setIcon(swatch_icon(QColor("#FFFFFF")))
-        style_btns.addWidget(self.btn_border_color)
-        style_btns.addWidget(self._button("Applica a tutte", self._apply_style_to_all_photos, obj="Ghost",
-                                          tooltip="Copia angoli, bordo e colore su tutte le foto della tela"))
-        lay.addLayout(style_btns)
+        lay.addWidget(self.btn_border_color)
 
+        self._section_header(lay, "Trasparenza e ombra")
+        self.slider_opacity = self._make_slider(lay, "Opacità", 5, 100, 100, "%", resettable=True)
+        self.slider_opacity.setToolTip("Rendi la foto trasparente (100% = piena)")
+        self.slider_opacity.valueChanged.connect(lambda v: self._on_inspector_slider("opacity", v))
+        self.slider_shadow = self._make_slider(lay, "Ombra", 0, 100, 0, "%", resettable=True)
+        self.slider_shadow.setToolTip("Ombra morbida sotto la foto, per staccarla dallo sfondo")
+        self.slider_shadow.valueChanged.connect(lambda v: self._on_inspector_slider("shadow", v))
+
+        self._section_header(lay, "Copia lo stile su altre foto")
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        row.addWidget(self._icon_button("duplicate", "Copia angoli, bordo, opacità, ombra e colori di questa foto (Ctrl+Shift+C)",
+                                        self._copy_style, "Copia stile", "SoftButton"))
+        self.btn_paste_style = self._icon_button("plus", "Incolla lo stile copiato sulle foto selezionate (Ctrl+Shift+V)",
+                                                 self._paste_style, "Incolla stile", "SoftButton")
+        row.addWidget(self.btn_paste_style)
+        lay.addLayout(row)
+        lay.addWidget(self._button("Applica a tutte le foto", self._apply_style_to_all_photos, obj="Ghost",
+                                   tooltip="Copia angoli, bordo, colore del bordo, opacità e ombra su tutte le foto della tela"))
         lay.addStretch()
+        return page
 
-        self.insp_stack.addWidget(self.insp_controls)
-        outer.addStretch()
-        return panel
+    def _build_text_inspector(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(6)
+        head = QHBoxLayout()
+        head.setSpacing(12)
+        icon = QLabel()
+        icon.setPixmap(_icon_pixmap("text", THEME["text"], 28))
+        icon.setFixedSize(40, 40)
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        head.addWidget(icon)
+        head_text = QVBoxLayout()
+        head_text.setSpacing(2)
+        self.lbl_text_title = self._label("Testo", "SelName")
+        head_text.addWidget(self.lbl_text_title)
+        sub = self._label("Doppio clic sul testo per scriverci", "Hint")
+        sub.setWordWrap(True)
+        head_text.addWidget(sub)
+        head.addLayout(head_text, 1)
+        lay.addLayout(head)
+
+        self.text_tabs = QStackedWidget()
+        lay.addWidget(self._seg_tabs([
+            ("Testo", "Contenuto, carattere, colore"),
+            ("Disponi", "Allinea, distribuisci, blocca"),
+        ], self.text_tabs))
+        lay.addWidget(self.text_tabs)
+
+        tp, tl = self._tab_page()
+        self.edit_text = QPlainTextEdit()
+        self.edit_text.setPlaceholderText("Scrivi qui il testo… (Invio per andare a capo)")
+        self.edit_text.setFixedHeight(72)
+        self.edit_text.textChanged.connect(self._on_text_content_changed)
+        tl.addWidget(self.edit_text)
+
+        self._section_header(tl, "Carattere")
+        self.combo_font = QFontComboBox()
+        self.combo_font.setToolTip("Tipo di carattere")
+        self.combo_font.currentFontChanged.connect(lambda f: self._on_text_prop("font", f.family()))
+        tl.addWidget(self.combo_font)
+        self.slider_text_size = self._make_slider(tl, "Dimensione", 12, 400, 72, " px")
+        self.slider_text_size.valueChanged.connect(lambda v: self._on_text_prop("size", v))
+        style_row = QHBoxLayout()
+        style_row.setSpacing(6)
+        self.btn_text_bold = self._soft_toggle("Grassetto", "Testo in grassetto", lambda c: self._on_text_prop("bold", c))
+        self.btn_text_italic = self._soft_toggle("Corsivo", "Testo in corsivo", lambda c: self._on_text_prop("italic", c))
+        style_row.addWidget(self.btn_text_bold)
+        style_row.addWidget(self.btn_text_italic)
+        tl.addLayout(style_row)
+        tl.addWidget(self._label("Allineamento delle righe"))
+        align_row = QHBoxLayout()
+        align_row.setSpacing(4)
+        self.text_align_buttons: Dict[str, QToolButton] = {}
+        align_group = QButtonGroup(tp)
+        align_group.setExclusive(True)
+        for key, text in (("left", "Sinistra"), ("center", "Centro"), ("right", "Destra")):
+            b = self._soft_toggle(text, f"Righe allineate a {text.lower()}", lambda _c=False, k=key: self._on_text_prop("align", k))
+            align_group.addButton(b)
+            align_row.addWidget(b)
+            self.text_align_buttons[key] = b
+        tp._align_group = align_group
+        tl.addLayout(align_row)
+
+        self._section_header(tl, "Colore ed effetti")
+        self.btn_text_color = self._icon_button("plus", "Colore del testo", lambda: self._pick_text_color("color"),
+                                                "Colore testo", "SoftButton")
+        tl.addWidget(self.btn_text_color)
+        self.chk_text_shadow = ToggleSwitch("Ombra dietro al testo")
+        self.chk_text_shadow.setToolTip("Rende il testo leggibile anche sopra le foto")
+        self.chk_text_shadow.toggled.connect(lambda c: self._on_text_prop("shadow", c))
+        tl.addWidget(self.chk_text_shadow)
+        box_row = QHBoxLayout()
+        box_row.setSpacing(6)
+        self.chk_text_box = ToggleSwitch("Etichetta")
+        self.chk_text_box.setToolTip("Riquadro colorato dietro al testo")
+        self.chk_text_box.toggled.connect(lambda c: self._on_text_prop("box", c))
+        box_row.addWidget(self.chk_text_box)
+        self.btn_box_color = self._icon_button("plus", "Colore e trasparenza dell'etichetta", lambda: self._pick_text_color("box"),
+                                               "Colore etichetta", "SoftButton")
+        box_row.addWidget(self.btn_box_color)
+        tl.addLayout(box_row)
+        self.slider_text_opacity = self._make_slider(tl, "Opacità", 5, 100, 100, "%", resettable=True)
+        self.slider_text_opacity.valueChanged.connect(lambda v: self._on_text_prop("opacity", v))
+        tl.addStretch()
+        self.text_tabs.addWidget(tp)
+
+        dp, dl = self._tab_page()
+        self._build_align_block(dl)
+        dl.addStretch()
+        self.text_tabs.addWidget(dp)
+        lay.addStretch()
+        return page
 
     def _build_status_bar(self):
         sb = self.statusBar()
@@ -2067,6 +3083,8 @@ class MainWindow(QMainWindow):
         make("Aggiungi foto…", self.open_file_dialog, QKeySequence.StandardKey.Open, m_file)
         m_file.addSeparator()
         make("Apri progetto…", self.open_project, QKeySequence("Ctrl+Shift+O"), m_file)
+        self.menu_recent = m_file.addMenu("Apri recenti")
+        self.menu_recent.aboutToShow.connect(self._rebuild_recent_menu)
         make("Salva progetto", self.save_project, QKeySequence.StandardKey.Save, m_file)
         make("Salva progetto con nome…", self.save_project_as, QKeySequence("Ctrl+Shift+S"), m_file)
         m_file.addSeparator()
@@ -2083,10 +3101,37 @@ class MainWindow(QMainWindow):
         make("Reimposta zoom e posizione", self._reset_selected_framing, QKeySequence("Ctrl+R"), m_edit)
         make("Seleziona tutte", self._select_all, QKeySequence.StandardKey.SelectAll, m_edit)
         m_edit.addSeparator()
+        make("Copia stile", self._copy_style, QKeySequence("Ctrl+Shift+C"), m_edit)
+        make("Incolla stile", self._paste_style, QKeySequence("Ctrl+Shift+V"), m_edit)
+        make("Blocca / sblocca posizione", self._toggle_lock_selected, QKeySequence("Ctrl+L"), m_edit)
+        m_edit.addSeparator()
+        make("Specchia orizzontalmente", lambda: self._flip_selected("h"), None, m_edit)
+        make("Specchia verticalmente", lambda: self._flip_selected("v"), None, m_edit)
+        m_edit.addSeparator()
         make("Rimescola ordine foto", self.shuffle_canvas_photos, None, m_edit)
         make("Scambia 2 selezionate", self.swap_two_selected_photos, None, m_edit)
 
+        m_insert = menubar.addMenu("&Inserisci")
+        make("Testo", self.add_text, QKeySequence("Ctrl+T"), m_insert)
+        make("Foto…", self.open_file_dialog, None, m_insert)
+
+        m_pages = menubar.addMenu("&Pagine")
+        make("Aggiungi una pagina dopo quella corrente", lambda: self._insert_page_after(self._current_page()), None, m_pages)
+        make("Aggiungi una pagina alla fine", lambda: self._insert_page_after(self.scene.num_frames - 1), None, m_pages)
+        m_pages.addSeparator()
+        make("Sposta la pagina corrente a sinistra", lambda: self._move_page(self._current_page(), -1), None, m_pages)
+        make("Sposta la pagina corrente a destra", lambda: self._move_page(self._current_page(), 1), None, m_pages)
+        m_pages.addSeparator()
+        make("Elimina la pagina corrente…", lambda: self._delete_page(self._current_page()), None, m_pages)
+        hint = m_pages.addAction("(Pagina corrente = quella dell'elemento selezionato o al centro della vista)")
+        hint.setEnabled(False)
+
         m_view = menubar.addMenu("&Vista")
+        make("Anteprima carosello", self.show_carousel_preview, QKeySequence("F5"), m_view)
+        m_view.addSeparator()
+        make("Zoom avanti", lambda: self.view.zoom_by(1.25, False), [QKeySequence("Ctrl++"), QKeySequence("Ctrl+=")], m_view)
+        make("Zoom indietro", lambda: self.view.zoom_by(1 / 1.25, False), QKeySequence("Ctrl+-"), m_view)
+        make("Dimensioni reali (100%)", self._zoom_actual_size, QKeySequence("Ctrl+1"), m_view)
         make("Adatta alla finestra", self.fit_canvas_in_view, QKeySequence("Ctrl+0"), m_view)
 
         # Scorciatoie solo-tela: Elimina e spostamento fine con le frecce (Shift = 10 px)
@@ -2398,6 +3443,60 @@ class MainWindow(QMainWindow):
             QToolButton#SoftButton:pressed {
                 background-color: @field;
             }
+            QToolButton#SoftButton:checked {
+                background-color: rgba(38, 128, 235, 0.22);
+                border-color: @accent;
+                color: @text;
+            }
+            QToolButton#SoftButton:disabled {
+                color: @faint;
+            }
+            QToolButton#SegTab {
+                background-color: @field;
+                border: 1px solid @line;
+                border-left: none;
+                color: @muted;
+                font-size: 11px;
+                padding: 3px 0;
+            }
+            QToolButton#SegTab:hover {
+                color: @text;
+            }
+            QToolButton#SegTab:checked {
+                background-color: @raised;
+                color: @text;
+                font-weight: 600;
+                border-bottom: 2px solid @accent;
+            }
+            QPlainTextEdit {
+                background-color: @field;
+                border: 1px solid @line;
+                border-radius: 2px;
+                padding: 4px;
+                selection-background-color: @accent;
+            }
+            QPlainTextEdit:focus {
+                border-color: @accent;
+            }
+            QDialog {
+                background-color: @panel;
+            }
+            QRadioButton {
+                spacing: 8px;
+                padding: 2px 0;
+            }
+            QRadioButton::indicator {
+                width: 14px;
+                height: 14px;
+                border-radius: 8px;
+                border: 1px solid @edge;
+                background-color: @field;
+            }
+            QRadioButton::indicator:checked {
+                border: 1px solid @accent;
+                background-color: qradialgradient(cx: 0.5, cy: 0.5, radius: 0.5, fx: 0.5, fy: 0.5,
+                    stop: 0 #FFFFFF, stop: 0.32 #FFFFFF, stop: 0.42 @accent, stop: 1 @accent);
+            }
             QToolButton#LayoutTile {
                 background-color: @field;
                 border: 1px solid @line;
@@ -2597,6 +3696,35 @@ class MainWindow(QMainWindow):
             self.scene.update()
             self._schedule_commit()
 
+    def _open_background_dialog(self):
+        before = self._snapshot()["canvas"]
+        BackgroundDialog(self).exec()
+        if self._snapshot()["canvas"] != before:
+            self._schedule_commit()
+
+    def _apply_background(self, mode: str, color: QColor, color2: QColor, direction: str,
+                          blur_path: str, blur_amount: int, dim: int):
+        sc = self.scene
+        sc.bg_mode = mode
+        sc.bg_color = QColor(color)
+        sc.bg_color2 = QColor(color2)
+        sc.bg_direction = direction
+        sc.bg_blur_path = blur_path if mode == "blur" else (sc.bg_blur_path or "")
+        sc.bg_blur_amount = int(blur_amount)
+        sc.bg_dim = int(dim)
+        self._refresh_bg_swatches()
+        sc.update()
+
+    def _default_blur_photo(self) -> str:
+        """Foto proposta per lo sfondo sfocato: quella selezionata, altrimenti la prima della tela o della libreria."""
+        sel = self._get_primary_selected()
+        if sel is not None:
+            return sel.image_path
+        photos = self.get_canvas_photos()
+        if photos:
+            return photos[0].image_path
+        return self.loaded_library[0] if self.loaded_library else ""
+
     def _toggle_guides(self, checked: bool):
         self.scene.show_guides = checked
         self.scene.update()
@@ -2608,6 +3736,11 @@ class MainWindow(QMainWindow):
     def fit_canvas_in_view(self):
         # Spazio extra in alto per le etichette delle pagine
         self.view.fit_to(self.scene.canvas_rect().adjusted(-70, -110, 70, 70))
+
+    def _zoom_actual_size(self):
+        scale = self.view.current_scale()
+        if scale > 0:
+            self.view.zoom_by(1.0 / scale, False)
 
     def _on_zoom_changed(self, scale: float):
         self.lbl_zoom.setText(f"{round(scale * 100)}%")
@@ -2689,6 +3822,11 @@ class MainWindow(QMainWindow):
         self.btn_add_all.setEnabled(n > 0)
         self._update_library_selection_ui()
 
+    def _on_library_reordered(self, *_):
+        """Dopo un trascinamento nella libreria l'ordine delle foto segue quello delle miniature."""
+        self.loaded_library = [self.list_library.item(i).data(Qt.ItemDataRole.UserRole)
+                               for i in range(self.list_library.count())]
+
     def _library_selected_paths(self) -> List[str]:
         """Percorsi selezionati nella libreria, nell'ordine della libreria (non in quello dei clic)."""
         items = sorted(self.list_library.selectedItems(), key=self.list_library.row)
@@ -2716,6 +3854,10 @@ class MainWindow(QMainWindow):
 
     def _update_canvas_count(self):
         self._update_tool_states()
+        paths = {p.image_path for p in self.get_canvas_photos()}
+        if paths != self._canvas_paths:
+            self._canvas_paths = paths
+            self.list_library.viewport().update()
         n = len(self.get_canvas_photos())
         self.lbl_count.setText("Tela vuota" if n == 0 else ("1 foto sulla tela" if n == 1 else f"{n} foto sulla tela"))
         self.btn_clear_canvas.setEnabled(n > 0)
@@ -2816,6 +3958,9 @@ class MainWindow(QMainWindow):
 
     def clear_canvas_photos(self):
         self._remove_all_photos()
+        for t in self.get_canvas_texts():
+            self.scene.removeItem(t)
+        self._update_canvas_count()
         self._schedule_commit()
 
     def get_canvas_photos(self) -> List[PhotoItem]:
@@ -2826,6 +3971,30 @@ class MainWindow(QMainWindow):
 
     def _selected_photos(self) -> List[PhotoItem]:
         return [it for it in self.scene.selectedItems() if isinstance(it, PhotoItem)]
+
+    def get_canvas_texts(self) -> List[TextItem]:
+        items = [it for it in self.scene.items() if isinstance(it, TextItem)]
+        items.sort(key=lambda t: t.uid)
+        return items
+
+    def _selected_texts(self) -> List[TextItem]:
+        return [it for it in self.scene.selectedItems() if isinstance(it, TextItem)]
+
+    def _selected_elements(self) -> list:
+        """Foto e testi selezionati."""
+        return [it for it in self.scene.selectedItems() if isinstance(it, (PhotoItem, TextItem))]
+
+    def _all_elements(self) -> list:
+        return self.get_canvas_photos() + self.get_canvas_texts()
+
+    @staticmethod
+    def _element_rect(it) -> QRectF:
+        """Ingombro in scena (rotazione inclusa) di una foto o di un testo."""
+        local = it.text_rect() if isinstance(it, TextItem) else QRectF(0, 0, it.cell_w, it.cell_h)
+        return it.mapRectToScene(local)
+
+    def _max_z(self) -> float:
+        return max([it.zValue() for it in self._all_elements()], default=0.0)
 
     # ================= ALGORITMI DI LAYOUT E RIORGANIZZAZIONE =================
     def _on_layout_button(self, mode: str):
@@ -3162,22 +4331,32 @@ class MainWindow(QMainWindow):
     def _sync_inspector_from_item(self, item: Optional[PhotoItem]):
         self._updating_inspector = True
         count = len(self._selected_photos())
-        self.insp_stack.setCurrentIndex(0 if item is None else 1)
-        if item is None:
+        texts = self._selected_texts()
+        if item is None and texts:
+            self.insp_stack.setCurrentIndex(2)
+            self._sync_text_inspector(texts[0], len(texts))
+            self.lbl_hint.setText("Trascina il testo per spostarlo.   Doppio clic: modifica il testo.   "
+                                  "Frecce: sposta di 1 px (Shift: 10 px).")
+        else:
+            self.insp_stack.setCurrentIndex(0 if item is None else 1)
+        if item is None and not texts:
             self.lbl_hint.setText("Clicca una foto per selezionarla.   Rotella: zoom della vista.   "
                                   "Tasto centrale + trascina: sposta la vista.")
-        else:
-            self.lbl_selection_thumb.setPixmap(rounded_thumb(item.pixmap, 40, 2))
+        elif item is not None:
+            self.lbl_selection_thumb.setPixmap(rounded_thumb(item.display_pixmap(), 40, 2))
             if count > 1:
                 self.lbl_selection_name.setText(f"{count} foto selezionate")
                 self.lbl_selection_info.setText("Le modifiche valgono per tutte")
             else:
                 self.lbl_selection_name.setText(self.fontMetrics().elidedText(
                     os.path.basename(item.image_path), Qt.TextElideMode.ElideMiddle, 190))
-                self.lbl_selection_info.setText(f"Riquadro {int(item.cell_w)} × {int(item.cell_h)} px")
+                info = f"Riquadro {int(item.cell_w)} × {int(item.cell_h)} px"
+                self.lbl_selection_info.setText(info + ("  ·  bloccata" if item.locked else ""))
             self.lbl_hint.setText("Alt + trascina: sposta l'inquadratura.   Ctrl + rotella: zoom nella foto.   "
                                   "Shift sulle maniglie: mantieni le proporzioni.")
             self.btn_border_color.setIcon(swatch_icon(item.border_color))
+            self.btn_fit_cover.setChecked(item.fit_mode != "contain")
+            self.btn_fit_contain.setChecked(item.fit_mode == "contain")
             self.slider_inner_zoom.setValue(round(item.inner_zoom * 100))
             self.slider_pan_x.setValue(round(item.pan_x * 100))
             self.slider_pan_y.setValue(round(item.pan_y * 100))
@@ -3185,8 +4364,44 @@ class MainWindow(QMainWindow):
             self.slider_rotation.setValue(round(item.rotation()))
             self.slider_radius.setValue(round(item.border_radius))
             self.slider_border.setValue(round(item.border_width))
+            for key, slider in self.adjust_sliders.items():
+                slider.setValue(int(item.adjust.get(key, 0)))
+            self.chk_bw.setChecked(bool(item.adjust.get("bw")))
+            self.slider_opacity.setValue(item.photo_opacity)
+            self.slider_shadow.setValue(item.shadow)
+            self.btn_paste_style.setEnabled(self._style_clipboard is not None)
+        primary = item if item is not None else (texts[0] if texts else None)
+        if primary is not None:
+            for sw in self._lock_switches:
+                sw.setChecked(primary.locked)
+        self._update_align_ui()
         self._update_canvas_count()
         self._updating_inspector = False
+
+    def _sync_text_inspector(self, t: TextItem, count: int):
+        self.lbl_text_title.setText("Testo" if count == 1 else f"{count} testi selezionati")
+        if self.edit_text.toPlainText() != t.text:
+            self.edit_text.setPlainText(t.text)
+        self.combo_font.setCurrentFont(QFont(t.font_family))
+        self.slider_text_size.setValue(round(t.font_size))
+        self.btn_text_bold.setChecked(t.bold)
+        self.btn_text_italic.setChecked(t.italic)
+        self.text_align_buttons.get(t.align, self.text_align_buttons["center"]).setChecked(True)
+        self.btn_text_color.setIcon(swatch_icon(t.color))
+        self.btn_box_color.setIcon(swatch_icon(t.box_color))
+        self.btn_box_color.setEnabled(t.box)
+        self.chk_text_shadow.setChecked(t.shadow)
+        self.chk_text_box.setChecked(t.box)
+        self.slider_text_opacity.setValue(t.text_opacity)
+
+    def _update_align_ui(self):
+        n = len(self._selected_elements())
+        text = ("Allinea alla pagina in cui si trova." if n <= 1
+                else f"Allinea i {n} elementi selezionati tra loro.")
+        for hint in self._align_hints:
+            hint.setText(text)
+        for b in self._distribute_buttons:
+            b.setEnabled(n >= 3)
 
     def _on_inspector_slider(self, prop: str, value: int):
         if self._updating_inspector:
@@ -3207,8 +4422,371 @@ class MainWindow(QMainWindow):
             elif prop == "border":
                 item.border_width = float(value)
                 item.auto_border = False
+            elif prop in ("brightness", "contrast", "saturation", "warmth"):
+                item.adjust[prop] = int(value)
+            elif prop == "opacity":
+                item.set_photo_opacity(value)
+            elif prop == "shadow":
+                item.set_shadow(value)
             item.update()
+        if prop in ("brightness", "contrast", "saturation", "warmth"):
+            self._refresh_selection_thumb()
         self._schedule_commit()
+
+    def _refresh_selection_thumb(self):
+        item = self._get_primary_selected()
+        if item is not None:
+            self.lbl_selection_thumb.setPixmap(rounded_thumb(item.display_pixmap(), 40, 2))
+
+    # ---------- Foto: riempimento, specchio, colori, stile ----------
+    def _set_fit_mode(self, mode: str):
+        if self._updating_inspector:
+            return
+        for item in self._selected_photos():
+            item.fit_mode = mode
+            item.pan_x = item.pan_y = 0.0
+            item.update()
+        self._sync_inspector_from_item(self._get_primary_selected())
+        self._schedule_commit()
+
+    def _flip_selected(self, axis: str):
+        selected = self._selected_photos()
+        for item in selected:
+            if axis == "h":
+                item.flip_h = not item.flip_h
+            else:
+                item.flip_v = not item.flip_v
+            item.update()
+        if selected:
+            self._schedule_commit()
+
+    def _set_bw(self, checked: bool):
+        if self._updating_inspector:
+            return
+        for item in self._selected_photos():
+            item.adjust["bw"] = bool(checked)
+            item.update()
+        self._refresh_selection_thumb()
+        self._schedule_commit()
+
+    def _reset_colors(self):
+        for item in self._selected_photos():
+            item.adjust = dict(NEUTRAL_ADJUST)
+            item.update()
+        self._sync_inspector_from_item(self._get_primary_selected())
+        self._schedule_commit()
+
+    def _apply_colors_to_all(self):
+        primary = self._get_primary_selected()
+        if primary is None:
+            return
+        for p in self.get_canvas_photos():
+            p.adjust = dict(primary.adjust)
+            p.update()
+        self.statusBar().showMessage("Regolazioni colore applicate a tutte le foto", 3000)
+        self._schedule_commit()
+
+    def _copy_style(self):
+        item = self._get_primary_selected()
+        if item is None:
+            self.statusBar().showMessage("Seleziona prima la foto da cui copiare lo stile", 4000)
+            return
+        self._style_clipboard = {
+            "border_radius": item.border_radius,
+            "border_width": item.border_width,
+            "border_color": QColor(item.border_color),
+            "opacity": item.photo_opacity,
+            "shadow": item.shadow,
+            "adjust": dict(item.adjust),
+        }
+        self.btn_paste_style.setEnabled(True)
+        self.statusBar().showMessage("Stile copiato: seleziona altre foto e usa «Incolla stile» (Ctrl+Shift+V)", 5000)
+
+    def _paste_style(self):
+        st = self._style_clipboard
+        selected = self._selected_photos()
+        if st is None or not selected:
+            self.statusBar().showMessage("Copia prima uno stile, poi seleziona le foto su cui incollarlo", 4000)
+            return
+        for p in selected:
+            p.border_radius = st["border_radius"]
+            p.border_width = st["border_width"]
+            p.border_color = QColor(st["border_color"])
+            p.auto_border = False
+            p.set_photo_opacity(st["opacity"])
+            p.set_shadow(st["shadow"])
+            p.adjust = dict(st["adjust"])
+            p.update()
+        self._sync_inspector_from_item(self._get_primary_selected())
+        self._schedule_commit()
+
+    # ---------- Blocco ----------
+    def _set_lock_selected(self, locked: bool):
+        if self._updating_inspector:
+            return
+        for it in self._selected_elements():
+            it.set_locked(locked)
+        self._sync_inspector_from_item(self._get_primary_selected())
+        self._schedule_commit()
+
+    def _toggle_lock_selected(self):
+        sel = self._selected_elements()
+        if sel:
+            target = not all(it.locked for it in sel)
+            for it in sel:
+                it.set_locked(target)
+            self.statusBar().showMessage("Posizione bloccata" if target else "Posizione sbloccata", 3000)
+            self._sync_inspector_from_item(self._get_primary_selected())
+            self._schedule_commit()
+
+    # ---------- Allinea e distribuisci ----------
+    def _page_rect_at(self, x: float) -> QRectF:
+        k = max(0, min(self.scene.num_frames - 1, int(math.floor(x / self.scene.frame_w))))
+        return QRectF(k * self.scene.frame_w, 0, self.scene.frame_w, self.scene.frame_h)
+
+    def _align_selected(self, how: str):
+        selected = self._selected_elements()
+        if not selected:
+            return
+        if len(selected) == 1:
+            ref = self._page_rect_at(self._element_rect(selected[0]).center().x())
+        else:
+            ref = self._element_rect(selected[0])
+            for it in selected[1:]:
+                ref = ref.united(self._element_rect(it))
+        for it in selected:
+            if it.locked:
+                continue
+            r = self._element_rect(it)
+            dx = dy = 0.0
+            if how == "left":
+                dx = ref.left() - r.left()
+            elif how == "hcenter":
+                dx = ref.center().x() - r.center().x()
+            elif how == "right":
+                dx = ref.right() - r.right()
+            elif how == "top":
+                dy = ref.top() - r.top()
+            elif how == "vcenter":
+                dy = ref.center().y() - r.center().y()
+            elif how == "bottom":
+                dy = ref.bottom() - r.bottom()
+            it.moveBy(dx, dy)
+        self._schedule_commit()
+
+    def _distribute_selected(self, horizontal: bool):
+        selected = self._selected_elements()
+        if len(selected) < 3:
+            self.statusBar().showMessage("Seleziona almeno 3 elementi per distribuirli a spazi uguali", 4000)
+            return
+        rects = {id(it): self._element_rect(it) for it in selected}
+        key = (lambda it: rects[id(it)].left()) if horizontal else (lambda it: rects[id(it)].top())
+        ordered = sorted(selected, key=key)
+        first, last = rects[id(ordered[0])], rects[id(ordered[-1])]
+        if horizontal:
+            span = last.right() - first.left()
+            sizes = sum(rects[id(it)].width() for it in ordered)
+        else:
+            span = last.bottom() - first.top()
+            sizes = sum(rects[id(it)].height() for it in ordered)
+        gap = (span - sizes) / (len(ordered) - 1)
+        cursor = first.left() if horizontal else first.top()
+        for it in ordered:
+            r = rects[id(it)]
+            if not it.locked:
+                if horizontal:
+                    it.moveBy(cursor - r.left(), 0)
+                else:
+                    it.moveBy(0, cursor - r.top())
+            cursor += (r.width() if horizontal else r.height()) + gap
+        self._schedule_commit()
+
+    # ---------- Testo ----------
+    def _wire_text(self, t: TextItem):
+        t.geometry_changed.connect(self._on_item_geometry_changed)
+        t.edit_finished.connect(self._schedule_commit)
+        t.edit_requested.connect(self._focus_text_editor)
+
+    def _spawn_text_item(self, uid: Optional[int] = None) -> TextItem:
+        t = TextItem(uid=uid)
+        self._wire_text(t)
+        self.scene.addItem(t)
+        return t
+
+    def add_text(self, at: Optional[QPointF] = None):
+        t = self._spawn_text_item()
+        sc = self.scene
+        dark_bg = sc.bg_mode == "blur" or not is_light(sc.bg_color)
+        t.color = QColor("#FFFFFF") if dark_bg else QColor("#1A1A1A")
+        t.shadow = dark_bg
+        # Etichetta in contrasto col testo: scura dietro il testo bianco, chiara dietro quello scuro
+        t.box_color = QColor(0, 0, 0, 150) if dark_bg else QColor(255, 255, 255, 215)
+        t.font_size = round(sc.frame_w * 0.07)
+        t.relayout(keep_center=False)
+        t.setZValue(self._max_z() + 1.0)
+        if at is None:
+            page = self._page_rect_at(self.view.mapToScene(self.view.viewport().rect().center()).x())
+            at = page.center()
+        t.setPos(at - t.text_rect().center())
+        self.scene.clearSelection()
+        t.setSelected(True)
+        self._schedule_commit()
+        self._focus_text_editor(t)
+
+    def _focus_text_editor(self, t: TextItem):
+        if not t.isSelected():
+            self.scene.clearSelection()
+            t.setSelected(True)
+        self.text_tabs.setCurrentIndex(0)
+        self.edit_text.setFocus()
+        self.edit_text.selectAll()
+
+    def _on_text_content_changed(self):
+        if self._updating_inspector:
+            return
+        txt = self.edit_text.toPlainText()
+        for t in self._selected_texts():
+            t.set_text(txt)
+        self._schedule_commit()
+
+    def _on_text_prop(self, prop: str, value):
+        if self._updating_inspector:
+            return
+        for t in self._selected_texts():
+            if prop == "font":
+                t.font_family = value
+            elif prop == "size":
+                t.font_size = float(value)
+            elif prop == "bold":
+                t.bold = bool(value)
+            elif prop == "italic":
+                t.italic = bool(value)
+            elif prop == "align":
+                t.align = value
+            elif prop == "shadow":
+                t.shadow = bool(value)
+            elif prop == "box":
+                t.box = bool(value)
+            elif prop == "opacity":
+                t.set_text_opacity(value)
+            t.relayout()
+        if prop == "box":
+            self.btn_box_color.setEnabled(bool(value))
+        self._schedule_commit()
+
+    def _pick_text_color(self, which: str):
+        texts = self._selected_texts()
+        if not texts:
+            return
+        initial = texts[0].color if which == "color" else texts[0].box_color
+        options = QColorDialog.ColorDialogOption.ShowAlphaChannel if which == "box" else QColorDialog.ColorDialogOption(0)
+        col = QColorDialog.getColor(initial, self, "Colore del testo" if which == "color" else "Colore dell'etichetta", options)
+        if not col.isValid():
+            return
+        for t in texts:
+            if which == "color":
+                t.color = col
+            else:
+                t.box_color = col
+                t.box = True
+            t.relayout()
+        self._sync_inspector_from_item(None)
+        self._schedule_commit()
+
+    # ---------- Pagine ----------
+    def _page_of(self, it) -> int:
+        return int(math.floor(self._element_rect(it).center().x() / self.scene.frame_w))
+
+    def _current_page(self) -> int:
+        sel = self._selected_elements()
+        x = (self._element_rect(sel[0]).center().x() if sel
+             else self.view.mapToScene(self.view.viewport().rect().center()).x())
+        return max(0, min(self.scene.num_frames - 1, int(math.floor(x / self.scene.frame_w))))
+
+    def _insert_page_after(self, k: int):
+        n = self.scene.num_frames
+        if n >= self.spin_frames.maximum():
+            self.statusBar().showMessage(f"Massimo {n} pagine", 4000)
+            return
+        fw = self.scene.frame_w
+        for it in self._all_elements():
+            if self._page_of(it) > k:
+                it.moveBy(fw, 0)
+        self._seam_added_frames = None
+        self._set_frames_silently(n + 1)
+        self.statusBar().showMessage(f"Nuova pagina {k + 2} aggiunta", 3000)
+        self._schedule_commit()
+
+    def _delete_page(self, k: int):
+        n = self.scene.num_frames
+        if n <= 1:
+            self.statusBar().showMessage("C'è una sola pagina: non si può eliminare", 4000)
+            return
+        inside = [it for it in self._all_elements() if self._page_of(it) == k]
+        if inside:
+            answer = QMessageBox.question(
+                self, "Eliminare la pagina?",
+                f"La pagina {k + 1} contiene {len(inside)} elementi, che verranno tolti dalla tela.\n"
+                "Puoi sempre annullare con Ctrl+Z. Continuare?")
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        fw = self.scene.frame_w
+        for it in inside:
+            self.scene.removeItem(it)
+        for it in self._all_elements():
+            if self._page_of(it) > k:
+                it.moveBy(-fw, 0)
+        self._seam_added_frames = None
+        self._set_frames_silently(n - 1)
+        self._update_canvas_count()
+        self.statusBar().showMessage(f"Pagina {k + 1} eliminata", 3000)
+        self._schedule_commit()
+
+    def _move_page(self, k: int, direction: int):
+        j = k + direction
+        if not (0 <= k < self.scene.num_frames and 0 <= j < self.scene.num_frames):
+            self.statusBar().showMessage("La pagina è già al bordo del carosello", 3000)
+            return
+        fw = self.scene.frame_w
+        for it in self._all_elements():
+            page = self._page_of(it)
+            if page == k:
+                it.moveBy(direction * fw, 0)
+            elif page == j:
+                it.moveBy(-direction * fw, 0)
+        self.statusBar().showMessage(f"Pagina {k + 1} spostata in posizione {j + 1}", 3000)
+        self._schedule_commit()
+
+    # ---------- Anteprima carosello ----------
+    def _render_page_previews(self, max_side: int = 1200) -> List[QPixmap]:
+        fw, fh = self.scene.frame_w, self.scene.frame_h
+        scale = max_side / max(fw, fh)
+        w, h = max(1, int(fw * scale)), max(1, int(fh * scale))
+        pages = []
+        self.scene.clean_render = True
+        try:
+            for i in range(self.scene.num_frames):
+                img = QImage(w, h, QImage.Format.Format_ARGB32_Premultiplied)
+                img.fill(self.scene.bg_color)
+                painter = QPainter(img)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+                painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+                self.scene.render(painter, QRectF(0, 0, w, h), QRectF(i * fw, 0, fw, fh))
+                painter.end()
+                pages.append(QPixmap.fromImage(img))
+        finally:
+            self.scene.clean_render = False
+            self.scene.update()
+        return pages
+
+    def show_carousel_preview(self):
+        self._flush_pending_commit()
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            pages = self._render_page_previews()
+        finally:
+            QApplication.restoreOverrideCursor()
+        CarouselPreview(pages, self.scene.frame_w / self.scene.frame_h, self).exec()
 
     def _reset_selected_framing(self):
         """Annulla zoom interno e spostamento X/Y delle foto selezionate (riquadro e rotazione restano)."""
@@ -3225,13 +4803,13 @@ class MainWindow(QMainWindow):
         self._schedule_commit()
 
     def _rotate_selected_by(self, delta_deg: float):
-        for item in self._selected_photos():
+        for item in self._selected_elements():
             item.setRotation(((item.rotation() + delta_deg + 180) % 360) - 180)
         self._sync_inspector_from_item(self._get_primary_selected())
         self._schedule_commit()
 
     def _set_selected_rotation(self, angle: float):
-        for item in self._selected_photos():
+        for item in self._selected_elements():
             item.setRotation(angle)
         self._sync_inspector_from_item(self._get_primary_selected())
         self._schedule_commit()
@@ -3257,6 +4835,9 @@ class MainWindow(QMainWindow):
             p.border_width = border_w
             p.border_color = border_col
             p.auto_border = False
+            if primary is not None:
+                p.set_photo_opacity(primary.photo_opacity)
+                p.set_shadow(primary.shadow)
             p.update()
         self._schedule_commit()
 
@@ -3267,32 +4848,36 @@ class MainWindow(QMainWindow):
         self._schedule_commit()
 
     def _bring_to_front(self):
-        selected = sorted(self._selected_photos(), key=lambda p: p.zValue())
+        selected = sorted(self._selected_elements(), key=lambda p: p.zValue())
         if selected:
-            max_z = max([it.zValue() for it in self.get_canvas_photos()], default=0.0)
+            max_z = self._max_z()
             for i, item in enumerate(selected):
                 item.setZValue(max_z + 1.0 + i)
             self._schedule_commit()
 
     def _send_to_back(self):
-        selected = sorted(self._selected_photos(), key=lambda p: p.zValue(), reverse=True)
+        selected = sorted(self._selected_elements(), key=lambda p: p.zValue(), reverse=True)
         if selected:
-            min_z = min([it.zValue() for it in self.get_canvas_photos()], default=0.0)
+            min_z = min([it.zValue() for it in self._all_elements()], default=0.0)
             for i, item in enumerate(selected):
                 item.setZValue(min_z - 1.0 - i)
             self._schedule_commit()
 
     def _duplicate_selected(self):
-        selected = self._selected_photos()
+        selected = self._selected_elements()
         if not selected:
             return
         duplicates = []
         for item in selected:
-            dup = self._spawn_photo_item(item.image_path)
             state = item.get_state()
-            # Copia tutto (incluso zoom/pan interni) tranne identità, livello e ordine
-            state.update(uid=dup.uid, z=dup.zValue(), layout_index=dup.layout_index,
-                         x=state["x"] + 30, y=state["y"] + 30)
+            if isinstance(item, TextItem):
+                dup = self._spawn_text_item()
+                state.update(uid=dup.uid, z=self._max_z() + 1.0, x=state["x"] + 30, y=state["y"] + 30, locked=False)
+            else:
+                dup = self._spawn_photo_item(item.image_path)
+                # Copia tutto (incluso zoom/pan interni) tranne identità, livello e ordine
+                state.update(uid=dup.uid, z=dup.zValue(), layout_index=dup.layout_index,
+                             x=state["x"] + 30, y=state["y"] + 30, locked=False)
             dup.set_state(state)
             duplicates.append(dup)
         self.scene.clearSelection()
@@ -3301,7 +4886,7 @@ class MainWindow(QMainWindow):
         self._schedule_commit()
 
     def _delete_selected(self):
-        selected = self._selected_photos()
+        selected = self._selected_elements()
         for sel in selected:
             self.scene.removeItem(sel)
         if selected:
@@ -3309,11 +4894,11 @@ class MainWindow(QMainWindow):
             self._schedule_commit()
 
     def _select_all(self):
-        for p in self.get_canvas_photos():
+        for p in self._all_elements():
             p.setSelected(True)
 
     def _nudge_selected(self, dx: float, dy: float):
-        selected = self._selected_photos()
+        selected = [it for it in self._selected_elements() if not it.locked]
         for p in selected:
             p.moveBy(dx, dy)
         if selected:
@@ -3321,25 +4906,36 @@ class MainWindow(QMainWindow):
             self._schedule_commit()
 
     def _show_canvas_context_menu(self, pos):
-        # Il clic destro su una foto non selezionata la seleziona (come in ogni editor grafico)
-        clicked = next((it for it in self.view.items(pos) if isinstance(it, PhotoItem)), None)
+        # Il clic destro su un elemento non selezionato lo seleziona (come in ogni editor grafico)
+        clicked = next((it for it in self.view.items(pos) if isinstance(it, (PhotoItem, TextItem))), None)
         if clicked is not None and not clicked.isSelected():
             self.scene.clearSelection()
             clicked.setSelected(True)
 
-        n_sel = len(self._selected_photos())
-        has_sel = n_sel > 0
+        scene_pt = self.view.mapToScene(pos)
+        n_photos = len(self._selected_photos())
+        has_photo = n_photos > 0
+        elements = self._selected_elements()
+        has_el = bool(elements)
+        locked = has_el and all(it.locked for it in elements)
         menu = QMenu(self)
         entries = [
-            ("front", "Porta davanti", self._bring_to_front, has_sel),
-            ("back", "Manda dietro", self._send_to_back, has_sel),
+            ("text", "Aggiungi un testo qui", lambda: self.add_text(scene_pt), True),
             None,
-            ("swap", "Scambia le 2 foto selezionate", self.swap_two_selected_photos, n_sel == 2),
-            ("reset", "Reimposta zoom e posizione", self._reset_selected_framing, has_sel),
-            ("ratio", "Usa le proporzioni della foto", self._restore_selected_original_ratio, has_sel),
-            ("duplicate", "Duplica", self._duplicate_selected, has_sel),
+            ("front", "Porta davanti", self._bring_to_front, has_el),
+            ("back", "Manda dietro", self._send_to_back, has_el),
+            ("lock", "Sblocca posizione" if locked else "Blocca posizione", self._toggle_lock_selected, has_el),
             None,
-            ("trash", "Elimina", self._delete_selected, has_sel),
+            ("swap", "Scambia le 2 foto selezionate", self.swap_two_selected_photos, n_photos == 2),
+            ("reset", "Reimposta zoom e posizione", self._reset_selected_framing, has_photo),
+            ("ratio", "Usa le proporzioni della foto", self._restore_selected_original_ratio, has_photo),
+            ("flip_h", "Specchia orizzontalmente", lambda: self._flip_selected("h"), has_photo),
+            ("flip_v", "Specchia verticalmente", lambda: self._flip_selected("v"), has_photo),
+            ("duplicate", "Copia stile", self._copy_style, n_photos >= 1),
+            ("plus", "Incolla stile", self._paste_style, has_photo and self._style_clipboard is not None),
+            ("duplicate", "Duplica", self._duplicate_selected, has_el),
+            None,
+            ("trash", "Elimina", self._delete_selected, has_el),
         ]
         for entry in entries:
             if entry is None:
@@ -3349,6 +4945,20 @@ class MainWindow(QMainWindow):
             act = menu.addAction(make_icon(icon, THEME["text"], 16), text)
             act.setEnabled(enabled)
             act.triggered.connect(slot)
+
+        # Gestione della pagina sotto il cursore
+        k = max(0, min(self.scene.num_frames - 1, int(math.floor(scene_pt.x() / self.scene.frame_w))))
+        n = self.scene.num_frames
+        menu.addSeparator()
+        page_menu = menu.addMenu(make_icon("page", THEME["text"], 16), f"Pagina {k + 1}")
+        page_menu.addAction("Aggiungi una pagina dopo questa", lambda: self._insert_page_after(k))
+        a = page_menu.addAction("Sposta a sinistra", lambda: self._move_page(k, -1))
+        a.setEnabled(k > 0)
+        a = page_menu.addAction("Sposta a destra", lambda: self._move_page(k, 1))
+        a.setEnabled(k < n - 1)
+        page_menu.addSeparator()
+        a = page_menu.addAction("Elimina questa pagina…", lambda: self._delete_page(k))
+        a.setEnabled(n > 1)
         menu.exec(self.view.mapToGlobal(pos))
 
     # ================= ANNULLA / RIPETI =================
@@ -3368,8 +4978,15 @@ class MainWindow(QMainWindow):
                 "layout_mode": self.current_layout_mode,
                 "mosaic_style": self.mosaic_style,
                 "layout_seed": self._layout_seed,
+                "bg_mode": self.scene.bg_mode,
+                "bg_color2": self.scene.bg_color2.name(QColor.NameFormat.HexArgb),
+                "bg_direction": self.scene.bg_direction,
+                "bg_blur_path": self.scene.bg_blur_path,
+                "bg_blur_amount": self.scene.bg_blur_amount,
+                "bg_dim": self.scene.bg_dim,
             },
             "items": [p.get_state() for p in self.get_canvas_photos()],
+            "texts": [t.get_state() for t in self.get_canvas_texts()],
         }
 
     def _restore_snapshot(self, snap: dict):
@@ -3398,6 +5015,12 @@ class MainWindow(QMainWindow):
             self.scene.frame_w, self.scene.frame_h = c["frame_w"], c["frame_h"]
             self.scene.num_frames = c["num_frames"]
             self.scene.bg_color = QColor(c["bg_color"])
+            self.scene.bg_mode = c.get("bg_mode", "solid")
+            self.scene.bg_color2 = QColor(c.get("bg_color2", "#FF2680EB"))
+            self.scene.bg_direction = c.get("bg_direction", "vertical")
+            self.scene.bg_blur_path = c.get("bg_blur_path", "")
+            self.scene.bg_blur_amount = c.get("bg_blur_amount", 50)
+            self.scene.bg_dim = c.get("bg_dim", 15)
             self._refresh_bg_swatches()
             self.scene.update_canvas_rect()
             self.current_layout_mode = c["layout_mode"]
@@ -3416,6 +5039,15 @@ class MainWindow(QMainWindow):
             for uid, item in existing.items():
                 if uid not in wanted:
                     self.scene.removeItem(item)
+            existing_texts = {t.uid: t for t in self.get_canvas_texts()}
+            wanted_texts = set()
+            for st in snap.get("texts", []):
+                wanted_texts.add(st["uid"])
+                t = existing_texts.get(st["uid"]) or self._spawn_text_item(uid=st["uid"])
+                t.set_state(st)
+            for uid, t in existing_texts.items():
+                if uid not in wanted_texts:
+                    self.scene.removeItem(t)
             self.scene.update()
             if canvas_changed:
                 self.fit_canvas_in_view()
@@ -3504,23 +5136,28 @@ class MainWindow(QMainWindow):
             path += PROJECT_EXT
         return self._write_project(path)
 
-    def _write_project(self, path: str) -> bool:
-        self._flush_pending_commit()
-        snap = self._history[self._history_index]
-        base_dir = os.path.dirname(os.path.abspath(path))
-
+    def _project_data(self, snap: dict, base_dir: str) -> dict:
         def rel(p):
             try:
                 return os.path.relpath(p, base_dir)
             except ValueError:  # Unità diversa su Windows
                 return None
 
-        data = {
+        canvas = dict(snap["canvas"])
+        if canvas.get("bg_blur_path"):
+            canvas["bg_blur_rel"] = rel(canvas["bg_blur_path"])
+        return {
             "version": PROJECT_VERSION,
-            "canvas": snap["canvas"],
+            "canvas": canvas,
             "library": [{"path": p, "rel": rel(p)} for p in self.loaded_library],
             "items": [dict(s, rel=rel(s["path"])) for s in snap["items"]],
+            "texts": snap.get("texts", []),
         }
+
+    def _write_project(self, path: str) -> bool:
+        self._flush_pending_commit()
+        snap = self._history[self._history_index]
+        data = self._project_data(snap, os.path.dirname(os.path.abspath(path)))
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=1)
@@ -3530,6 +5167,8 @@ class MainWindow(QMainWindow):
         self.project_path = path
         self._saved_snapshot = snap
         self._update_title()
+        self._add_recent(path)
+        self._remove_autosave()
         self.statusBar().showMessage(f"Progetto salvato: {os.path.basename(path)}", 3000)
         return True
 
@@ -3537,17 +5176,20 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard_changes():
             return
         path, _ = QFileDialog.getOpenFileName(self, "Apri progetto", "", f"Progetto SCRL (*{PROJECT_EXT})")
-        if not path:
-            return
+        if path:
+            self._load_project_file(path)
+
+    def _load_project_file(self, path: str, recovered: bool = False) -> bool:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             canvas = data["canvas"]
             items = data["items"]
+            texts = data.get("texts", [])
             library = data.get("library", [])
         except (OSError, ValueError, KeyError) as e:
             QMessageBox.critical(self, "Progetto non aperto", f"Il file non è un progetto valido:\n{e}")
-            return
+            return False
 
         base_dir = os.path.dirname(os.path.abspath(path))
 
@@ -3563,23 +5205,109 @@ class MainWindow(QMainWindow):
 
         for s in items:
             s["path"] = resolve(s)
+        if canvas.get("bg_blur_path"):
+            canvas["bg_blur_path"] = resolve({"path": canvas["bg_blur_path"], "rel": canvas.get("bg_blur_rel")})
         lib_paths = [resolve(e) for e in library]
         all_paths = list(dict.fromkeys(lib_paths + [s["path"] for s in items]))
 
         self._remove_all_photos()
+        for t in self.get_canvas_texts():
+            self.scene.removeItem(t)
         self.loaded_library.clear()
         self.list_library.clear()
         _, errors = self._load_into_library(all_paths, "Apertura progetto…")
 
-        self._restore_snapshot({"canvas": canvas, "items": items})
-        self.project_path = path
+        self._restore_snapshot({"canvas": canvas, "items": items, "texts": texts})
         self._history = []
         self._history_index = -1
         self._commit_history()
-        self._saved_snapshot = self._history[-1]
+        if recovered:
+            # Lavoro recuperato: resta "da salvare", con il nome del progetto originale se c'era
+            original = data.get("original_path")
+            self.project_path = original if original and os.path.isfile(original) else None
+            self._saved_snapshot = None
+        else:
+            self.project_path = path
+            self._saved_snapshot = self._history[-1]
+            self._add_recent(path)
         self._update_title()
         self.fit_canvas_in_view()
         self._report_load_errors(errors)
+        return True
+
+    # ---------- Progetti recenti ----------
+    @staticmethod
+    def _settings() -> QSettings:
+        return QSettings("SCRL", "SCRL Studio")
+
+    def _recent_projects(self) -> List[str]:
+        value = self._settings().value("recent_projects", [])
+        if isinstance(value, str):
+            value = [value]
+        return [p for p in (value or []) if isinstance(p, str)]
+
+    def _add_recent(self, path: str):
+        path = os.path.abspath(path)
+        recent = [p for p in self._recent_projects() if os.path.normcase(p) != os.path.normcase(path)]
+        self._settings().setValue("recent_projects", [path] + recent[:7])
+
+    def _rebuild_recent_menu(self):
+        menu = self.menu_recent
+        menu.clear()
+        paths = [p for p in self._recent_projects() if os.path.isfile(p)]
+        if not paths:
+            empty = menu.addAction("Nessun progetto recente")
+            empty.setEnabled(False)
+            return
+        for i, path in enumerate(paths):
+            act = menu.addAction(f"{i + 1}.  {os.path.basename(path)}")
+            act.setToolTip(path)
+            act.triggered.connect(lambda _c=False, q=path: self._open_recent(q))
+        menu.addSeparator()
+        menu.addAction("Svuota l'elenco").triggered.connect(lambda: self._settings().setValue("recent_projects", []))
+
+    def _open_recent(self, path: str):
+        if self._confirm_discard_changes():
+            self._load_project_file(path)
+
+    # ---------- Salvataggio automatico ----------
+    @staticmethod
+    def _autosave_path() -> str:
+        base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation) or tempfile.gettempdir()
+        os.makedirs(base, exist_ok=True)
+        return os.path.join(base, "salvataggio_automatico" + PROJECT_EXT)
+
+    def _autosave(self):
+        self._flush_pending_commit()
+        if not self._history or not self._is_dirty() or not self._all_elements():
+            return
+        path = self._autosave_path()
+        data = self._project_data(self._history[self._history_index], os.path.dirname(path))
+        data["original_path"] = self.project_path
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
+        except OSError:
+            pass
+
+    def _remove_autosave(self):
+        try:
+            os.remove(self._autosave_path())
+        except OSError:
+            pass
+
+    def offer_recovery(self):
+        """All'avvio: se l'app si era chiusa senza salvare, propone di recuperare il lavoro."""
+        path = self._autosave_path()
+        if not os.path.isfile(path):
+            return
+        answer = QMessageBox.question(
+            self, "Recuperare il lavoro?",
+            "L'ultima volta SCRL Studio si è chiuso senza salvare.\n"
+            "Vuoi recuperare il collage su cui stavi lavorando?")
+        if answer == QMessageBox.StandardButton.Yes:
+            self._load_project_file(path, recovered=True)
+        self._remove_autosave()
 
     def _confirm_discard_changes(self) -> bool:
         self._flush_pending_commit()
@@ -3596,6 +5324,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self._confirm_discard_changes():
+            self._remove_autosave()
             event.accept()
         else:
             event.ignore()
@@ -3603,6 +5332,15 @@ class MainWindow(QMainWindow):
     # ================= ESPORTAZIONE AD ALTA RISOLUZIONE =================
     def _get_export_scale(self) -> int:
         return 2 if self.combo_quality.currentIndex() == 1 else 1
+
+    def _export_ext(self) -> str:
+        return ".jpg" if self.combo_format.currentIndex() == 1 else ".png"
+
+    @staticmethod
+    def _save_image(img: QImage, path: str) -> bool:
+        if path.lower().endswith((".jpg", ".jpeg")):
+            return img.convertToFormat(QImage.Format.Format_RGB32).save(path, "JPG", 92)
+        return img.save(path)
 
     def _render_region(self, source: QRectF, out_w: int, out_h: int) -> Optional[QImage]:
         img = QImage(out_w, out_h, QImage.Format.Format_ARGB32_Premultiplied)
@@ -3643,11 +5381,15 @@ class MainWindow(QMainWindow):
         frames = self.scene.num_frames
         frames_tag = f"_{frames}pagine" if frames > 1 else ""
 
+        ext = self._export_ext()
+        filters = ["PNG alta qualità (*.png)", "JPEG, file leggero (*.jpg *.jpeg)"]
+        if ext == ".jpg":
+            filters.reverse()
         path, _ = QFileDialog.getSaveFileName(
             self,
             f"Esporta collage ({out_w}×{out_h} px)",
-            f"collage_{self.scene.frame_w}x{self.scene.frame_h}{frames_tag}_{out_w}x{out_h}.png",
-            "PNG alta qualità (*.png);;JPEG (*.jpg *.jpeg)"
+            f"collage_{self.scene.frame_w}x{self.scene.frame_h}{frames_tag}_{out_w}x{out_h}{ext}",
+            ";;".join(filters)
         )
         if not path:
             return
@@ -3655,7 +5397,7 @@ class MainWindow(QMainWindow):
         self._begin_export()
         try:
             img = self._render_region(canvas, out_w, out_h)
-            ok = img is not None and img.save(path, quality=95 if path.lower().endswith((".jpg", ".jpeg")) else -1)
+            ok = img is not None and self._save_image(img, path)
         finally:
             self._end_export()
 
@@ -3682,12 +5424,13 @@ class MainWindow(QMainWindow):
             return
 
         num_frames = self.scene.num_frames
-        file_paths = [os.path.join(folder, f"frame_{i + 1:02d}.png") for i in range(num_frames)]
+        ext = self._export_ext()
+        file_paths = [os.path.join(folder, f"frame_{i + 1:02d}{ext}") for i in range(num_frames)]
         existing = [p for p in file_paths if os.path.exists(p)]
         if existing:
             answer = QMessageBox.question(
                 self, "Sostituire i file?",
-                f"Nella cartella ci sono già {len(existing)} file frame_XX.png. Vuoi sostituirli?"
+                f"Nella cartella ci sono già {len(existing)} file frame_XX{ext}. Vuoi sostituirli?"
             )
             if answer != QMessageBox.StandardButton.Yes:
                 return
@@ -3712,7 +5455,7 @@ class MainWindow(QMainWindow):
                 progress.setValue(i)
                 QApplication.processEvents()
                 img = self._render_region(QRectF(i * fw, 0, fw, fh), out_w, out_h)
-                if img is not None and img.save(file_path):
+                if img is not None and self._save_image(img, file_path):
                     saved_files.append(file_path)
                 else:
                     failed.append(os.path.basename(file_path))
@@ -3763,8 +5506,11 @@ if __name__ == "__main__":
         except Exception:
             pass
     app = QApplication(sys.argv)
+    app.setOrganizationName("SCRL")
+    app.setApplicationName("SCRL Studio")
     app.setWindowIcon(app_icon())
     apply_app_style(app)
     window = MainWindow()
     window.showMaximized()
+    QTimer.singleShot(300, window.offer_recovery)
     sys.exit(app.exec())
