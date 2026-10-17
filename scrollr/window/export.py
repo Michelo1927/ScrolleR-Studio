@@ -125,7 +125,7 @@ class ExportMixin:
         out_h = int(fh * scale)
 
         progress = QProgressDialog("Esportazione pagine…", "Annulla", 0, num_frames, self)
-        progress.setWindowTitle("SCRL Studio")
+        progress.setWindowTitle("ScrolleR Studio")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(300)
 

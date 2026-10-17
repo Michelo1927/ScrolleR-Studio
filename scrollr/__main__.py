@@ -20,6 +20,8 @@ def main():
         except Exception:
             pass
     app = QApplication(sys.argv)
+    # Nomi interni del vecchio "SCRL Studio": da qui dipendono la cartella del salvataggio automatico
+    # (%APPDATA%\SCRL\SCRL Studio) e l'ID della barra delle applicazioni. Non cambiarli.
     app.setOrganizationName("SCRL")
     app.setApplicationName("SCRL Studio")
     app.setWindowIcon(app_icon())

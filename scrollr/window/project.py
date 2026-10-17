@@ -23,7 +23,7 @@ class ProjectMixin:
     def save_project_as(self) -> bool:
         path, _ = QFileDialog.getSaveFileName(
             self, "Salva progetto", self.project_path or f"collage{PROJECT_EXT}",
-            f"Progetto SCRL (*{PROJECT_EXT})"
+            f"Progetto ScrolleR (*{PROJECT_EXT})"
         )
         if not path:
             return False
@@ -70,7 +70,7 @@ class ProjectMixin:
     def open_project(self):
         if not self._confirm_discard_changes():
             return
-        path, _ = QFileDialog.getOpenFileName(self, "Apri progetto", "", f"Progetto SCRL (*{PROJECT_EXT})")
+        path, _ = QFileDialog.getOpenFileName(self, "Apri progetto", "", f"Progetto ScrolleR (*{PROJECT_EXT})")
         if path:
             self._load_project_file(path)
 
@@ -198,7 +198,7 @@ class ProjectMixin:
             return
         answer = QMessageBox.question(
             self, "Recuperare il lavoro?",
-            "L'ultima volta SCRL Studio si è chiuso senza salvare.\n"
+            "L'ultima volta ScrolleR Studio si è chiuso senza salvare.\n"
             "Vuoi recuperare il collage su cui stavi lavorando?")
         if answer == QMessageBox.StandardButton.Yes:
             self._load_project_file(path, recovered=True)

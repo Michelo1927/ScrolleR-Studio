@@ -18,7 +18,7 @@ from scrollr.theme import THEME, is_light, ui_font
 class CollageScene(QGraphicsScene):
     """
     Scena grafica che gestisce la tela del collage (in formato 3:4 o altro),
-    lo sfondo, i frame multipli stile SCRL e le linee guida.
+    lo sfondo, i frame multipli del carosello e le linee guida.
     La scena è più grande della tela, così si può fare pan/zoom e recuperare foto finite fuori.
     """
     DOT_SPACING = 24

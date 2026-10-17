@@ -35,7 +35,7 @@ class LibraryMixin:
         progress = None
         if len(paths) > 2:
             progress = QProgressDialog(title, "Annulla", 0, len(paths), self)
-            progress.setWindowTitle("SCRL Studio")
+            progress.setWindowTitle("ScrolleR Studio")
             progress.setWindowModality(Qt.WindowModality.WindowModal)
             progress.setMinimumDuration(300)
 

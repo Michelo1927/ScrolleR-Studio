@@ -1,4 +1,4 @@
-# SCRL Studio
+# ScrolleR Studio
 
 Editor desktop per creare collage e caroselli di foto per i social (pagine affiancate che si scorrono).
 
@@ -17,8 +17,8 @@ python -m venv .venv
 .venv\Scripts\python packaging\build.py
 ```
 
-- `dist\SCRL Studio\SCRL Studio.exe`: l'app pronta, senza bisogno di Python.
-- `dist\SCRL-Studio-Setup-<versione>.exe`: l'installer (menu Start, icona sul desktop, apertura dei `.scrlproj` con doppio clic).
+- `dist\ScrolleR Studio\ScrolleR Studio.exe`: l'app pronta, senza bisogno di Python.
+- `dist\ScrolleR-Studio-Setup-<versione>.exe`: l'installer (menu Start, icona sul desktop, apertura dei `.scrlproj` con doppio clic).
   Richiede Inno Setup 6 (`winget install JRSoftware.InnoSetup`); con `--no-setup` si crea solo la cartella.
 
 La versione è `__version__` in `scrollr/__init__.py`. L'`AppId` in `packaging/scrl_studio.iss` non va cambiato, perché serve agli aggiornamenti.

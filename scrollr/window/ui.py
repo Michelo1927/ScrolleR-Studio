@@ -269,7 +269,7 @@ class UiMixin:
         badge.setPixmap(icon_pixmap("logo", THEME["accent"], 18))
         badge.setFixedSize(30, 26)
         badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badge.setToolTip("SCRL Studio")
+        badge.setToolTip("ScrolleR Studio")
         self.menuBar().setCornerWidget(badge, Qt.Corner.TopLeftCorner)
 
     def _build_top_bar(self) -> QHBoxLayout:
@@ -315,7 +315,7 @@ class UiMixin:
         bar.addWidget(self.custom_size_box)
 
         bar.addSpacing(6)
-        # Numero di pagine (1 = collage singolo, 2+ = carosello SCRL)
+        # Numero di pagine (1 = collage singolo, 2+ = carosello)
         bar.addWidget(self._label("Pagine"))
         self.spin_frames = QSpinBox()
         self.spin_frames.setRange(1, 30)

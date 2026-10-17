@@ -164,5 +164,5 @@ class HistoryMixin:
     def _update_title(self):
         name = os.path.basename(self.project_path) if self.project_path else "Senza titolo"
         star = " •" if self._is_dirty() else ""
-        self.setWindowTitle(f"{name}{star} — SCRL Studio")
+        self.setWindowTitle(f"{name}{star} — ScrolleR Studio")
         self._update_doc_tab()

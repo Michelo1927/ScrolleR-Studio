@@ -1,4 +1,4 @@
-"""Finestra principale di SCRL Studio."""
+"""Finestra principale di ScrolleR Studio."""
 import random
 from typing import List, Optional, Tuple
 

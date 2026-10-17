@@ -1,12 +1,12 @@
 """
-Crea l'app Windows di SCRL Studio.
+Crea l'app Windows di ScrolleR Studio.
 
     .venv\\Scripts\\python packaging\\build.py            # exe + installer
     .venv\\Scripts\\python packaging\\build.py --no-setup # solo la cartella con l'exe
 
 Risultati:
-    dist\\SCRL Studio\\SCRL Studio.exe       app pronta da avviare
-    dist\\SCRL-Studio-Setup-<versione>.exe  installer (richiede Inno Setup 6)
+    dist\\ScrolleR Studio\\ScrolleR Studio.exe       app pronta da avviare
+    dist\\ScrolleR-Studio-Setup-<versione>.exe      installer (richiede Inno Setup 6)
 """
 import os
 import shutil
@@ -17,7 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HERE = os.path.join(ROOT, "packaging")
 BUILD = os.path.join(ROOT, "build")
 DIST = os.path.join(ROOT, "dist")
-APP_NAME = "SCRL Studio"
+APP_NAME = "ScrolleR Studio"
 
 sys.path.insert(0, ROOT)
 from scrollr import __version__  # noqa: E402
@@ -55,7 +55,7 @@ def make_version_file(path: str):
   ffi=FixedFileInfo(filevers={nums}, prodvers={nums}),
   kids=[
     StringFileInfo([StringTable('041004B0', [
-      StringStruct('CompanyName', 'SCRL'),
+      StringStruct('CompanyName', 'ScrolleR'),
       StringStruct('FileDescription', '{APP_NAME}'),
       StringStruct('FileVersion', '{__version__}'),
       StringStruct('InternalName', '{APP_NAME}'),
