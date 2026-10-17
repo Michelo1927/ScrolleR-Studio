@@ -120,6 +120,7 @@ class LayoutMixin:
         p.setRotation(rotation)
         p.set_cell_size(w, h)
         p.setPos(x, y)
+        p.saved_cell = None
 
     def _layout_in_rect(self, mode: str, photos: List[PhotoItem], area: QRectF, gap: float, rng: random.Random):
         if mode == "mosaic":

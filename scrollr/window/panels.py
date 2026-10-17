@@ -359,9 +359,8 @@ class PanelsMixin:
         frame_btns.addWidget(self._icon_button("reset", "Reimposta zoom, posizione e rotazione del contenuto (Ctrl+R):\n"
                                                "zoom al 100%, foto centrata e dritta nel riquadro",
                                                self._reset_selected_framing, "Reimposta", "SoftButton"))
-        frame_btns.addWidget(self._icon_button("ratio", "Usa le proporzioni della foto:\n"
-                                               "adatta il riquadro alle proporzioni originali dello scatto",
-                                               self._restore_selected_original_ratio, "Proporzioni foto", "SoftButton"))
+        self.btn_ratio = self._icon_button("ratio", "", self._restore_selected_original_ratio, "Proporzioni foto", "SoftButton")
+        frame_btns.addWidget(self.btn_ratio)
         lay.addLayout(frame_btns)
 
         self._section_header(lay, "Rotazione e specchio")

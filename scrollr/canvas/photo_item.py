@@ -68,6 +68,8 @@ class PhotoItem(QGraphicsObject):
         self.photo_opacity = 100
         self.shadow = 0             # Intensità dell'ombra 0..100
         self.locked = False
+        # Riquadro prima di "Proporzioni foto", per poterci tornare con un clic
+        self.saved_cell: Optional[dict] = None
         self._adjusted_cache: Optional[Tuple[tuple, QPixmap]] = None
 
         # Stato interazione maniglie
@@ -144,6 +146,7 @@ class PhotoItem(QGraphicsObject):
             "opacity": self.photo_opacity,
             "shadow": self.shadow,
             "locked": self.locked,
+            "saved_cell": dict(self.saved_cell) if self.saved_cell else None,
         }
 
     def set_state(self, s: dict):
@@ -167,6 +170,7 @@ class PhotoItem(QGraphicsObject):
         self.set_photo_opacity(s.get("opacity", 100))
         self.set_shadow(s.get("shadow", 0))
         self.set_locked(s.get("locked", False))
+        self.saved_cell = dict(s["saved_cell"]) if s.get("saved_cell") else None
         self.update()
 
     # ---------- Geometria ----------
@@ -200,13 +204,19 @@ class PhotoItem(QGraphicsObject):
         return scene_target - origin - rotated
 
     def reset_aspect_to_original(self):
-        """Adatta il riquadro alle proporzioni originali della foto, mantenendo fisso il centro."""
+        """
+        Adatta il riquadro alle proporzioni originali della foto, restando DENTRO il riquadro attuale
+        (così non copre le foto vicine) e mantenendo fisso il centro. Il riquadro di prima viene
+        ricordato: restore_saved_cell() lo ripristina.
+        """
         pm = self.pixmap
         if pm.width() > 0 and pm.height() > 0:
+            if self.saved_cell is None:
+                self.saved_cell = {"x": self.pos().x(), "y": self.pos().y(), "w": self.cell_w, "h": self.cell_h,
+                                   "inner_zoom": self.inner_zoom, "pan_x": self.pan_x, "pan_y": self.pan_y}
             center = self.mapToScene(QPointF(self.cell_w / 2.0, self.cell_h / 2.0))
             ratio = pm.width() / pm.height()
-            area = self.cell_w * self.cell_h
-            new_w = math.sqrt(area * ratio)
+            new_w = min(self.cell_w, self.cell_h * ratio)
             new_h = new_w / ratio
             self.set_cell_size(new_w, new_h)
             self.setPos(center - QPointF(self.cell_w / 2.0, self.cell_h / 2.0))
@@ -214,6 +224,17 @@ class PhotoItem(QGraphicsObject):
             self.pan_y = 0.0
             self.inner_zoom = 1.0
             self.update()
+
+    def restore_saved_cell(self):
+        """Torna al riquadro com'era prima di "Proporzioni foto"."""
+        sc = self.saved_cell
+        if sc is None:
+            return
+        self.set_cell_size(sc["w"], sc["h"])
+        self.setPos(sc["x"], sc["y"])
+        self.inner_zoom, self.pan_x, self.pan_y = sc["inner_zoom"], sc["pan_x"], sc["pan_y"]
+        self.saved_cell = None
+        self.update()
 
     def zoom_by(self, step: float):
         self.inner_zoom = max(1.0, min(4.0, self.inner_zoom + step))
@@ -594,6 +615,8 @@ class PhotoItem(QGraphicsObject):
         scene.set_snap_lines([bx[1]] if bx else [], [by[1]] if by else [])
 
     def mouseReleaseEvent(self, event):
+        if self._resizing_handle:
+            self.saved_cell = None  # Ridimensionata a mano: il riquadro "di prima" non vale più
         was_editing = self._resizing_handle or self._panning_inner or self._dragging
         self._resizing_handle = None
         self._panning_inner = False

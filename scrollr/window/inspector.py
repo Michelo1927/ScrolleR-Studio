@@ -71,6 +71,7 @@ class InspectorMixin:
             self.slider_opacity.setValue(item.photo_opacity)
             self.slider_shadow.setValue(item.shadow)
             self.btn_paste_style.setEnabled(self._style_clipboard is not None)
+            self._update_ratio_button()
         primary = item if item is not None else (texts[0] if texts else None)
         if primary is not None:
             for sw in self._lock_switches:
@@ -355,9 +356,37 @@ class InspectorMixin:
             p.update()
         self._schedule_commit()
 
+    def _ratio_can_restore(self) -> bool:
+        selected = self._selected_photos()
+        return bool(selected) and all(sel.saved_cell is not None for sel in selected)
+
+    def _ratio_button_text(self, long: bool = False) -> str:
+        if self._ratio_can_restore():
+            return "Torna al riquadro di prima" if long else "Riquadro di prima"
+        return "Usa le proporzioni della foto" if long else "Proporzioni foto"
+
+    def _update_ratio_button(self):
+        restore = self._ratio_can_restore()
+        self.btn_ratio.setText(self._ratio_button_text())
+        self.btn_ratio.setIcon(make_icon("reset" if restore else "ratio", THEME["text"]))
+        self.btn_ratio.setToolTip(
+            "Torna al riquadro com'era prima di «Proporzioni foto»" if restore else
+            "Usa le proporzioni della foto:\nadatta il riquadro alla forma originale dello scatto,\n"
+            "restando dentro lo spazio attuale. Puoi sempre tornare indietro.")
+
     def _restore_selected_original_ratio(self):
-        for sel in self._selected_photos():
-            sel.reset_aspect_to_original()
+        """Interruttore: proporzioni originali della foto ⇄ riquadro com'era prima."""
+        selected = self._selected_photos()
+        if selected and all(sel.saved_cell is not None for sel in selected):
+            for sel in selected:
+                sel.restore_saved_cell()
+            self.statusBar().showMessage("Riquadro ripristinato com'era prima", 3000)
+        else:
+            for sel in selected:
+                sel.reset_aspect_to_original()
+            if selected:
+                self.statusBar().showMessage("Proporzioni della foto applicate. "
+                                             "Clicca «Riquadro di prima» per tornare indietro.", 5000)
         self._sync_inspector_from_item(self._get_primary_selected())
         self._schedule_commit()
 
@@ -442,7 +471,7 @@ class InspectorMixin:
             None,
             ("swap", "Scambia le 2 foto selezionate", self.swap_two_selected_photos, n_photos == 2),
             ("reset", "Reimposta zoom e posizione", self._reset_selected_framing, has_photo),
-            ("ratio", "Usa le proporzioni della foto", self._restore_selected_original_ratio, has_photo),
+            ("ratio", self._ratio_button_text(long=True), self._restore_selected_original_ratio, has_photo),
             ("flip_h", "Specchia orizzontalmente", lambda: self._flip_selected("h"), has_photo),
             ("flip_v", "Specchia verticalmente", lambda: self._flip_selected("v"), has_photo),
             ("duplicate", "Copia stile", self._copy_style, n_photos >= 1),
