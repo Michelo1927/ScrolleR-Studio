@@ -11,3 +11,6 @@ except ImportError:
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp") + ((".heic", ".heif") if HEIF_SUPPORTED else ())
 PROJECT_EXT = ".scrlproj"
 PROJECT_VERSION = 1
+
+# Pagina pubblica del progetto (menu ? → Informazioni, Scarica l'ultima versione)
+REPO_URL = "https://github.com/Michelo1927/ScrolleR-Studio"

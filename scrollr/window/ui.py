@@ -2,13 +2,15 @@
 import os
 from typing import Dict, Optional
 
-from PyQt6.QtCore import Qt, QRectF, QSize, QKeyCombination
-from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QAction, QIcon, QKeySequence
+from PyQt6.QtCore import Qt, QRectF, QSize, QKeyCombination, QUrl
+from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QAction, QIcon, QKeySequence, QDesktopServices
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QSpinBox, QSlider, QFrame,
-    QMenu, QSplitter, QToolButton, QScrollArea, QAbstractSpinBox, QSizePolicy
+    QMenu, QSplitter, QToolButton, QScrollArea, QAbstractSpinBox, QSizePolicy, QMessageBox
 )
 
+from scrollr import __version__
+from scrollr.config import REPO_URL
 from scrollr.icons import icon_pixmap, make_icon
 from scrollr.keys import kb
 from scrollr.theme import THEME
@@ -511,6 +513,14 @@ class UiMixin:
         make("Dimensioni reali (100%)", self._zoom_actual_size, QKeySequence("Ctrl+1"), m_view)
         make("Adatta alla finestra", self.fit_canvas_in_view, QKeySequence("Ctrl+0"), m_view)
 
+        m_help = menubar.addMenu("&?")
+        make("Pagina del progetto su GitHub", lambda *_: QDesktopServices.openUrl(QUrl(REPO_URL)), None, m_help)
+        make("Scarica l'ultima versione", lambda *_: QDesktopServices.openUrl(QUrl(REPO_URL + "/releases/latest")),
+             None, m_help)
+        m_help.addSeparator()
+        about = make("Informazioni su ScrolleR Studio", self.show_about, None, m_help)
+        about.setMenuRole(QAction.MenuRole.AboutRole)  # Su Mac va nel menu dell'app, come si aspetta l'utente
+
         # Scorciatoie solo-tela: Elimina e spostamento fine con le frecce (Shift = 10 px)
         make("Elimina", self._delete_selected, [QKeySequence(Qt.Key.Key_Delete), QKeySequence(Qt.Key.Key_Backspace)], target=self.view)
         for key, dx, dy in ((Qt.Key.Key_Left, -1, 0), (Qt.Key.Key_Right, 1, 0), (Qt.Key.Key_Up, 0, -1), (Qt.Key.Key_Down, 0, 1)):
@@ -518,3 +528,13 @@ class UiMixin:
             make("", lambda _c=False, a=dx, b=dy: self._nudge_selected(a * 10, b * 10),
                  QKeySequence(QKeyCombination(Qt.KeyboardModifier.ShiftModifier, key)), target=self.view)
         self._update_undo_actions()
+
+    def show_about(self):
+        """Versione, link al progetto e licenza."""
+        link = THEME["accent_hover"]
+        QMessageBox.about(
+            self, "Informazioni su ScrolleR Studio",
+            f"<h3>ScrolleR Studio {__version__}</h3>"
+            "<p>Collage e caroselli di foto per i social.</p>"
+            f"<p><a style='color:{link}' href='{REPO_URL}'>{REPO_URL.removeprefix('https://')}</a></p>"
+            "<p>Licenza MIT · © 2026 Michelo1927</p>")
