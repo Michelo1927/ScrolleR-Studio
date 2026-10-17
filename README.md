@@ -4,10 +4,13 @@ Desktop editor for building photo collages and carousels for social media (side-
 
 ## Download
 
-Get the Windows installer from the [Releases](https://github.com/Michelo1927/scrllr/releases/latest) page:
-open the latest version and, under **Assets**, click `ScrolleR-Studio-Setup-<version>.exe`.
+Open the [latest release](https://github.com/Michelo1927/scrllr/releases/latest) and, under **Assets**, download:
 
-If Windows shows a warning, click "More info" → "Run anyway".
+- **Windows:** `ScrolleR-Studio-Setup-<version>.exe` and run it.
+  If Windows shows a warning, click "More info" → "Run anyway".
+- **Mac** (Apple Silicon, macOS 11 or later): `ScrolleR-Studio-<version>-mac.dmg`, open it and drag
+  ScrolleR Studio into Applications. The app is not signed by Apple, so the first time macOS blocks it:
+  open **System Settings → Privacy & Security** and click **Open Anyway**.
 
 ## Running from source
 
@@ -28,16 +31,36 @@ python -m venv .venv
 - `dist\ScrolleR-Studio-Setup-<version>.exe`: the installer (Start menu, desktop icon, double-click to open `.scrlproj` files).
   Requires Inno Setup 6 (`winget install JRSoftware.InnoSetup`); with `--no-setup` only the folder is built.
 
-The version is `__version__` in `scrollr/__init__.py`. Do not change the `AppId` in `packaging/scrl_studio.iss`: updates rely on it.
+## Mac app (.app and .dmg)
+
+On a Mac the same script builds `dist/ScrolleR Studio.app` and `dist/ScrolleR-Studio-<version>-mac.dmg`:
+
+```
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt pillow-heif pyinstaller
+.venv/bin/python packaging/build.py
+```
+
+## Releases (GitHub Actions)
+
+`.github/workflows/build.yml` builds both versions on GitHub's Windows and Mac machines:
+
+- push a tag like `v1.1.0` → the release is created with the Windows installer and the Mac `.dmg` attached;
+- **Actions → Build → Run workflow** → test build only; the files are downloadable from the run page.
+
+Before tagging, set the same version in `__version__` (`scrollr/__init__.py`).
+Do not change the `AppId` in `packaging/scrl_studio.iss`: Windows updates rely on it.
 
 ## Structure
 
 ```
 main.py                 quick launcher (F5 in VS Code)
-packaging/              Windows app build (PyInstaller + Inno Setup installer)
+.github/workflows/      automatic Windows + Mac builds and releases
+packaging/              app build (PyInstaller; Inno Setup installer on Windows, .dmg on Mac)
 scrollr/
-  __main__.py           creates the QApplication and the window
+  __main__.py           creates the QApplication and the window, opens double-clicked projects
   config.py             supported extensions, project format, optional HEIC
+  keys.py               shortcut texts per platform (Ctrl on Windows, ⌘ on Mac)
   theme.py              palette, fonts, QSS stylesheet, Fusion style
   icons.py              code-drawn icons, thumbnails, badges
   imaging.py            photo loading (EXIF, ICC → sRGB), color adjustments, cache

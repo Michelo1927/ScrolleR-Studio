@@ -7,6 +7,7 @@ from PyQt6.QtCore import QRectF, QPointF
 from PyQt6.QtWidgets import QMessageBox
 
 from scrollr.canvas.photo_item import PhotoItem
+from scrollr.keys import kb
 
 
 class LayoutMixin:
@@ -323,7 +324,7 @@ class LayoutMixin:
             QMessageBox.information(
                 self,
                 "Scambia due foto",
-                "Seleziona esattamente 2 foto sulla tela: clicca la prima, poi Ctrl+clic sulla seconda."
+                kb("Seleziona esattamente 2 foto sulla tela: clicca la prima, poi Ctrl+clic sulla seconda.")
             )
             return
         p1, p2 = selected

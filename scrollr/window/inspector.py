@@ -11,6 +11,7 @@ from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.icons import make_icon, rounded_thumb, swatch_icon
 from scrollr.imaging import NEUTRAL_ADJUST
+from scrollr.keys import kb
 from scrollr.theme import THEME
 
 
@@ -53,8 +54,8 @@ class InspectorMixin:
                     os.path.basename(item.image_path), Qt.TextElideMode.ElideMiddle, 190))
                 info = f"Riquadro {int(item.cell_w)} × {int(item.cell_h)} px"
                 self.lbl_selection_info.setText(info + ("  ·  bloccata" if item.locked else ""))
-            self.lbl_hint.setText("Alt + trascina: sposta l'inquadratura.   Ctrl + rotella: zoom nella foto.   "
-                                  "Shift sulle maniglie: mantieni le proporzioni.")
+            self.lbl_hint.setText(kb("Alt + trascina: sposta l'inquadratura.   Ctrl + rotella: zoom nella foto.   "
+                                     "Shift sulle maniglie: mantieni le proporzioni."))
             self.btn_border_color.setIcon(swatch_icon(item.border_color))
             self.btn_fit_cover.setChecked(item.fit_mode != "contain")
             self.btn_fit_contain.setChecked(item.fit_mode == "contain")
@@ -202,7 +203,7 @@ class InspectorMixin:
             "adjust": dict(item.adjust),
         }
         self.btn_paste_style.setEnabled(True)
-        self.statusBar().showMessage("Stile copiato: seleziona altre foto e usa «Incolla stile» (Ctrl+Shift+V)", 5000)
+        self.statusBar().showMessage(kb("Stile copiato: seleziona altre foto e usa «Incolla stile» (Ctrl+Shift+V)"), 5000)
 
     def _paste_style(self):
         st = self._style_clipboard

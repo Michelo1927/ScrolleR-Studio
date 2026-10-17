@@ -12,6 +12,7 @@ from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.icons import icon_pixmap
 from scrollr.imaging import IMAGE_CACHE, pil_to_qimage, qimage_to_pil
+from scrollr.keys import kb
 from scrollr.theme import THEME, is_light, ui_font
 
 
@@ -215,5 +216,5 @@ class CollageScene(QGraphicsScene):
                 painter.setPen(QColor("#7A7A7A") if light_bg else QColor(THEME["muted"]))
                 painter.setFont(ui_font(13))
                 painter.drawText(QRectF(canvas_dev.left(), c.y() + 28, canvas_dev.width(), 24),
-                                 Qt.AlignmentFlag.AlignHCenter, "oppure usa Aggiungi foto (Ctrl+O)")
+                                 Qt.AlignmentFlag.AlignHCenter, kb("oppure usa Aggiungi foto (Ctrl+O)"))
         painter.restore()

@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 )
 
 from scrollr.icons import icon_pixmap, make_icon
+from scrollr.keys import kb
 from scrollr.theme import THEME
 
 
@@ -126,11 +127,11 @@ class UiMixin:
         lay.setSpacing(1)
         groups = [
             ("Inserisci", [
-                ("text", "Testo", "Aggiungi un testo sulla tela: titolo, didascalia, numero (Ctrl+T)", self.add_text),
+                ("text", "Testo", kb("Aggiungi un testo sulla tela: titolo, didascalia, numero (Ctrl+T)"), self.add_text),
             ]),
             ("Ordine", [
                 ("shuffle", "Rimescola", "Cambia a caso quale foto va in quale posizione", self.shuffle_canvas_photos),
-                ("swap", "Scambia", "Scambia di posto le 2 foto selezionate\n(Ctrl+clic per selezionare la seconda)",
+                ("swap", "Scambia", kb("Scambia di posto le 2 foto selezionate\n(Ctrl+clic per selezionare la seconda)"),
                  self.swap_two_selected_photos),
             ]),
             ("Ruota", [
@@ -143,8 +144,8 @@ class UiMixin:
                 ("back", "Dietro", "Manda la foto sotto le altre", self._send_to_back),
             ]),
             ("Foto", [
-                ("duplicate", "Duplica", "Crea una copia della foto (Ctrl+D)", self._duplicate_selected),
-                ("trash", "Elimina", "Togli la foto dalla tela (Canc)", self._delete_selected),
+                ("duplicate", "Duplica", kb("Crea una copia della foto (Ctrl+D)"), self._duplicate_selected),
+                ("trash", "Elimina", kb("Togli la foto dalla tela (Canc)"), self._delete_selected),
             ]),
         ]
         self._tool_buttons: Dict[str, QToolButton] = {}
@@ -379,8 +380,8 @@ class UiMixin:
 
         btn_export = self._button("Esporta", lambda: None, "export", "Primary")
         export_menu = QMenu(btn_export)
-        export_menu.addAction("Collage intero, in un'unica immagine…  (Ctrl+E)", self.export_full_collage)
-        export_menu.addAction("Pagine separate, una immagine per pagina…  (Ctrl+Shift+E)", self.export_split_frames)
+        export_menu.addAction(kb("Collage intero, in un'unica immagine…  (Ctrl+E)"), self.export_full_collage)
+        export_menu.addAction(kb("Pagine separate, una immagine per pagina…  (Ctrl+Shift+E)"), self.export_split_frames)
         btn_export.setMenu(export_menu)
         bar.addWidget(btn_export)
         return bar
@@ -400,7 +401,7 @@ class UiMixin:
         self.lbl_zoom.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sb.addPermanentWidget(self.lbl_zoom)
         sb.addPermanentWidget(self._icon_button("plus", "Aumenta zoom", lambda: self.view.zoom_by(1.25, False)))
-        sb.addPermanentWidget(self._icon_button("fit", "Adatta la tela alla finestra (Ctrl+0)", self.fit_canvas_in_view, "Adatta"))
+        sb.addPermanentWidget(self._icon_button("fit", kb("Adatta la tela alla finestra (Ctrl+0)"), self.fit_canvas_in_view, "Adatta"))
 
     def _make_slider(self, layout, title: str, lo: int, hi: int, value: int, suffix: str = "",
                      signed: bool = False, resettable: bool = False) -> QSlider:

@@ -237,23 +237,33 @@ def icon_pixmap(name: str, color: str, size: int) -> QPixmap:
     return pm
 
 
+def app_icon_pixmap(size: int, margin: float = 0.0) -> QPixmap:
+    """
+    Il logo blu su un quadrato scuro arrotondato, di lato `size`.
+    `margin` è il bordo trasparente in proporzione al lato (le icone Mac ne vogliono circa il 10%).
+    """
+    pm = QPixmap(size, size)
+    pm.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QColor(THEME["header"]))
+    m = size * margin
+    side = size - 2 * m
+    p.drawRoundedRect(QRectF(m, m, side, side), side * 0.22, side * 0.22)
+    logo = icon_pixmap("logo", THEME["accent"], int(round(side)))
+    inset = m + side * 0.08
+    p.drawPixmap(QRectF(inset, inset, size - 2 * inset, size - 2 * inset), logo, QRectF(logo.rect()))
+    p.end()
+    return pm
+
+
 def app_icon() -> QIcon:
-    """Icona della finestra: il logo blu su un quadrato scuro arrotondato, in più risoluzioni."""
+    """Icona della finestra, in più risoluzioni."""
     icon = QIcon()
     for size in (16, 20, 24, 32, 40, 48, 64, 128, 256):
-        pm = QPixmap(size, size)
-        pm.fill(Qt.GlobalColor.transparent)
-        p = QPainter(pm)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(THEME["header"]))
-        p.drawRoundedRect(QRectF(0, 0, size, size), size * 0.22, size * 0.22)
-        logo = icon_pixmap("logo", THEME["accent"], size)
-        inset = size * 0.08
-        p.drawPixmap(QRectF(inset, inset, size - 2 * inset, size - 2 * inset), logo, QRectF(logo.rect()))
-        p.end()
-        icon.addPixmap(pm)
+        icon.addPixmap(app_icon_pixmap(size))
     return icon
 
 

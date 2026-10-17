@@ -7,6 +7,7 @@ from PyQt6.QtGui import QPixmap, QImage, QPainter
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from scrollr.dialogs import CarouselPreview
+from scrollr.keys import kb
 
 
 class PagesMixin:
@@ -45,8 +46,8 @@ class PagesMixin:
         if inside:
             answer = QMessageBox.question(
                 self, "Eliminare la pagina?",
-                f"La pagina {k + 1} contiene {len(inside)} elementi, che verranno tolti dalla tela.\n"
-                "Puoi sempre annullare con Ctrl+Z. Continuare?")
+                kb(f"La pagina {k + 1} contiene {len(inside)} elementi, che verranno tolti dalla tela.\n"
+                   "Puoi sempre annullare con Ctrl+Z. Continuare?"))
             if answer != QMessageBox.StandardButton.Yes:
                 return
         fw = self.scene.frame_w

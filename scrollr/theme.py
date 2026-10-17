@@ -37,11 +37,15 @@ _FONT_CACHE: Dict[str, str] = {}
 
 
 def font_family(role: str = "text") -> str:
-    """Segoe UI Variable (Windows 11) se disponibile, altrimenti Segoe UI."""
+    """
+    Segoe UI Variable (Windows 11) se disponibile, altrimenti Segoe UI.
+    Dove Segoe non c'è (Mac, Linux) si usa il font di sistema, ad esempio San Francisco su Mac.
+    """
     if role not in _FONT_CACHE:
         wanted = "Segoe UI Variable Display" if role == "display" else "Segoe UI Variable Text"
         families = set(QFontDatabase.families())
-        _FONT_CACHE[role] = next((f for f in (wanted, "Segoe UI Variable", "Segoe UI") if f in families), "Segoe UI")
+        system = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont).family()
+        _FONT_CACHE[role] = next((f for f in (wanted, "Segoe UI Variable", "Segoe UI") if f in families), system)
     return _FONT_CACHE[role]
 
 

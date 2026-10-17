@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 )
 
 from scrollr.icons import icon_pixmap, make_icon, swatch_icon
+from scrollr.keys import kb
 from scrollr.theme import THEME
 from scrollr.widgets import DropZone, LibraryCheckDelegate, ToggleSwitch
 
@@ -28,7 +29,7 @@ class PanelsMixin:
         self._section_header(lay, "Foto", self.lbl_library_count)
 
         lay.addWidget(self._button("Aggiungi foto", self.open_file_dialog, "plus",
-                                   tooltip="Ctrl+O — puoi anche trascinarle sulla tela"))
+                                   tooltip=kb("Ctrl+O — puoi anche trascinarle sulla tela")))
 
         self.library_stack = QStackedWidget()
         drop = DropZone()
@@ -248,8 +249,8 @@ class PanelsMixin:
         lay.addLayout(row)
         lay.addSpacing(4)
         lock = ToggleSwitch("Blocca posizione e dimensioni")
-        lock.setToolTip("L'elemento non si sposta né si ridimensiona per sbaglio (Ctrl+L).\n"
-                        "Puoi sempre modificarne colori e stile.")
+        lock.setToolTip(kb("L'elemento non si sposta né si ridimensiona per sbaglio (Ctrl+L).\n"
+                           "Puoi sempre modificarne colori e stile."))
         lock.toggled.connect(self._set_lock_selected)
         lay.addWidget(lock)
         self._lock_switches.append(lock)
@@ -278,8 +279,8 @@ class PanelsMixin:
         title = self._label("Nessuna foto selezionata", "EmptyTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         el.addWidget(title)
-        body = self._label("Clicca una foto o un testo sulla tela per modificarli.\n\n"
-                           "Ctrl+clic per selezionarne più di uno: le modifiche valgono per tutti.", "Hint")
+        body = self._label(kb("Clicca una foto o un testo sulla tela per modificarli.\n\n"
+                              "Ctrl+clic per selezionarne più di uno: le modifiche valgono per tutti."), "Hint")
         body.setWordWrap(True)
         body.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         el.addWidget(body)
@@ -359,8 +360,8 @@ class PanelsMixin:
         self.slider_inner_rot.valueChanged.connect(lambda v: self._on_inspector_slider("inner_rotation", v))
         frame_btns = QHBoxLayout()
         frame_btns.setSpacing(6)
-        frame_btns.addWidget(self._icon_button("reset", "Reimposta zoom, posizione e rotazione del contenuto (Ctrl+R):\n"
-                                               "zoom al 100%, foto centrata e dritta nel riquadro",
+        frame_btns.addWidget(self._icon_button("reset", kb("Reimposta zoom, posizione e rotazione del contenuto (Ctrl+R):\n"
+                                                           "zoom al 100%, foto centrata e dritta nel riquadro"),
                                                self._reset_selected_framing, "Reimposta", "SoftButton"))
         self.btn_ratio = self._icon_button("ratio", "", self._restore_selected_original_ratio, "Proporzioni foto", "SoftButton")
         frame_btns.addWidget(self.btn_ratio)
@@ -429,9 +430,9 @@ class PanelsMixin:
         self._section_header(lay, "Copia lo stile su altre foto")
         row = QHBoxLayout()
         row.setSpacing(6)
-        row.addWidget(self._icon_button("duplicate", "Copia angoli, bordo, opacità, ombra e colori di questa foto (Ctrl+Shift+C)",
+        row.addWidget(self._icon_button("duplicate", kb("Copia angoli, bordo, opacità, ombra e colori di questa foto (Ctrl+Shift+C)"),
                                         self._copy_style, "Copia stile", "SoftButton"))
-        self.btn_paste_style = self._icon_button("plus", "Incolla lo stile copiato sulle foto selezionate (Ctrl+Shift+V)",
+        self.btn_paste_style = self._icon_button("plus", kb("Incolla lo stile copiato sulle foto selezionate (Ctrl+Shift+V)"),
                                                  self._paste_style, "Incolla stile", "SoftButton")
         row.addWidget(self.btn_paste_style)
         lay.addLayout(row)
