@@ -25,6 +25,8 @@ class TextMixin:
         return t
 
     def add_text(self, at: Optional[QPointF] = None):
+        if not isinstance(at, QPointF):
+            at = None  # Da pulsante o menu Qt passa lo stato "checked" (False), non una posizione
         t = self._spawn_text_item()
         sc = self.scene
         dark_bg = sc.bg_mode == "blur" or not is_light(sc.bg_color)

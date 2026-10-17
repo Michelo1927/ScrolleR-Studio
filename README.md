@@ -9,10 +9,25 @@ pip install -r requirements.txt
 python main.py        # oppure: python -m scrollr
 ```
 
+## App Windows (exe e installer)
+
+```
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt pillow-heif pyinstaller
+.venv\Scripts\python packaging\build.py
+```
+
+- `dist\SCRL Studio\SCRL Studio.exe`: l'app pronta, senza bisogno di Python.
+- `dist\SCRL-Studio-Setup-<versione>.exe`: l'installer (menu Start, icona sul desktop, apertura dei `.scrlproj` con doppio clic).
+  Richiede Inno Setup 6 (`winget install JRSoftware.InnoSetup`); con `--no-setup` si crea solo la cartella.
+
+La versione è `__version__` in `scrollr/__init__.py`. L'`AppId` in `packaging/scrl_studio.iss` non va cambiato, perché serve agli aggiornamenti.
+
 ## Struttura
 
 ```
 main.py                 avvio rapido (F5 in VS Code)
+packaging/              build dell'app Windows (PyInstaller + installer Inno Setup)
 scrollr/
   __main__.py           creazione di QApplication e della finestra
   config.py             estensioni supportate, formato progetto, HEIC opzionale
