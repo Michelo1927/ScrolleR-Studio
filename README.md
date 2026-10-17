@@ -62,3 +62,7 @@ scrollr/
 
 `MainWindow` is composed of mixins, one per area: each method lives in the file for its feature,
 but they all share the same `self`.
+
+## License
+
+[MIT](LICENSE)
