@@ -46,7 +46,8 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         ("strips_h", "Righe", "Una foto per riga, a tutta larghezza"),
         ("strips_v", "Colonne", "Una foto per colonna, a tutta altezza"),
         ("scatter", "Polaroid", "Foto sparse e leggermente inclinate, con bordo bianco"),
-        ("scrl_seam", "A cavallo", "Foto che attraversano le giunzioni tra le pagine del carosello"),
+        ("scrl_seam", "A cavallo", "Righe continue su tutto il carosello: ogni giunzione tra le pagine\n"
+                                    "è attraversata da una foto, così scorrendo le pagine restano legate"),
     ]
     MOSAIC_STYLES = [
         ("auto", "Automatico", "Grande in alto sulle pagine verticali, a sinistra su quelle orizzontali"),

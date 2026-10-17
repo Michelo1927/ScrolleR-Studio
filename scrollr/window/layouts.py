@@ -13,6 +13,8 @@ from scrollr.keys import kb
 class LayoutMixin:
     """Algoritmi di disposizione automatica, mescola e scambia."""
 
+    SEAM_KEEP = 0.15  # «A cavallo»: parte minima di pagina che una foto occupa da ogni lato della giunzione
+
     # ================= ALGORITMI DI LAYOUT E RIORGANIZZAZIONE =================
     def _on_layout_button(self, mode: str):
         # Nuovo seed solo quando si sceglie esplicitamente un layout: gli slider non rigenerano il random
@@ -65,7 +67,7 @@ class LayoutMixin:
         if mode == "scrl_seam":
             if self.scene.num_frames < 2:
                 # "A cavallo" richiede almeno 2 pagine: le aggiunge e ricorda quante ce n'erano prima
-                frames = max(2, math.ceil(len(photos) / 2))
+                frames = max(2, math.ceil(len(photos) / 4))
                 self._seam_added_frames = (self.scene.num_frames, frames)
                 self._set_frames_silently(frames)
                 self.statusBar().showMessage(
@@ -81,7 +83,7 @@ class LayoutMixin:
                                              else f"Formato ripristinato: {before} pagine", 5000)
         if mode == "scrl_seam":
             canvas = self.scene.canvas_rect().adjusted(margin, margin, -margin, -margin)
-            self._layout_seam(photos, self._safe_rect(canvas), rng)
+            self._layout_seam(photos, self._safe_rect(canvas), gap)
         else:
             per_page = self.spin_per_page.value()
             if self.chk_per_frame.isChecked() and per_page > 0:
@@ -334,16 +336,86 @@ class LayoutMixin:
                 p.auto_border = True
                 p.update()
 
-    def _layout_seam(self, photos: List[PhotoItem], area: QRectF, rng: random.Random):
-        # Dispone le foto in modo fluido anche a cavallo tra più frame, senza uscire dalla tela
-        n = len(photos)
-        w = min(self.scene.frame_w * 0.75, area.width() * 1.15 / n, area.width())
-        step_x = (area.width() - w) / (n - 1) if n > 1 else 0.0
-        for i, p in enumerate(photos):
-            h = area.height() * rng.uniform(0.55, 0.82)
-            x = area.x() + (i * step_x if n > 1 else (area.width() - w) / 2.0)
-            y = area.y() + (area.height() - h) * (0.15 if i % 2 == 0 else 0.80)
-            self._place(p, x, y, w, h)
+    def _layout_seam(self, photos: List[PhotoItem], area: QRectF, gap: float):
+        """
+        «A cavallo»: righe giustificate su tutta la tela continua, con le proporzioni vere delle foto.
+        Nessuno spazio tra due foto cade vicino a una giunzione: ogni giunzione è attraversata da una
+        foto, che resta visibile per almeno SEAM_KEEP della pagina da entrambe le parti.
+        """
+        aspects = []
+        for p in photos:
+            pm = p.pixmap
+            a = pm.width() / pm.height() if pm.width() > 0 and pm.height() > 0 else 1.0
+            aspects.append(min(2.2, max(0.5, a)))
+        w_avail, h_avail = area.width(), area.height()
+
+        # Numero di righe: quello che, a proporzioni intatte, riempie meglio l'altezza della tela
+        best = None
+        for r in range(1, min(len(photos), 8) + 1):
+            rows = self._split_rows(aspects, r)
+            heights = [(w_avail - gap * (len(row) - 1)) / sum(aspects[i] for i in row) for row in rows]
+            score = abs(math.log((sum(heights) + gap * (r - 1)) / h_avail))
+            if best is None or score < best[0]:
+                best = (score, rows, heights)
+        _, rows, heights = best
+        scale = (h_avail - gap * (len(rows) - 1)) / sum(heights)
+
+        fw = self.scene.frame_w
+        seams = [k * fw for k in range(1, self.scene.num_frames)]
+        keep = fw * self.SEAM_KEEP
+        y = area.y()
+        for row, row_h in zip(rows, heights):
+            row_h *= scale
+            total_a = sum(aspects[i] for i in row)
+            inner = w_avail - gap * (len(row) - 1)
+            # Centri degli spazi tra le foto della riga
+            cuts, x = [], area.x()
+            for i in row[:-1]:
+                x += inner * aspects[i] / total_a
+                cuts.append(x + gap / 2.0)
+                x += gap
+            # Sposta gli spazi troppo vicini a una giunzione, senza rendere una foto troppo stretta
+            min_w = row_h * 0.45
+            for j, c in enumerate(cuts):
+                near = [sx for sx in seams if abs(c - sx) < keep]
+                if not near:
+                    continue
+                lo = (cuts[j - 1] if j > 0 else area.x() - gap / 2.0) + min_w + gap
+                hi = (cuts[j + 1] if j + 1 < len(cuts) else area.right() + gap / 2.0) - min_w - gap
+                options = [t for t in (near[0] - keep, near[0] + keep)
+                           if lo <= t <= hi and not any(abs(t - sx) < keep - 0.5 for sx in seams)]
+                if options:
+                    cuts[j] = min(options, key=lambda t: abs(t - c))
+            edges = [area.x() - gap / 2.0] + cuts + [area.right() + gap / 2.0]
+            for k, i in enumerate(row):
+                left, right = edges[k] + gap / 2.0, edges[k + 1] - gap / 2.0
+                self._place(photos[i], left, y, right - left, row_h)
+            y += row_h + gap
+
+    @staticmethod
+    def _split_rows(aspects: List[float], rows: int) -> List[List[int]]:
+        """Divide le foto (in ordine) in righe con somme di proporzioni il più possibile uguali."""
+        n = len(aspects)
+        pre = [0.0]
+        for a in aspects:
+            pre.append(pre[-1] + a)
+        target = pre[-1] / rows
+        inf = float("inf")
+        cost = [[inf] * (n + 1) for _ in range(rows + 1)]
+        back = [[0] * (n + 1) for _ in range(rows + 1)]
+        cost[0][0] = 0.0
+        for k in range(1, rows + 1):
+            for i in range(k, n + 1):
+                for j in range(k - 1, i):
+                    c = cost[k - 1][j] + (pre[i] - pre[j] - target) ** 2
+                    if c < cost[k][i]:
+                        cost[k][i], back[k][i] = c, j
+        bounds, i = [], n
+        for k in range(rows, 0, -1):
+            j = back[k][i]
+            bounds.append(list(range(j, i)))
+            i = j
+        return bounds[::-1]
 
     @staticmethod
     def _slot(p: PhotoItem) -> tuple:
