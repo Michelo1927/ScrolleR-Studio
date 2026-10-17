@@ -1,22 +1,22 @@
 # ScrolleR Studio
 
-Editor desktop per creare collage e caroselli di foto per i social (pagine affiancate che si scorrono).
+Desktop editor for building photo collages and carousels for social media (side-by-side pages that scroll).
 
 ## Download
 
-Scarica l'installer per Windows dalla pagina [Releases](https://github.com/Michelo1927/scrllr/releases/latest):
-apri l'ultima versione e, in **Assets**, clicca `ScrolleR-Studio-Setup-<versione>.exe`.
+Get the Windows installer from the [Releases](https://github.com/Michelo1927/scrllr/releases/latest) page:
+open the latest version and, under **Assets**, click `ScrolleR-Studio-Setup-<version>.exe`.
 
-Se Windows mostra un avviso, clicca «Ulteriori informazioni» → «Esegui comunque».
+If Windows shows a warning, click "More info" → "Run anyway".
 
-## Avvio dal codice
+## Running from source
 
 ```
 pip install -r requirements.txt
-python main.py        # oppure: python -m scrollr
+python main.py        # or: python -m scrollr
 ```
 
-## App Windows (exe e installer)
+## Windows app (exe and installer)
 
 ```
 python -m venv .venv
@@ -24,41 +24,41 @@ python -m venv .venv
 .venv\Scripts\python packaging\build.py
 ```
 
-- `dist\ScrolleR Studio\ScrolleR Studio.exe`: l'app pronta, senza bisogno di Python.
-- `dist\ScrolleR-Studio-Setup-<versione>.exe`: l'installer (menu Start, icona sul desktop, apertura dei `.scrlproj` con doppio clic).
-  Richiede Inno Setup 6 (`winget install JRSoftware.InnoSetup`); con `--no-setup` si crea solo la cartella.
+- `dist\ScrolleR Studio\ScrolleR Studio.exe`: the ready-to-run app, no Python needed.
+- `dist\ScrolleR-Studio-Setup-<version>.exe`: the installer (Start menu, desktop icon, double-click to open `.scrlproj` files).
+  Requires Inno Setup 6 (`winget install JRSoftware.InnoSetup`); with `--no-setup` only the folder is built.
 
-La versione è `__version__` in `scrollr/__init__.py`. L'`AppId` in `packaging/scrl_studio.iss` non va cambiato, perché serve agli aggiornamenti.
+The version is `__version__` in `scrollr/__init__.py`. Do not change the `AppId` in `packaging/scrl_studio.iss`: updates rely on it.
 
-## Struttura
+## Structure
 
 ```
-main.py                 avvio rapido (F5 in VS Code)
-packaging/              build dell'app Windows (PyInstaller + installer Inno Setup)
+main.py                 quick launcher (F5 in VS Code)
+packaging/              Windows app build (PyInstaller + Inno Setup installer)
 scrollr/
-  __main__.py           creazione di QApplication e della finestra
-  config.py             estensioni supportate, formato progetto, HEIC opzionale
-  theme.py              palette, font, foglio di stile QSS, stile Fusion
-  icons.py              icone disegnate a codice, miniature, badge
-  imaging.py            caricamento foto (EXIF, ICC → sRGB), regolazioni colore, cache
-  widgets.py            ToggleSwitch, DropZone, delegate della libreria
-  dialogs.py            anteprima carosello, finestra sfondo
+  __main__.py           creates the QApplication and the window
+  config.py             supported extensions, project format, optional HEIC
+  theme.py              palette, fonts, QSS stylesheet, Fusion style
+  icons.py              code-drawn icons, thumbnails, badges
+  imaging.py            photo loading (EXIF, ICC → sRGB), color adjustments, cache
+  widgets.py            ToggleSwitch, DropZone, library delegate
+  dialogs.py            carousel preview, background dialog
   canvas/
-    photo_item.py       foto sulla tela (ritaglio, zoom interno, bordi, snap)
-    text_item.py        caselle di testo
-    scene.py            pagine, sfondo, guide
-    view.py             zoom, pan, trascinamento file
+    photo_item.py       photos on the canvas (crop, inner zoom, borders, snapping)
+    text_item.py        text boxes
+    scene.py            pages, background, guides
+    view.py             zoom, pan, file drag & drop
   window/
-    main_window.py      MainWindow: stato, formato tela, drag & drop
-    ui.py, panels.py    costruzione dell'interfaccia
-    library.py          libreria foto
-    layouts.py          disposizioni automatiche (griglia, mosaico, polaroid, a cavallo…)
-    inspector.py        modifica degli elementi selezionati, allinea e distribuisci
-    text.py, pages.py   testi e pagine del carosello
-    history.py          annulla / ripeti
-    project.py          salva / apri, recenti, salvataggio automatico
-    export.py           esportazione ad alta risoluzione
+    main_window.py      MainWindow: state, canvas format, drag & drop
+    ui.py, panels.py    UI construction
+    library.py          photo library
+    layouts.py          automatic layouts (grid, mosaic, polaroid, straddle…)
+    inspector.py        editing selected items, align and distribute
+    text.py, pages.py   carousel texts and pages
+    history.py          undo / redo
+    project.py          save / open, recent files, autosave
+    export.py           high-resolution export
 ```
 
-`MainWindow` è composta da mixin, uno per area: un metodo si trova nel file della sua funzione,
-ma tutti condividono lo stesso `self`.
+`MainWindow` is composed of mixins, one per area: each method lives in the file for its feature,
+but they all share the same `self`.
