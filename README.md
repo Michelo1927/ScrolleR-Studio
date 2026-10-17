@@ -4,7 +4,7 @@ Desktop editor for building photo collages and carousels for social media (side-
 
 ## Download
 
-Open the [latest release](https://github.com/Michelo1927/scrllr/releases/latest) and, under **Assets**, download:
+Open the [latest release](https://github.com/Michelo1927/ScrolleR-Studio/releases/latest) and, under **Assets**, download:
 
 - **Windows:** `ScrolleR-Studio-Setup-<version>.exe` and run it.
   If Windows shows a warning, click "More info" → "Run anyway".
