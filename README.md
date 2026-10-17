@@ -2,7 +2,14 @@
 
 Editor desktop per creare collage e caroselli di foto per i social (pagine affiancate che si scorrono).
 
-## Avvio
+## Download
+
+Scarica l'installer per Windows dalla pagina [Releases](https://github.com/Michelo1927/scrllr/releases/latest):
+apri l'ultima versione e, in **Assets**, clicca `ScrolleR-Studio-Setup-<versione>.exe`.
+
+Se Windows mostra un avviso, clicca «Ulteriori informazioni» → «Esegui comunque».
+
+## Avvio dal codice
 
 ```
 pip install -r requirements.txt
