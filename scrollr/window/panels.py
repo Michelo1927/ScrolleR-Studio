@@ -64,6 +64,9 @@ class PanelsMixin:
         sel_row = QHBoxLayout()
         sel_row.setSpacing(6)
         self.lbl_library_sel = self._label("Clicca le foto per sceglierle", "Hint")
+        # Va a capo invece di allargare il pannello (che ha larghezza fissa e taglierebbe i pulsanti)
+        self.lbl_library_sel.setWordWrap(True)
+        self.lbl_library_sel.setMinimumWidth(1)
         sel_row.addWidget(self.lbl_library_sel, 1)
         self.btn_library_sel_all = self._button("Tutte", self.list_library.selectAll, obj="Ghost",
                                                 tooltip="Seleziona tutte le foto della libreria")
