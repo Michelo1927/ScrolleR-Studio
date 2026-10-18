@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QGraphicsView, QFrame
 
 from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.scene import CollageScene
+from scrollr.config import LIBRARY_MIME
 from scrollr.imaging import image_paths_from_mime
 
 
@@ -13,7 +14,8 @@ class CanvasView(QGraphicsView):
     Vista interattiva con supporto Zoom con rotella, Pan con tasto centrale
     e Drag-and-Drop diretto di file immagine dal PC.
     """
-    files_dropped = pyqtSignal(list)
+    files_dropped = pyqtSignal(list, QPointF)     # File dal PC, punto della tela dove sono rilasciati
+    library_dropped = pyqtSignal(list, QPointF)   # Miniature trascinate dalla libreria
     zoom_changed = pyqtSignal(float)
     MIN_SCALE = 0.03
     MAX_SCALE = 16.0
@@ -97,23 +99,40 @@ class CanvasView(QGraphicsView):
             return
         super().mouseReleaseEvent(event)
 
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
+    @staticmethod
+    def _accept_drag(event) -> bool:
+        mime = event.mimeData()
+        if mime.hasFormat(LIBRARY_MIME):
+            # Copia, non spostamento: la foto resta anche nella libreria
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            return True
+        if mime.hasUrls():
             event.acceptProposedAction()
-        else:
+            return True
+        return False
+
+    def dragEnterEvent(self, event):
+        if not self._accept_drag(event):
             super().dragEnterEvent(event)
 
     def dragMoveEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-        else:
+        if not self._accept_drag(event):
             super().dragMoveEvent(event)
 
     def dropEvent(self, event):
-        if event.mimeData().hasUrls():
-            paths = image_paths_from_mime(event.mimeData())
+        mime = event.mimeData()
+        scene_pos = self.mapToScene(event.position().toPoint())
+        if mime.hasFormat(LIBRARY_MIME):
+            paths = [p for p in bytes(mime.data(LIBRARY_MIME)).decode("utf-8").split("\n") if p]
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
             if paths:
-                self.files_dropped.emit(paths)
+                self.library_dropped.emit(paths, scene_pos)
+        elif mime.hasUrls():
+            paths = image_paths_from_mime(mime)
             event.acceptProposedAction()
+            if paths:
+                self.files_dropped.emit(paths, scene_pos)
         else:
             super().dropEvent(event)

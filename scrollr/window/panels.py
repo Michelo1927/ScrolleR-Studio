@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 from scrollr.icons import icon_pixmap, make_icon, swatch_icon
 from scrollr.keys import kb
 from scrollr.theme import THEME
-from scrollr.widgets import DropZone, LibraryCheckDelegate, ToggleSwitch
+from scrollr.widgets import DropZone, LibraryCheckDelegate, LibraryListWidget, ToggleSwitch
 
 
 class PanelsMixin:
@@ -36,7 +36,7 @@ class PanelsMixin:
         drop.clicked.connect(self.open_file_dialog)
         self.library_stack.addWidget(drop)
 
-        self.list_library = QListWidget()
+        self.list_library = LibraryListWidget()
         # Griglia di miniature riordinabile trascinandole
         self.list_library.setViewMode(QListView.ViewMode.ListMode)
         self.list_library.setFlow(QListView.Flow.LeftToRight)

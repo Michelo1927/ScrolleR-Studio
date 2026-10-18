@@ -81,7 +81,8 @@ class PageTileView(CanvasView):
 class PageGridView(QScrollArea):
     """Griglia delle pagine con barre di scorrimento orizzontale e verticale."""
     zoom_changed = pyqtSignal(float)
-    files_dropped = pyqtSignal(list)
+    files_dropped = pyqtSignal(list, QPointF)
+    library_dropped = pyqtSignal(list, QPointF)
     context_menu_requested = pyqtSignal(object, QPoint)  # (vista della pagina, punto nella vista)
     MIN_SCALE = 0.03
     MAX_SCALE = 4.0
@@ -121,6 +122,7 @@ class PageGridView(QScrollArea):
         for i in range(self._scene.num_frames):
             tile = PageTileView(self._scene, self, i)
             tile.files_dropped.connect(self.files_dropped)
+            tile.library_dropped.connect(self.library_dropped)
             tile.customContextMenuRequested.connect(
                 lambda pos, t=tile: self.context_menu_requested.emit(t, pos))
             self.tiles.append(tile)

@@ -102,13 +102,15 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self.scene.layout_names = {mode: name for mode, name, _ in self.LAYOUTS}
         self.scene.selectionChanged.connect(self._on_selection_changed)
         self.view = CanvasView(self.scene, self)
-        self.view.files_dropped.connect(self.load_images_from_paths)
+        self.view.files_dropped.connect(self._on_files_dropped)
+        self.view.library_dropped.connect(self._on_library_dropped)
         self.view.zoom_changed.connect(self._on_zoom_changed)
         self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.view.customContextMenuRequested.connect(self._show_canvas_context_menu)
         # Pagine a scacchiera: una vista per pagina sulla stessa tela (Vista → Pagine a scacchiera)
         self.page_grid = PageGridView(self.scene, self)
-        self.page_grid.files_dropped.connect(self.load_images_from_paths)
+        self.page_grid.files_dropped.connect(self._on_files_dropped)
+        self.page_grid.library_dropped.connect(self._on_library_dropped)
         self.page_grid.zoom_changed.connect(self._on_zoom_changed)
         self.page_grid.context_menu_requested.connect(lambda view, pos: self._show_canvas_context_menu(pos, view))
         # Versione nitida di una foto pronta (zoom forte): la tela si ridisegna con quella

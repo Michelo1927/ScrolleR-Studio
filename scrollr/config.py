@@ -10,6 +10,8 @@ except ImportError:
 
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp") + ((".heic", ".heif") if HEIF_SUPPORTED else ())
 PROJECT_EXT = ".scrlproj"
+# Trascinamento dalla libreria alla tela: percorsi delle foto, uno per riga (formato interno all'app)
+LIBRARY_MIME = "application/x-scrollr-library-paths"
 PROJECT_VERSION = 1
 
 # Pagina pubblica del progetto (menu ? → Informazioni, Scarica l'ultima versione)

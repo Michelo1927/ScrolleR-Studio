@@ -500,6 +500,25 @@ class LayoutMixin:
         self._schedule_commit()
         return True
 
+    def _insert_into_page(self, new: List[PhotoItem], target: int, current: dict):
+        """
+        Foto appena create messe in fondo alla pagina `target`; `current` è la pagina delle foto
+        già ordinate (letta prima di crearle). La pagina fissa il suo nuovo numero di foto.
+        """
+        n = self.scene.num_frames
+        by_page: List[List[PhotoItem]] = [[] for _ in range(n)]
+        for p in self._layout_photos():
+            if p not in new:
+                by_page[min(current.get(p.uid, n - 1), n - 1)].append(p)
+        by_page[target].extend(new)
+        counts = self.scene.page_counts
+        counts.extend([None] * (n - len(counts)))
+        counts[target] = len(by_page[target])
+        self._trim_page_lists()
+        for i, p in enumerate(p for page in by_page for p in page):
+            p.layout_index = i
+        self._relayout_keep()
+
     def _on_photo_dropped(self, item: PhotoItem):
         """Foto trascinata e rilasciata su un'altra pagina: passa a quella pagina e ci resta."""
         if not self._pages_split():

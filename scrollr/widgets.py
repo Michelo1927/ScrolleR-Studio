@@ -1,7 +1,9 @@
 """Widget personalizzati dell'interfaccia."""
 from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal, QSize
 from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QPolygonF, QFontMetricsF
-from PyQt6.QtWidgets import QFrame, QCheckBox, QStyledItemDelegate, QStyle
+from PyQt6.QtWidgets import QFrame, QCheckBox, QStyledItemDelegate, QStyle, QListWidget
+
+from scrollr.config import LIBRARY_MIME
 
 from scrollr.icons import icon_pixmap
 from scrollr.theme import THEME, ui_font
@@ -66,6 +68,20 @@ class ToggleSwitch(QCheckBox):
             p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawRoundedRect(box.adjusted(-2, -2, 2, 2), 3, 3)
         p.end()
+
+
+class LibraryListWidget(QListWidget):
+    """
+    Miniature della libreria: si riordinano trascinandole e si possono trascinare sulla tela.
+    Nel trascinamento c'è anche l'elenco dei percorsi (formato interno, non file veri: così
+    rilasciandole fuori dall'app non si copiano file per sbaglio).
+    """
+
+    def mimeData(self, items):
+        data = super().mimeData(items)
+        paths = [it.data(Qt.ItemDataRole.UserRole) for it in items]
+        data.setData(LIBRARY_MIME, "\n".join(p for p in paths if p).encode("utf-8"))
+        return data
 
 
 class LibraryCheckDelegate(QStyledItemDelegate):

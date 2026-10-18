@@ -116,7 +116,9 @@ class PageOrderDialog(QDialog):
         self.list.setFlow(QListView.Flow.LeftToRight)
         self.list.setWrapping(True)
         self.list.setResizeMode(QListView.ResizeMode.Adjust)
-        self.list.setMovement(QListView.Movement.Snap)
+        # Movimento "statico": il trascinamento cambia l'ordine delle righe. Con Snap/Free un QListWidget
+        # a icone sposta le miniature solo graficamente e l'ordine resterebbe quello di prima
+        self.list.setMovement(QListView.Movement.Static)
         self.list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.list.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.list.setIconSize(QSize(side, side))
@@ -130,7 +132,18 @@ class PageOrderDialog(QDialog):
             self.list.addItem(item)
         lay.addWidget(self.list, 1)
 
+        if self.list.count():
+            self.list.setCurrentRow(0)
         buttons = QHBoxLayout()
+        self.btn_before = QPushButton("Prima")
+        self.btn_before.setIcon(make_icon("chevron_left", THEME["text"], 16))
+        self.btn_before.setToolTip("Sposta la pagina selezionata una posizione prima")
+        self.btn_before.clicked.connect(lambda: self._shift(-1))
+        self.btn_after = QPushButton("Dopo")
+        self.btn_after.setIcon(make_icon("chevron_right", THEME["text"], 16))
+        self.btn_after.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.btn_after.setToolTip("Sposta la pagina selezionata una posizione dopo")
+        self.btn_after.clicked.connect(lambda: self._shift(1))
         reset = QPushButton("Ordine di prima")
         reset.clicked.connect(self._reset)
         cancel = QPushButton("Annulla")
@@ -139,6 +152,9 @@ class PageOrderDialog(QDialog):
         apply.setObjectName("Primary")
         apply.setDefault(True)
         apply.clicked.connect(self.accept)
+        buttons.addWidget(self.btn_before)
+        buttons.addWidget(self.btn_after)
+        buttons.addSpacing(12)
         buttons.addWidget(reset)
         buttons.addStretch()
         buttons.addWidget(cancel)
@@ -152,6 +168,16 @@ class PageOrderDialog(QDialog):
     def order(self) -> List[int]:
         """order[nuova posizione] = vecchia posizione."""
         return [self.list.item(r).data(Qt.ItemDataRole.UserRole) for r in range(self.list.count())]
+
+    def _shift(self, delta: int):
+        """Sposta la pagina selezionata di una posizione (alternativa al trascinamento)."""
+        row = self.list.currentRow()
+        new = row + delta
+        if row < 0 or not (0 <= new < self.list.count()):
+            return
+        item = self.list.takeItem(row)
+        self.list.insertItem(new, item)
+        self.list.setCurrentRow(new)
 
     def _reset(self):
         items = sorted((self.list.takeItem(0) for _ in range(self.list.count())),

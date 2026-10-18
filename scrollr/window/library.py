@@ -94,9 +94,24 @@ class LibraryMixin:
         self._update_library_selection_ui()
 
     def _on_library_reordered(self, *_):
-        """Dopo un trascinamento nella libreria l'ordine delle foto segue quello delle miniature."""
+        """
+        Dopo un trascinamento nella libreria l'ordine delle foto segue quello delle miniature,
+        anche sulla tela: le foto si ridispongono nel nuovo ordine (e quindi nelle pagine).
+        """
         self.loaded_library = [self.list_library.item(i).data(Qt.ItemDataRole.UserRole)
                                for i in range(self.list_library.count())]
+        position = {path: i for i, path in enumerate(self.loaded_library)}
+        photos = self.get_canvas_photos()
+        if not photos:
+            return
+        ordered = sorted(photos, key=lambda p: (position.get(p.image_path, len(position)), p.layout_index, p.uid))
+        if ordered == photos:
+            return
+        for i, p in enumerate(ordered):
+            p.layout_index = i
+        self._relayout_keep()
+        self.statusBar().showMessage("Foto riordinate come nella libreria", 3000)
+        self._schedule_commit()
 
     def _library_selected_paths(self) -> List[str]:
         """Percorsi selezionati nella libreria, nell'ordine della libreria (non in quello dei clic)."""
@@ -147,6 +162,39 @@ class LibraryMixin:
             self.fit_canvas_in_view()
             self._schedule_commit()
         self._report_load_errors(errors)
+
+    # ---------- Foto trascinate su una pagina ----------
+    def _on_files_dropped(self, paths: List[str], scene_pos: QPointF):
+        """File dal PC rilasciati sulla tela: entrano nella pagina sotto il punto di rilascio."""
+        loaded, errors = self._load_into_library(paths, "Caricamento foto…")
+        self._place_dropped(loaded, scene_pos)
+        self._report_load_errors(errors)
+
+    def _on_library_dropped(self, paths: List[str], scene_pos: QPointF):
+        """Miniature trascinate dalla libreria sulla tela: entrano nella pagina sotto il punto di rilascio."""
+        self._place_dropped([p for p in paths if IMAGE_CACHE.has(p)], scene_pos)
+
+    def _place_dropped(self, paths: List[str], scene_pos: QPointF):
+        if not paths:
+            return
+        frames_before = self.scene.num_frames
+        page = int(scene_pos.x() // self.scene.frame_w)
+        on_canvas = self.scene.canvas_rect().contains(scene_pos)
+        if on_canvas and self._pages_split():
+            # Prima la pagina di ogni foto già ordinata, poi le nuove in fondo alla pagina scelta
+            current = self._photo_pages()
+            new = [self._spawn_photo_item(p) for p in paths]
+            self._insert_into_page(new, page, current)
+            self.statusBar().showMessage(
+                (f"Foto aggiunta alla pagina {page + 1}" if len(new) == 1
+                 else f"{len(new)} foto aggiunte alla pagina {page + 1}"), 4000)
+        else:
+            for p in paths:
+                self._spawn_photo_item(p)
+            self._relayout_keep()
+        if self.scene.num_frames != frames_before:
+            self.fit_canvas_in_view()
+        self._schedule_commit()
 
     def _spawn_photo_item(self, path: str, uid: Optional[int] = None) -> PhotoItem:
         photo_item = PhotoItem(path, 400, 500, uid=uid)
