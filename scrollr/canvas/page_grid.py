@@ -60,15 +60,13 @@ class PageTileView(CanvasView):
         sc = self.scene()
         if sc.is_exporting or sc.clean_render:
             return
-        # Quello che sta fuori dalla pagina (bordi delle pagine vicine) resta attenuato
+        # Fuori dalla pagina si vedrebbero i bordi delle pagine vicine: coperti del tutto dallo sfondo
         page = self.page_rect()
         outer = QPainterPath()
         outer.addRect(rect)
         inner = QPainterPath()
         inner.addRect(page)
-        veil = QColor(THEME["backdrop"])
-        veil.setAlpha(200)
-        painter.fillPath(outer.subtracted(inner), veil)
+        painter.fillPath(outer.subtracted(inner), QColor(THEME["backdrop"]))
         # Etichetta della pagina, in pixel dello schermo
         top_left = painter.worldTransform().map(page.topLeft())
         painter.save()
