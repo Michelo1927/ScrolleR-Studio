@@ -44,7 +44,7 @@ def _to_srgb(img: Image.Image, icc: bytes, out_mode: str) -> Image.Image:
         return img  # Profilo non valido o non compatibile: si usa l'immagine così com'è
 
 
-def load_pil_srgb(path: str, max_side: Optional[int] = None) -> Image.Image:
+def load_pil_srgb(path: str, max_side: Optional[int] = None, exact: bool = True) -> Image.Image:
     """
     Apre un'immagine applicando rotazione EXIF e conversione del profilo colore ICC in sRGB
     (es. foto iPhone in Display P3). Se max_side è indicato, l'immagine viene ridotta.
@@ -67,7 +67,9 @@ def load_pil_srgb(path: str, max_side: Optional[int] = None) -> Image.Image:
 
     has_alpha = img.mode in ("RGBA", "LA", "PA") or (img.mode == "P" and "transparency" in img.info)
     out_mode = "RGBA" if has_alpha else "RGB"
-    if max_side and max(img.size) > max_side:
+    # exact=False (esportazione): basta che la foto sia almeno max_side; si riduce solo se è molto
+    # più grande, così il ricampionamento finale avviene una volta sola, dalla foto più ricca
+    if max_side and max(img.size) > (max_side if exact else max_side * 1.5):
         if img.mode not in ("RGB", "RGBA", "L", "CMYK"):
             img = img.convert(out_mode)
         img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
@@ -144,13 +146,14 @@ class ImageCache:
     con una piccola cache LRU, così anche centinaia di foto non saturano la RAM.
     """
     PREVIEW_MAX_SIDE = 1600
-    FULL_CACHE_SIZE = 3
     HIRES_MAX_SIDE = 4096   # Zoom forte sulla tela: versione nitida (copre le foto da 12 MP)
     HIRES_CACHE_SIZE = 4    # Poche alla volta: ognuna occupa fino a ~65 MB
 
     def __init__(self):
         self._previews: Dict[str, QPixmap] = {}
-        self._full: "OrderedDict[str, Image.Image]" = OrderedDict()
+        # Originali per l'esportazione: {percorso: (lato richiesto o None = intera, immagine)}.
+        # Si leggono solo grandi quanto serve all'uscita e si liberano a fine esportazione
+        self._full: Dict[str, tuple] = {}
         self._hires: "OrderedDict[str, QPixmap]" = OrderedDict()
         self._hires_pending: set = set()
         self._hires_pool: Optional[ThreadPoolExecutor] = None
@@ -230,18 +233,30 @@ class ImageCache:
         if old in self._previews:
             self._previews[new] = self._previews[old]
 
-    def full(self, path: str) -> Optional[Image.Image]:
-        if path in self._full:
-            self._full.move_to_end(path)
-            return self._full[path]
-        try:
-            img = load_pil_srgb(path)
-        except Exception:
-            return None
-        self._full[path] = img
-        while len(self._full) > self.FULL_CACHE_SIZE:
-            self._full.popitem(last=False)
-        return img
+    @staticmethod
+    def decode_full(path: str, side: Optional[int] = None) -> Image.Image:
+        """
+        Originale letto a `side` px sul lato lungo (None = intero). Usabile da più thread: così il
+        grosso del ridimensionamento avviene in parallelo e il disegno deve solo rifinire.
+        """
+        return load_pil_srgb(path, side) if side else load_pil_srgb(path)
+
+    def _full_fits(self, path: str, side: Optional[int]) -> bool:
+        entry = self._full.get(path)
+        return entry is not None and (entry[0] is None or (side is not None and entry[0] >= side))
+
+    def store_full(self, path: str, side: Optional[int], img: Image.Image):
+        if not self._full_fits(path, side):
+            self._full[path] = (side, img)
+
+    def full(self, path: str, side: Optional[int] = None) -> Optional[Image.Image]:
+        """Originale per l'esportazione, letto almeno a `side` px (già pronto se preletto in parallelo)."""
+        if not self._full_fits(path, side):
+            try:
+                self.store_full(path, side, self.decode_full(path, side))
+            except Exception:
+                return None
+        return self._full[path][1]
 
     def release_full(self):
         self._full.clear()

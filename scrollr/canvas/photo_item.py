@@ -479,9 +479,21 @@ class PhotoItem(QGraphicsObject):
                          "Foto mancante\n" + painter.fontMetrics().elidedText(
                              name, Qt.TextElideMode.ElideMiddle, int(text_rect.width())))
 
+    def export_side(self, out_scale: float) -> Optional[int]:
+        """
+        Lato lungo (in pixel) a cui serve leggere l'originale per esportare a `out_scale` pixel
+        per unità della tela: la foto intera disegnata, con un po' di margine. None se mancante.
+        """
+        pm = self.pixmap
+        if pm.width() <= 0 or pm.height() <= 0:
+            return None
+        draw_w, draw_h = self._cover_geometry(float(pm.width()), float(pm.height()))[3:5]
+        return max(64, math.ceil(max(draw_w, draw_h) * out_scale * 1.1))
+
     def _paint_full_resolution(self, painter: QPainter, cell_rect: QRectF):
         """In esportazione ricampiona dall'originale solo la porzione visibile, alla risoluzione di uscita."""
-        full = IMAGE_CACHE.full(self.image_path)
+        t0 = painter.worldTransform()
+        full = IMAGE_CACHE.full(self.image_path, self.export_side(math.hypot(t0.m11(), t0.m12()) or 1.0))
         img_t = self._image_transform()
         painter.setTransform(img_t, True)
         if full is None:
