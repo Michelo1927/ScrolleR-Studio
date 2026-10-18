@@ -7,7 +7,9 @@ from PyQt6.QtGui import QPixmap, QImage, QPainter
 from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox
 
 from scrollr.dialogs import CarouselPreview
+from scrollr.icons import make_icon
 from scrollr.keys import kb
+from scrollr.theme import THEME
 
 
 class PagesMixin:
@@ -32,9 +34,9 @@ class PagesMixin:
         for it in self._all_elements():
             if self._page_of(it) > k:
                 it.moveBy(fw, 0)
-        counts = self.scene.page_counts
-        if k + 1 < len(counts):
-            counts.insert(k + 1, None)
+        for values in self._page_lists():
+            if k + 1 < len(values):
+                values.insert(k + 1, None)
         self._seam_added_frames = None
         self._set_frames_silently(n + 1)
         self.statusBar().showMessage(f"Nuova pagina {k + 2} aggiunta", 3000)
@@ -59,9 +61,10 @@ class PagesMixin:
         for it in self._all_elements():
             if self._page_of(it) > k:
                 it.moveBy(-fw, 0)
-        if k < len(self.scene.page_counts):
-            del self.scene.page_counts[k]
-            self._trim_page_counts()
+        for values in self._page_lists():
+            if k < len(values):
+                del values[k]
+        self._trim_page_lists()
         self._seam_added_frames = None
         self._set_frames_silently(n - 1)
         self._update_canvas_count()
@@ -80,12 +83,12 @@ class PagesMixin:
                 it.moveBy(direction * fw, 0)
             elif page == j:
                 it.moveBy(-direction * fw, 0)
-        # Il numero fissato segue la pagina, e l'ordine delle foto segue le pagine (così un nuovo
-        # ridisegno della disposizione non le rimette dov'erano)
-        counts = self.scene.page_counts
-        counts.extend([None] * (max(k, j) + 1 - len(counts)))
-        counts[k], counts[j] = counts[j], counts[k]
-        self._trim_page_counts()
+        # Numero di foto e disposizione propria seguono la pagina, e l'ordine delle foto segue le pagine
+        # (così un nuovo ridisegno della disposizione non le rimette dov'erano)
+        for values in self._page_lists():
+            values.extend([None] * (max(k, j) + 1 - len(values)))
+            values[k], values[j] = values[j], values[k]
+        self._trim_page_lists()
         photos = sorted(self.get_canvas_photos(), key=lambda p: (self._page_of(p), p.layout_index, p.uid))
         for i, p in enumerate(photos):
             p.layout_index = i
@@ -93,27 +96,78 @@ class PagesMixin:
         self.statusBar().showMessage(f"Pagina {k + 1} spostata in posizione {j + 1}", 3000)
         self._schedule_commit()
 
-    # ---------- Foto fissate pagina per pagina ----------
-    def _trim_page_counts(self):
-        counts = self.scene.page_counts
-        while counts and counts[-1] is None:
-            counts.pop()
+    # ---------- Impostazioni pagina per pagina (numero di foto, disposizione) ----------
+    def _page_lists(self) -> list:
+        """Elenchi con un valore per pagina (None = come le altre), da tenere allineati alle pagine."""
+        return [self.scene.page_counts, self.scene.page_layouts]
 
-    def _set_page_count(self, k: int, value: Optional[int]):
-        """Fissa quante foto vanno nella pagina k (None = automatico) e ridispone."""
-        counts = self.scene.page_counts
-        counts.extend([None] * (k + 1 - len(counts)))
-        counts[k] = value
-        self._trim_page_counts()
+    def _trim_page_lists(self):
+        for values in self._page_lists():
+            while values and values[-1] is None:
+                values.pop()
+
+    def _apply_page_setting(self):
+        """Dopo una scelta su una singola pagina: ridispone, accendendo la divisione per pagina se serve."""
         if self.current_layout_mode == "scrl_seam":
-            self.statusBar().showMessage("Con «A cavallo» le foto non si dividono per pagina: "
-                                         "vale con le altre disposizioni", 6000)
+            self.statusBar().showMessage("Con «A cavallo» le scelte per singola pagina non valgono: "
+                                         "scegli un'altra disposizione nel pannello", 6000)
         elif not self.chk_per_frame.isChecked():
             self.chk_per_frame.setChecked(True)  # Senza, le foto non si dividono per pagina
         else:
             self._relayout_keep()
         self.scene.update()
         self._schedule_commit()
+
+    def _set_page_layout(self, k: int, mode: Optional[str], style: Optional[str] = None):
+        """Disposizione propria della pagina k (None = come le altre) e ridispone."""
+        layouts = self.scene.page_layouts
+        layouts.extend([None] * (k + 1 - len(layouts)))
+        layouts[k] = {"mode": mode, "style": style} if mode else None
+        self._trim_page_lists()
+        self._apply_page_setting()
+
+    def _fill_page_layout_menu(self, menu: QMenu, k: int):
+        """Voci "Come le altre / Griglia / Mosaico (con gli stili) / …" per la pagina k."""
+        current = self.scene.page_layouts[k] if k < len(self.scene.page_layouts) else None
+        names = dict((m, t) for m, t, _ in self.LAYOUTS)
+        same = menu.addAction(f"Come le altre ({names.get(self.current_layout_mode, '')})")
+        same.setCheckable(True)
+        same.setChecked(current is None)
+        same.triggered.connect(lambda: self._set_page_layout(k, None))
+        menu.addSeparator()
+        for mode, text, tip in self.LAYOUTS:
+            if mode == "scrl_seam":
+                continue  # Attraversa le pagine: vale solo per tutta la tela
+            icon = make_icon(mode, THEME["text"], 16)
+            if mode == "mosaic":
+                sub = menu.addMenu(icon, text)
+                for style, style_text, style_tip in self.MOSAIC_STYLES:
+                    act = sub.addAction(make_icon("mosaic_" + style, THEME["text"], 16), style_text)
+                    act.setToolTip(style_tip)
+                    act.setCheckable(True)
+                    act.setChecked(bool(current) and current["mode"] == "mosaic"
+                                   and (current.get("style") or "auto") == style)
+                    act.triggered.connect(lambda _c=False, s=style: self._set_page_layout(k, "mosaic", s))
+                sub.setToolTipsVisible(True)
+                continue
+            act = menu.addAction(icon, text)
+            act.setToolTip(tip)
+            act.setCheckable(True)
+            act.setChecked(bool(current) and current["mode"] == mode)
+            act.triggered.connect(lambda _c=False, m=mode: self._set_page_layout(k, m))
+        menu.setToolTipsVisible(True)
+
+    def _rebuild_current_page_layout_menu(self):
+        self.menu_page_layout.clear()
+        self._fill_page_layout_menu(self.menu_page_layout, self._current_page())
+
+    def _set_page_count(self, k: int, value: Optional[int]):
+        """Fissa quante foto vanno nella pagina k (None = automatico) e ridispone."""
+        counts = self.scene.page_counts
+        counts.extend([None] * (k + 1 - len(counts)))
+        counts[k] = value
+        self._trim_page_lists()
+        self._apply_page_setting()
 
     def _fill_page_count_menu(self, menu: QMenu, k: int):
         """Voci "Automatico / Nessuna / 1…12" per scegliere quante foto vanno nella pagina k."""

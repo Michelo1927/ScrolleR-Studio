@@ -56,13 +56,12 @@ class LayoutMixin:
         gap = float(self.slider_gap.value())
         margin = float(self.slider_margin.value())
 
-        # Il bordo bianco "Polaroid" aggiunto in automatico viene tolto se si cambia layout
-        if mode != "scatter":
-            for p in photos:
-                if p.auto_border:
-                    p.border_width = 0.0
-                    p.auto_border = False
-                    p.update()
+        # Il bordo bianco "Polaroid" aggiunto in automatico si toglie: lo rimette Polaroid dove serve
+        for p in photos:
+            if p.auto_border:
+                p.border_width = 0.0
+                p.auto_border = False
+                p.update()
 
         if mode == "scrl_seam":
             if self.scene.num_frames < 2:
@@ -93,8 +92,7 @@ class LayoutMixin:
                 frames = max([1, needed] + [p for p in text_pages if p <= self.spin_frames.maximum()])
                 if frames != self.scene.num_frames:
                     self._set_frames_silently(frames)
-            frames = self.scene.num_frames
-            if self.chk_per_frame.isChecked() and (frames > 1 or per_page > 0):
+            if self.chk_per_frame.isChecked():
                 start = 0
                 for f, count in enumerate(self._page_photo_counts(len(photos))):
                     chunk = photos[start:start + count]
@@ -102,7 +100,12 @@ class LayoutMixin:
                     if chunk:
                         frame_rect = QRectF(f * self.scene.frame_w, 0, self.scene.frame_w, self.scene.frame_h)
                         area = self._safe_rect(frame_rect.adjusted(margin, margin, -margin, -margin))
-                        self._layout_in_rect(mode, chunk, area, gap, rng)
+                        # Una pagina può avere la sua disposizione (clic destro → Disposizione di questa pagina)
+                        own = self.scene.page_layouts[f] if f < len(self.scene.page_layouts) else None
+                        if own:
+                            self._layout_in_rect(own["mode"], chunk, area, gap, rng, own.get("style"))
+                        else:
+                            self._layout_in_rect(mode, chunk, area, gap, rng)
             else:
                 area = self._safe_rect(self.scene.canvas_rect().adjusted(margin, margin, -margin, -margin))
                 self._layout_in_rect(mode, photos, area, gap, rng)
@@ -179,9 +182,10 @@ class LayoutMixin:
         p.setPos(x, y)
         p.saved_cell = None
 
-    def _layout_in_rect(self, mode: str, photos: List[PhotoItem], area: QRectF, gap: float, rng: random.Random):
+    def _layout_in_rect(self, mode: str, photos: List[PhotoItem], area: QRectF, gap: float, rng: random.Random,
+                        mosaic_style: Optional[str] = None):
         if mode == "mosaic":
-            self._layout_mosaic(photos, area, gap)
+            self._layout_mosaic(photos, area, gap, mosaic_style or self.mosaic_style)
         elif mode == "strips_h":
             self._layout_strips(photos, area, gap, horizontal=True)
         elif mode == "strips_v":
@@ -206,9 +210,8 @@ class LayoutMixin:
                 self._place(photos[idx], area.x() + c * (col_w + gap), area.y() + r * (row_h + gap), col_w, row_h)
                 idx += 1
 
-    def _layout_mosaic(self, photos: List[PhotoItem], area: QRectF, gap: float):
+    def _layout_mosaic(self, photos: List[PhotoItem], area: QRectF, gap: float, style: str):
         # Foto "Hero" in evidenza + griglia per le altre; la posizione dipende dallo stile scelto
-        style = self.mosaic_style
         portrait = area.height() >= area.width()
         if style == "masonry":
             self._layout_masonry(photos, area, gap)

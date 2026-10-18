@@ -25,6 +25,7 @@ class HistoryMixin:
                 "per_frame": self.chk_per_frame.isChecked(),
                 "per_page": self.spin_per_page.value(),
                 "page_counts": list(self.scene.page_counts),
+                "page_layouts": [dict(x) if x else None for x in self.scene.page_layouts],
                 "layout_mode": self.current_layout_mode,
                 "mosaic_style": self.mosaic_style,
                 "layout_seed": self._layout_seed,
@@ -68,6 +69,7 @@ class HistoryMixin:
             self.scene.frame_w, self.scene.frame_h = c["frame_w"], c["frame_h"]
             self.scene.num_frames = c["num_frames"]
             self.scene.page_counts = list(c.get("page_counts", []))
+            self.scene.page_layouts = [dict(x) if x else None for x in c.get("page_layouts", [])]
             self.scene.bg_color = QColor(c["bg_color"])
             self.scene.bg_mode = c.get("bg_mode", "solid")
             self.scene.bg_color2 = QColor(c.get("bg_color2", "#FF2680EB"))

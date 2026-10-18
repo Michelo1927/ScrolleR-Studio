@@ -501,6 +501,7 @@ class InspectorMixin:
         a = page_menu.addAction("Sposta a destra", lambda: self._move_page(k, 1))
         a.setEnabled(k < n - 1)
         page_menu.addSeparator()
+        self._fill_page_layout_menu(page_menu.addMenu("Disposizione di questa pagina"), k)
         self._fill_page_count_menu(page_menu.addMenu("Foto in questa pagina"), k)
         page_menu.addSeparator()
         a = page_menu.addAction("Elimina questa pagina…", lambda: self._delete_page(k))

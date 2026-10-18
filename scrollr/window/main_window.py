@@ -96,6 +96,7 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self._custom_ratio_timer.timeout.connect(self._apply_custom_ratio)
 
         self.scene = CollageScene(self)
+        self.scene.layout_names = {mode: name for mode, name, _ in self.LAYOUTS}
         self.scene.selectionChanged.connect(self._on_selection_changed)
         self.view = CanvasView(self.scene, self)
         self.view.files_dropped.connect(self.load_images_from_paths)

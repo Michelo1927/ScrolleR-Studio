@@ -1,5 +1,5 @@
 """Scena del collage: pagine, sfondo, guide e snap."""
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QRectF, QPointF
 from PyQt6.QtGui import (
@@ -31,6 +31,9 @@ class CollageScene(QGraphicsScene):
         self.num_frames = 1
         # Foto fissate pagina per pagina (None = automatico); vale con "Una disposizione per ogni pagina"
         self.page_counts: List[Optional[int]] = []
+        # Disposizione propria di una pagina, es. {"mode": "mosaic", "style": "left"} (None = come le altre)
+        self.page_layouts: List[Optional[dict]] = []
+        self.layout_names: Dict[str, str] = {}   # Nomi delle disposizioni per le etichette delle pagine
         self.bg_color = QColor("#FFFFFF")
         # Sfondo: "solid" = tinta unita, "gradient" = sfumatura tra due colori, "blur" = foto sfocata
         self.bg_mode = "solid"
@@ -202,6 +205,9 @@ class CollageScene(QGraphicsScene):
         for i in range(self.num_frames):
             top_left = t.map(QPointF(i * self.frame_w, 0))
             label = f"Pagina {i + 1}" if self.num_frames > 1 else f"{self.frame_w} × {self.frame_h} px"
+            own = self.page_layouts[i] if i < len(self.page_layouts) else None
+            if own:
+                label += "  ·  " + self.layout_names.get(own["mode"], own["mode"])
             fixed = self.page_counts[i] if i < len(self.page_counts) else None
             if fixed is not None:
                 label += f"  ·  {fixed} foto" if fixed != 1 else "  ·  1 foto"
