@@ -497,6 +497,7 @@ class InspectorMixin:
         n = self.scene.num_frames
         menu.addSeparator()
         page_menu = menu.addMenu(make_icon("page", THEME["text"], 16), f"Pagina {k + 1}")
+        page_menu.addAction("Aggiungi una pagina prima di questa", lambda: self._insert_page_at(k))
         page_menu.addAction("Aggiungi una pagina dopo questa", lambda: self._insert_page_after(k))
         a = page_menu.addAction("Sposta a sinistra", lambda: self._move_page(k, -1))
         a.setEnabled(k > 0)

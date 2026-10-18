@@ -497,6 +497,8 @@ class UiMixin:
         make("Foto…", self.open_file_dialog, None, m_insert)
 
         m_pages = menubar.addMenu("&Pagine")
+        make("Aggiungi una pagina all'inizio", lambda: self._insert_page_at(0), None, m_pages)
+        make("Aggiungi una pagina prima di quella corrente", lambda: self._insert_page_at(self._current_page()), None, m_pages)
         make("Aggiungi una pagina dopo quella corrente", lambda: self._insert_page_after(self._current_page()), None, m_pages)
         make("Aggiungi una pagina alla fine", lambda: self._insert_page_after(self.scene.num_frames - 1), None, m_pages)
         m_pages.addSeparator()

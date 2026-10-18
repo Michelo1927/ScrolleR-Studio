@@ -210,7 +210,7 @@ class CollageScene(QGraphicsScene):
                 label += "  ·  " + self.layout_names.get(own["mode"], own["mode"])
             fixed = self.page_counts[i] if i < len(self.page_counts) else None
             if fixed is not None:
-                label += f"  ·  {fixed} foto" if fixed != 1 else "  ·  1 foto"
+                label += "  ·  Vuota" if fixed == 0 else (f"  ·  {fixed} foto" if fixed != 1 else "  ·  1 foto")
             painter.setPen(QColor(THEME["muted"]))
             painter.drawText(QPointF(top_left.x() + 1, top_left.y() - 8), label)
 

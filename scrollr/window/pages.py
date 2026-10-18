@@ -25,22 +25,32 @@ class PagesMixin:
              else self.view.mapToScene(self.view.viewport().rect().center()).x())
         return max(0, min(self.scene.num_frames - 1, int(math.floor(x / self.scene.frame_w))))
 
-    def _insert_page_after(self, k: int):
+    def _insert_page_at(self, i: int):
+        """Inserisce una pagina vuota in posizione i (0 = all'inizio): le pagine da i in poi scorrono a destra."""
         n = self.scene.num_frames
         if n >= self.spin_frames.maximum():
             self.statusBar().showMessage(f"Massimo {n} pagine", 4000)
             return
         fw = self.scene.frame_w
         for it in self._all_elements():
-            if self._page_of(it) > k:
+            if self._page_of(it) >= i:
                 it.moveBy(fw, 0)
         for values in self._page_lists():
-            if k + 1 < len(values):
-                values.insert(k + 1, None)
+            if i < len(values):
+                values.insert(i, None)
+        if self.get_canvas_photos():
+            # La pagina nuova resta vuota (copertina, testo…): il prossimo ridisegno non ci sposta foto
+            counts = self.scene.page_counts
+            counts.extend([None] * (i + 1 - len(counts)))
+            counts[i] = 0
         self._seam_added_frames = None
         self._set_frames_silently(n + 1)
-        self.statusBar().showMessage(f"Nuova pagina {k + 2} aggiunta", 3000)
+        self.statusBar().showMessage(f"Nuova pagina {i + 1} aggiunta, vuota. Per riempirla di foto: clic destro "
+                                     "→ Foto in questa pagina → Automatico", 6000)
         self._schedule_commit()
+
+    def _insert_page_after(self, k: int):
+        self._insert_page_at(k + 1)
 
     def _delete_page(self, k: int):
         n = self.scene.num_frames
