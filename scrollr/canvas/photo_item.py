@@ -203,9 +203,9 @@ class PhotoItem(QGraphicsObject):
         self.update()
 
     def _view_scale(self) -> float:
+        # Zoom della vista attiva (in fila o a scacchiera), impostato dalla finestra
         scene = self.scene()
-        views = scene.views() if scene else []
-        return max(0.01, views[0].transform().m11()) if views else 1.0
+        return max(0.01, getattr(scene, "display_scale", 1.0)) if scene else 1.0
 
     def _handle_size(self) -> float:
         return self.HANDLE_PX / self._view_scale()

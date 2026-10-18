@@ -449,14 +449,15 @@ class InspectorMixin:
             self._sync_inspector_from_item(self._get_primary_selected())
             self._schedule_commit()
 
-    def _show_canvas_context_menu(self, pos):
+    def _show_canvas_context_menu(self, pos, view=None):
+        view = view or self.view  # Con le pagine a scacchiera arriva la vista della pagina cliccata
         # Il clic destro su un elemento non selezionato lo seleziona (come in ogni editor grafico)
-        clicked = next((it for it in self.view.items(pos) if isinstance(it, (PhotoItem, TextItem))), None)
+        clicked = next((it for it in view.items(pos) if isinstance(it, (PhotoItem, TextItem))), None)
         if clicked is not None and not clicked.isSelected():
             self.scene.clearSelection()
             clicked.setSelected(True)
 
-        scene_pt = self.view.mapToScene(pos)
+        scene_pt = view.mapToScene(pos)
         n_photos = len(self._selected_photos())
         has_photo = n_photos > 0
         elements = self._selected_elements()
@@ -511,4 +512,4 @@ class InspectorMixin:
         page_menu.addSeparator()
         a = page_menu.addAction("Elimina questa pagina…", lambda: self._delete_page(k))
         a.setEnabled(n > 1)
-        menu.exec(self.view.mapToGlobal(pos))
+        menu.exec(view.mapToGlobal(pos))

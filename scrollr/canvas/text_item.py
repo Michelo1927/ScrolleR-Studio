@@ -137,9 +137,9 @@ class TextItem(QGraphicsObject):
         self.relayout()
 
     def _view_scale(self) -> float:
+        # Zoom della vista attiva (in fila o a scacchiera), impostato dalla finestra
         scene = self.scene()
-        views = scene.views() if scene else []
-        return max(0.01, views[0].transform().m11()) if views else 1.0
+        return max(0.01, getattr(scene, "display_scale", 1.0)) if scene else 1.0
 
     def boundingRect(self) -> QRectF:
         m = max(self.font_size * 0.12, 8.0 / self._view_scale())

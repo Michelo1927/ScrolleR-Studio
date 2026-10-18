@@ -152,7 +152,7 @@ class LibraryMixin:
 
     def _add_library_paths_to_canvas(self, paths: List[str], free: bool = False):
         # Le nuove foto compaiono al centro della zona visibile della tela
-        center = self.view.mapToScene(self.view.viewport().rect().center())
+        center = self._visible_center_scene()
         self.scene.clearSelection()
         for i, path in enumerate(paths):
             if not IMAGE_CACHE.has(path):

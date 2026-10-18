@@ -38,7 +38,7 @@ class TextMixin:
         t.relayout(keep_center=False)
         t.setZValue(self._max_z() + 1.0)
         if at is None:
-            page = self._page_rect_at(self.view.mapToScene(self.view.viewport().rect().center()).x())
+            page = self._page_rect_at(self._visible_center_scene().x())
             at = page.center()
         t.setPos(at - t.text_rect().center())
         self.scene.clearSelection()

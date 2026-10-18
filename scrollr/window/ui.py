@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt, QRectF, QSize, QKeyCombination, QUrl
 from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QAction, QIcon, QKeySequence, QDesktopServices
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QSpinBox, QSlider, QFrame,
-    QMenu, QSplitter, QToolButton, QScrollArea, QAbstractSpinBox, QSizePolicy, QMessageBox
+    QMenu, QSplitter, QToolButton, QScrollArea, QAbstractSpinBox, QSizePolicy, QMessageBox, QStackedWidget
 )
 
 from scrollr import __version__
@@ -207,7 +207,11 @@ class UiMixin:
         tl.addWidget(self.lbl_doc_tab)
         tl.addStretch()
         lay.addWidget(tabs)
-        lay.addWidget(self.view, 1)
+        # In fila (una sola vista sulla striscia) oppure a scacchiera (una vista per pagina)
+        self.canvas_stack = QStackedWidget()
+        self.canvas_stack.addWidget(self.view)
+        self.canvas_stack.addWidget(self.page_grid)
+        lay.addWidget(self.canvas_stack, 1)
         return area
 
     def _update_doc_tab(self):
@@ -215,7 +219,7 @@ class UiMixin:
             return
         name = os.path.basename(self.project_path) if self.project_path else "Senza titolo"
         star = "*" if self._history and self._is_dirty() else ""
-        zoom = round(self.view.current_scale() * 100)
+        zoom = round(self._current_zoom() * 100)
         self.lbl_doc_tab.setText(f"{name} @ {zoom}% (RGB/8){star}")
 
     def _refresh_bg_swatches(self):
@@ -362,6 +366,15 @@ class UiMixin:
         bar.addWidget(self.chk_guides)
         bar.addWidget(self.chk_snap)
 
+        # Pagine in fila (come sempre) oppure a scacchiera, in griglia
+        self.chk_grid_pages = self._icon_button(
+            "grid", "Mostra le pagine a scacchiera, in righe e colonne, invece che tutte in fila.\n"
+            "Cambia solo la vista: la tela e l'esportazione restano uguali.", lambda: None, "Scacchiera", "ToggleButton")
+        self.chk_grid_pages.setCheckable(True)
+        self.chk_grid_pages.setIcon(make_icon("grid", THEME["muted"], 18, on_color=THEME["accent"]))
+        self.chk_grid_pages.toggled.connect(lambda on: self._set_page_view(on))
+        bar.addWidget(self.chk_grid_pages)
+
         bar.addStretch()
 
         btn_preview = self._icon_button("phone", "Guarda le pagine una alla volta, come nel carosello (F5)",
@@ -397,12 +410,12 @@ class UiMixin:
         self.lbl_count = self._label("", "StatusText")
         sb.addPermanentWidget(self.lbl_count)
         sb.addPermanentWidget(self._vsep())
-        sb.addPermanentWidget(self._icon_button("minus", "Riduci zoom", lambda: self.view.zoom_by(1 / 1.25, False)))
+        sb.addPermanentWidget(self._icon_button("minus", "Riduci zoom", lambda: self._zoom_view(1 / 1.25)))
         self.lbl_zoom = self._label("100%", "StatusText")
         self.lbl_zoom.setFixedWidth(44)
         self.lbl_zoom.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sb.addPermanentWidget(self.lbl_zoom)
-        sb.addPermanentWidget(self._icon_button("plus", "Aumenta zoom", lambda: self.view.zoom_by(1.25, False)))
+        sb.addPermanentWidget(self._icon_button("plus", "Aumenta zoom", lambda: self._zoom_view(1.25)))
         sb.addPermanentWidget(self._icon_button("fit", kb("Adatta la tela alla finestra (Ctrl+0)"), self.fit_canvas_in_view, "Adatta"))
 
     def _make_slider(self, layout, title: str, lo: int, hi: int, value: int, suffix: str = "",
@@ -455,7 +468,8 @@ class UiMixin:
             if target is not None:
                 # Scorciatoie attive solo quando la tela ha il focus (non rubano tasti a slider/campi)
                 act.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-                target.addAction(act)
+                for widget in (target if isinstance(target, list) else [target]):
+                    widget.addAction(act)
             return act
 
         m_file = menubar.addMenu("&File")
@@ -517,9 +531,11 @@ class UiMixin:
 
         m_view = menubar.addMenu("&Vista")
         make("Anteprima carosello", self.show_carousel_preview, QKeySequence("F5"), m_view)
+        self.act_grid_pages = make("Pagine a scacchiera", lambda on: self._set_page_view(on), None, m_view)
+        self.act_grid_pages.setCheckable(True)
         m_view.addSeparator()
-        make("Zoom avanti", lambda: self.view.zoom_by(1.25, False), [QKeySequence("Ctrl++"), QKeySequence("Ctrl+=")], m_view)
-        make("Zoom indietro", lambda: self.view.zoom_by(1 / 1.25, False), QKeySequence("Ctrl+-"), m_view)
+        make("Zoom avanti", lambda: self._zoom_view(1.25), [QKeySequence("Ctrl++"), QKeySequence("Ctrl+=")], m_view)
+        make("Zoom indietro", lambda: self._zoom_view(1 / 1.25), QKeySequence("Ctrl+-"), m_view)
         make("Dimensioni reali (100%)", self._zoom_actual_size, QKeySequence("Ctrl+1"), m_view)
         make("Adatta alla finestra", self.fit_canvas_in_view, QKeySequence("Ctrl+0"), m_view)
 
@@ -536,11 +552,11 @@ class UiMixin:
         about.setMenuRole(QAction.MenuRole.AboutRole)  # Su Mac va nel menu dell'app, come si aspetta l'utente
 
         # Scorciatoie solo-tela: Elimina e spostamento fine con le frecce (Shift = 10 px)
-        make("Elimina", self._delete_selected, [QKeySequence(Qt.Key.Key_Delete), QKeySequence(Qt.Key.Key_Backspace)], target=self.view)
+        make("Elimina", self._delete_selected, [QKeySequence(Qt.Key.Key_Delete), QKeySequence(Qt.Key.Key_Backspace)], target=[self.view, self.page_grid])
         for key, dx, dy in ((Qt.Key.Key_Left, -1, 0), (Qt.Key.Key_Right, 1, 0), (Qt.Key.Key_Up, 0, -1), (Qt.Key.Key_Down, 0, 1)):
-            make("", lambda _c=False, a=dx, b=dy: self._nudge_selected(a, b), QKeySequence(key), target=self.view)
+            make("", lambda _c=False, a=dx, b=dy: self._nudge_selected(a, b), QKeySequence(key), target=[self.view, self.page_grid])
             make("", lambda _c=False, a=dx, b=dy: self._nudge_selected(a * 10, b * 10),
-                 QKeySequence(QKeyCombination(Qt.KeyboardModifier.ShiftModifier, key)), target=self.view)
+                 QKeySequence(QKeyCombination(Qt.KeyboardModifier.ShiftModifier, key)), target=[self.view, self.page_grid])
         self._update_undo_actions()
 
     def show_about(self):

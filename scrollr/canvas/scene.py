@@ -50,6 +50,8 @@ class CollageScene(QGraphicsScene):
         self.show_guides = True
         self.is_exporting = False
         self.clean_render = False        # Anteprima: niente guide, etichette né selezione
+        self.grid_mode = False           # Pagine a scacchiera: etichette disegnate da ogni vista di pagina
+        self.display_scale = 1.0         # Zoom della vista attiva (maniglie a misura costante sullo schermo)
         self._snap_x: List[float] = []
         self._snap_y: List[float] = []
         self._dot_tile = self._make_dot_tile()
@@ -151,6 +153,17 @@ class CollageScene(QGraphicsScene):
             painter.restore()
         self.paint_canvas_background(painter, canvas_rect)
 
+    def page_label(self, i: int) -> str:
+        """Etichetta sopra la pagina i: numero, disposizione propria e foto fissate."""
+        label = f"Pagina {i + 1}" if self.num_frames > 1 else f"{self.frame_w} × {self.frame_h} px"
+        own = self.page_layouts[i] if i < len(self.page_layouts) else None
+        if own:
+            label += "  ·  " + self.layout_names.get(own["mode"], own["mode"])
+        fixed = self.page_counts[i] if i < len(self.page_counts) else None
+        if fixed is not None:
+            label += "  ·  Vuota" if fixed == 0 else (f"  ·  {fixed} foto" if fixed != 1 else "  ·  1 foto")
+        return label
+
     def drawForeground(self, painter: QPainter, rect: QRectF):
         if self.is_exporting or self.clean_render:
             return
@@ -206,19 +219,12 @@ class CollageScene(QGraphicsScene):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
         painter.setFont(ui_font(11))
-        for i in range(self.num_frames):
+        for i in range(self.num_frames if not self.grid_mode else 0):
             top_left = t.map(QPointF(i * self.frame_w, 0))
-            label = f"Pagina {i + 1}" if self.num_frames > 1 else f"{self.frame_w} × {self.frame_h} px"
-            own = self.page_layouts[i] if i < len(self.page_layouts) else None
-            if own:
-                label += "  ·  " + self.layout_names.get(own["mode"], own["mode"])
-            fixed = self.page_counts[i] if i < len(self.page_counts) else None
-            if fixed is not None:
-                label += "  ·  Vuota" if fixed == 0 else (f"  ·  {fixed} foto" if fixed != 1 else "  ·  1 foto")
             painter.setPen(QColor(THEME["muted"]))
-            painter.drawText(QPointF(top_left.x() + 1, top_left.y() - 8), label)
+            painter.drawText(QPointF(top_left.x() + 1, top_left.y() - 8), self.page_label(i))
 
-        if not has_photos:
+        if not has_photos and not self.grid_mode:
             canvas_dev = t.mapRect(canvas_rect)
             if canvas_dev.width() > 220 and canvas_dev.height() > 160:
                 c = canvas_dev.center()

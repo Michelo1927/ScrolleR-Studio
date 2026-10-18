@@ -22,7 +22,7 @@ class PagesMixin:
     def _current_page(self) -> int:
         sel = self._selected_elements()
         x = (self._element_rect(sel[0]).center().x() if sel
-             else self.view.mapToScene(self.view.viewport().rect().center()).x())
+             else self._visible_center_scene().x())
         return max(0, min(self.scene.num_frames - 1, int(math.floor(x / self.scene.frame_w))))
 
     def _insert_page_at(self, i: int):

@@ -28,12 +28,17 @@ class CanvasView(QGraphicsView):
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
         self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Barre di scorrimento per muoversi sulla tela (anche con la rotella del mouse si fa zoom)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setAcceptDrops(True)
         self._panning = False
         self._pan_start = QPointF()
+
+    def _pan_bars(self):
+        """Barre mosse dal trascinamento col tasto centrale (la vista a scacchiera usa quelle della griglia)."""
+        return self.horizontalScrollBar(), self.verticalScrollBar()
 
     def current_scale(self) -> float:
         return self.transform().m11()
@@ -77,8 +82,9 @@ class CanvasView(QGraphicsView):
         if self._panning:
             delta = event.position() - self._pan_start
             self._pan_start = event.position()
-            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - int(delta.x()))
-            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - int(delta.y()))
+            h_bar, v_bar = self._pan_bars()
+            h_bar.setValue(h_bar.value() - int(delta.x()))
+            v_bar.setValue(v_bar.value() - int(delta.y()))
             event.accept()
             return
         super().mouseMoveEvent(event)

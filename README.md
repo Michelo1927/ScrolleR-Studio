@@ -73,7 +73,8 @@ scrollr/
     photo_item.py       photos on the canvas (crop, inner zoom, borders, snapping)
     text_item.py        text boxes
     scene.py            pages, background, guides
-    view.py             zoom, pan, file drag & drop
+    view.py             zoom, pan, scroll bars, file drag & drop
+    page_grid.py        pages shown as a grid (one view per page of the same canvas)
   window/
     main_window.py      MainWindow: state, canvas format, drag & drop
     ui.py, panels.py    UI construction

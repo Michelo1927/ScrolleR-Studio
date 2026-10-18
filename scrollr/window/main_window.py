@@ -2,10 +2,11 @@
 import random
 from typing import List, Optional, Tuple
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QPointF, QTimer
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QMainWindow, QColorDialog
 
+from scrollr.canvas.page_grid import PageGridView
 from scrollr.canvas.scene import CollageScene
 from scrollr.canvas.view import CanvasView
 from scrollr.dialogs import BackgroundDialog
@@ -105,6 +106,11 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self.view.zoom_changed.connect(self._on_zoom_changed)
         self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.view.customContextMenuRequested.connect(self._show_canvas_context_menu)
+        # Pagine a scacchiera: una vista per pagina sulla stessa tela (Vista → Pagine a scacchiera)
+        self.page_grid = PageGridView(self.scene, self)
+        self.page_grid.files_dropped.connect(self.load_images_from_paths)
+        self.page_grid.zoom_changed.connect(self._on_zoom_changed)
+        self.page_grid.context_menu_requested.connect(lambda view, pos: self._show_canvas_context_menu(pos, view))
 
         # Salvataggio automatico ogni minuto, per recuperare il lavoro dopo una chiusura improvvisa
         self._autosave_timer = QTimer(self)
@@ -123,6 +129,7 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self._commit_history()
         self._saved_snapshot = self._history[-1]
         self._update_title()
+        self._set_page_view(self._settings().value("pages_grid", False, type=bool), fit=False)
         # La vista ha le dimensioni reali solo dopo show(): adattamento al primo giro dell'event loop
         QTimer.singleShot(0, self.fit_canvas_in_view)
 
@@ -211,20 +218,64 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         for item in self.get_canvas_photos():
             item.snap_enabled = checked
 
+    # ---------- Pagine in fila o a scacchiera ----------
+    def _grid_mode(self) -> bool:
+        return self.canvas_stack.currentWidget() is self.page_grid
+
+    def _set_page_view(self, grid: bool, fit: bool = True):
+        """Pagine in fila (una striscia continua, come prima) oppure a scacchiera (in griglia)."""
+        grid = bool(grid)
+        self.scene.grid_mode = grid
+        if grid:
+            self.page_grid.sync()
+            self.canvas_stack.setCurrentWidget(self.page_grid)
+        else:
+            self.canvas_stack.setCurrentWidget(self.view)
+            self.page_grid.detach()  # Le viste delle pagine non restano collegate alla tela
+        for w in (self.chk_grid_pages, self.act_grid_pages):
+            w.blockSignals(True)
+            w.setChecked(grid)
+            w.blockSignals(False)
+        self._settings().setValue("pages_grid", grid)
+        if fit:
+            self.fit_canvas_in_view()
+        self.scene.update()
+
+    def _active_view(self):
+        return self.page_grid if self._grid_mode() else self.view
+
+    def _zoom_view(self, factor: float):
+        self._active_view().zoom_by(factor, False)
+
+    def _current_zoom(self) -> float:
+        return self._active_view().current_scale()
+
+    def _visible_center_scene(self) -> QPointF:
+        """Punto della tela al centro della zona visibile (per nuovi elementi e «pagina corrente»)."""
+        if self._grid_mode():
+            return self.page_grid.visible_center_scene()
+        return self.view.mapToScene(self.view.viewport().rect().center())
+
     def fit_canvas_in_view(self):
+        if self._grid_mode():
+            self.page_grid.fit()
+            return
         # Spazio extra in alto per le etichette delle pagine
         self.view.fit_to(self.scene.canvas_rect().adjusted(-70, -110, 70, 70))
 
     def _zoom_actual_size(self):
-        scale = self.view.current_scale()
+        scale = self._current_zoom()
         if scale > 0:
-            self.view.zoom_by(1.0 / scale, False)
+            self._zoom_view(1.0 / scale)
 
     def _on_zoom_changed(self, scale: float):
         self.lbl_zoom.setText(f"{round(scale * 100)}%")
-        self._update_doc_tab()
+        # Prima si avvisa la scena (riquadro con lo zoom vecchio), poi si cambia lo zoom
         for it in self._all_elements():
             it.view_scale_changed()
+        self.scene.display_scale = scale
+        self.scene.update()
+        self._update_doc_tab()
 
     # ================= TRASCINAMENTO FILE SULLA FINESTRA =================
     def dragEnterEvent(self, event):

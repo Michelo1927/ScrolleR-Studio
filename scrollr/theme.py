@@ -537,9 +537,32 @@ def build_stylesheet() -> str:
         QScrollBar::handle:vertical:hover {
             background: #6A6A6A;
         }
+        QScrollBar:horizontal {
+            background: @panel;
+            height: 10px;
+            margin: 0;
+        }
+        QScrollBar::handle:horizontal {
+            background: @hover;
+            border-radius: 3px;
+            min-width: 30px;
+            margin: 2px;
+        }
+        QScrollBar::handle:horizontal:hover {
+            background: #6A6A6A;
+        }
         QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page {
             background: none;
             height: 0;
+            width: 0;
+        }
+        QAbstractScrollArea::corner {
+            background: @panel;
+        }
+        /* Pagine a scacchiera: stesso fondo della zona di lavoro attorno alla tela */
+        QScrollArea#PageGridArea, QWidget#PageGrid {
+            background-color: @backdrop;
+            border: none;
         }
 
         /* ---- Finestre di dialogo ---- */
@@ -574,6 +597,7 @@ def build_stylesheet() -> str:
                   arrow=arrow_path.replace("\\", "/"))
     for key in sorted(tokens, key=len, reverse=True):
         qss = qss.replace("@" + key, tokens[key])
+    return qss
 
 
 def apply_app_style(app: QApplication):
