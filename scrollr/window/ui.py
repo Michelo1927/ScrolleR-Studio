@@ -519,6 +519,7 @@ class UiMixin:
         m_pages.addSeparator()
         make("Sposta la pagina corrente a sinistra", lambda: self._move_page(self._current_page(), -1), None, m_pages)
         make("Sposta la pagina corrente a destra", lambda: self._move_page(self._current_page(), 1), None, m_pages)
+        make("Riordina le pagine…", self.reorder_pages_dialog, None, m_pages)
         m_pages.addSeparator()
         self.menu_page_layout = m_pages.addMenu("Disposizione della pagina corrente")
         self.menu_page_layout.aboutToShow.connect(self._rebuild_current_page_layout_menu)

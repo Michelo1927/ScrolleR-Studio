@@ -1,4 +1,4 @@
-"""Finestre di dialogo: anteprima carosello e sfondo."""
+"""Finestre di dialogo: anteprima carosello, ordine delle pagine e sfondo."""
 from typing import TYPE_CHECKING
 import os
 from typing import Dict, List
@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QPixmap, QColor, QIcon
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QColorDialog,
-    QButtonGroup, QDialog, QRadioButton
+    QButtonGroup, QDialog, QRadioButton, QListWidget, QListWidgetItem, QListView, QAbstractItemView
 )
 
 from scrollr.icons import make_icon, rounded_thumb, swatch_icon
@@ -94,6 +94,70 @@ class CarouselPreview(QDialog):
             self.step(1)
         else:
             super().keyPressEvent(event)
+
+
+class PageOrderDialog(QDialog):
+    """Riordina le pagine trascinando le miniature; Applica restituisce il nuovo ordine."""
+
+    def __init__(self, thumbs: List[QPixmap], labels: List[str], parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Riordina le pagine")
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 16, 16, 12)
+        lay.setSpacing(10)
+        hint = QLabel("Trascina le pagine nell'ordine che vuoi. Ogni pagina si porta dietro foto, testi e impostazioni.")
+        hint.setObjectName("Hint")
+        hint.setWordWrap(True)
+        lay.addWidget(hint)
+
+        side = 150
+        self.list = QListWidget()
+        self.list.setViewMode(QListView.ViewMode.IconMode)
+        self.list.setFlow(QListView.Flow.LeftToRight)
+        self.list.setWrapping(True)
+        self.list.setResizeMode(QListView.ResizeMode.Adjust)
+        self.list.setMovement(QListView.Movement.Snap)
+        self.list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.list.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.list.setIconSize(QSize(side, side))
+        self.list.setGridSize(QSize(side + 24, side + 44))
+        self.list.setSpacing(6)
+        self.list.setUniformItemSizes(True)
+        for i, (pm, label) in enumerate(zip(thumbs, labels)):
+            item = QListWidgetItem(QIcon(pm), label.split("  ·  ")[0] if len(labels) > 1 else label)
+            item.setData(Qt.ItemDataRole.UserRole, i)
+            item.setToolTip(label)
+            self.list.addItem(item)
+        lay.addWidget(self.list, 1)
+
+        buttons = QHBoxLayout()
+        reset = QPushButton("Ordine di prima")
+        reset.clicked.connect(self._reset)
+        cancel = QPushButton("Annulla")
+        cancel.clicked.connect(self.reject)
+        apply = QPushButton("Applica")
+        apply.setObjectName("Primary")
+        apply.setDefault(True)
+        apply.clicked.connect(self.accept)
+        buttons.addWidget(reset)
+        buttons.addStretch()
+        buttons.addWidget(cancel)
+        buttons.addWidget(apply)
+        lay.addLayout(buttons)
+
+        cols = max(1, min(len(thumbs), 5))
+        rows = (len(thumbs) + cols - 1) // cols
+        self.resize(cols * (side + 30) + 60, min(720, rows * (side + 50) + 140))
+
+    def order(self) -> List[int]:
+        """order[nuova posizione] = vecchia posizione."""
+        return [self.list.item(r).data(Qt.ItemDataRole.UserRole) for r in range(self.list.count())]
+
+    def _reset(self):
+        items = sorted((self.list.takeItem(0) for _ in range(self.list.count())),
+                       key=lambda it: it.data(Qt.ItemDataRole.UserRole))
+        for it in items:
+            self.list.addItem(it)
 
 
 class BackgroundDialog(QDialog):

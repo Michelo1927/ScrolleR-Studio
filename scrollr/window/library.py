@@ -1,5 +1,6 @@
 """Caricamento foto, libreria ed elementi sulla tela."""
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QRectF, QPointF, QSize
@@ -10,7 +11,7 @@ from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.config import IMAGE_EXTS
 from scrollr.icons import make_icon, rounded_thumb
-from scrollr.imaging import IMAGE_CACHE, normalize_path
+from scrollr.imaging import IMAGE_CACHE, ImageCache, normalize_path
 from scrollr.theme import THEME
 
 
@@ -30,8 +31,12 @@ class LibraryMixin:
             self.load_images_from_paths(paths)
 
     def _load_into_library(self, paths: List[str], title: str) -> Tuple[List[str], List[str]]:
-        """Carica i file nella cache/libreria con barra di avanzamento. Ritorna (caricati, errori)."""
+        """
+        Carica i file nella cache/libreria con barra di avanzamento. Ritorna (caricati, errori).
+        Le anteprime si leggono in parallelo su più core; l'ordine della libreria resta quello dei file.
+        """
         loaded, errors = [], []
+        paths = [normalize_path(p) for p in paths]
         progress = None
         if len(paths) > 2:
             progress = QProgressDialog(title, "Annulla", 0, len(paths), self)
@@ -39,27 +44,35 @@ class LibraryMixin:
             progress.setWindowModality(Qt.WindowModality.WindowModal)
             progress.setMinimumDuration(300)
 
-        for i, p in enumerate(paths):
-            if progress is not None:
-                if progress.wasCanceled():
-                    break
-                progress.setValue(i)
-                progress.setLabelText(f"{title}\n{os.path.basename(p)}  ({i + 1} di {len(paths)})")
-                QApplication.processEvents()
-            p = normalize_path(p)
-            try:
-                pixmap = IMAGE_CACHE.load(p)
-            except Exception as e:
-                errors.append(f"{os.path.basename(p)}: {e}")
-                continue
-            if p not in self.loaded_library:
-                self.loaded_library.append(p)
-                item = QListWidgetItem(QIcon(rounded_thumb(pixmap, 80)), "")
-                item.setData(Qt.ItemDataRole.UserRole, p)
-                item.setToolTip(os.path.basename(p))
-                item.setSizeHint(QSize(86, 86))
-                self.list_library.addItem(item)
-            loaded.append(p)
+        todo = [p for p in dict.fromkeys(paths) if not IMAGE_CACHE.has(p)]
+        pool = ThreadPoolExecutor(max_workers=max(1, min(8, (os.cpu_count() or 2) - 1)),
+                                  thread_name_prefix="anteprime")
+        futures = {p: pool.submit(ImageCache.decode_preview, p) for p in todo}
+        try:
+            for i, p in enumerate(paths):
+                if progress is not None:
+                    if progress.wasCanceled():
+                        break
+                    progress.setValue(i)
+                    progress.setLabelText(f"{title}\n{os.path.basename(p)}  ({i + 1} di {len(paths)})")
+                    QApplication.processEvents()
+                try:
+                    future = futures.pop(p, None)
+                    pixmap = IMAGE_CACHE.store_preview(p, future.result()) if future else IMAGE_CACHE.load(p)
+                except Exception as e:
+                    errors.append(f"{os.path.basename(p)}: {e}")
+                    continue
+                if p not in self.loaded_library:
+                    self.loaded_library.append(p)
+                    item = QListWidgetItem(QIcon(rounded_thumb(pixmap, 80)), "")
+                    item.setData(Qt.ItemDataRole.UserRole, p)
+                    item.setToolTip(os.path.basename(p))
+                    item.setSizeHint(QSize(86, 86))
+                    self.list_library.addItem(item)
+                loaded.append(p)
+        finally:
+            # Annullato: le letture non ancora partite si scartano senza aspettarle
+            pool.shutdown(wait=False, cancel_futures=True)
 
         if progress is not None:
             progress.setValue(len(paths))
@@ -140,6 +153,7 @@ class LibraryMixin:
         photo_item.snap_enabled = self.chk_snap.isChecked()
         photo_item.geometry_changed.connect(self._on_item_geometry_changed)
         photo_item.edit_finished.connect(self._schedule_commit)
+        photo_item.dropped.connect(self._on_photo_dropped)
         # Z-index e ordine di layout crescenti
         existing = self.get_canvas_photos()
         photo_item.setZValue(max([it.zValue() for it in existing], default=0.0) + 1.0)

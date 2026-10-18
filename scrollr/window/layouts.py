@@ -453,6 +453,67 @@ class LayoutMixin:
         self.scene.update()
         self._schedule_commit()
 
+    # ---------- Foto spostate da una pagina all'altra ----------
+    def _photo_pages(self) -> dict:
+        """Pagina in cui la disposizione mette ogni foto ordinata: {uid: pagina}."""
+        ordered = self._layout_photos()
+        pages, start = {}, 0
+        for f, count in enumerate(self._page_photo_counts(len(ordered))):
+            for p in ordered[start:start + count]:
+                pages[p.uid] = f
+            start += count
+        return pages
+
+    def _pages_split(self) -> bool:
+        """Le foto si dividono per pagina (altrimenti non ha senso spostarle da una pagina all'altra)."""
+        return (self.chk_per_frame.isChecked() and self.current_layout_mode != "scrl_seam"
+                and self.scene.num_frames > 1)
+
+    def _move_photos_to_page(self, photos: List[PhotoItem], target: int):
+        """
+        Mette le foto nella pagina `target` (in fondo alle sue foto). Le pagine toccate fissano il
+        loro nuovo numero di foto, così il prossimo ridisegno non le riporta dov'erano.
+        """
+        if not self._pages_split() or not (0 <= target < self.scene.num_frames):
+            return False
+        ordered = self._layout_photos()
+        current = self._photo_pages()
+        movers = [p for p in photos if not p.free and current.get(p.uid, target) != target]
+        if not movers:
+            return False
+        by_page: List[List[PhotoItem]] = [[] for _ in range(self.scene.num_frames)]
+        for p in ordered:
+            if p not in movers:
+                by_page[min(current.get(p.uid, 0), self.scene.num_frames - 1)].append(p)
+        by_page[target].extend(movers)
+        counts = self.scene.page_counts
+        counts.extend([None] * (self.scene.num_frames - len(counts)))
+        for f in {current[p.uid] for p in movers} | {target}:
+            counts[f] = len(by_page[f])
+        self._trim_page_lists()
+        for i, p in enumerate(p for page in by_page for p in page):
+            p.layout_index = i
+        self._relayout_keep()
+        self.statusBar().showMessage(
+            (f"Foto spostata nella pagina {target + 1}" if len(movers) == 1
+             else f"{len(movers)} foto spostate nella pagina {target + 1}"), 4000)
+        self._schedule_commit()
+        return True
+
+    def _on_photo_dropped(self, item: PhotoItem):
+        """Foto trascinata e rilasciata su un'altra pagina: passa a quella pagina e ci resta."""
+        if not self._pages_split():
+            return
+        dragged = [p for p in self._selected_photos() if not p.free] or ([item] if not item.free else [])
+        current = self._photo_pages()
+        targets = {}
+        for p in dragged:
+            page = self._page_of(p)
+            if 0 <= page < self.scene.num_frames and page != current.get(p.uid, page):
+                targets.setdefault(page, []).append(p)
+        for page, photos in targets.items():
+            self._move_photos_to_page(photos, page)
+
     def _toggle_free_selected(self):
         """Foto libera ↔ foto nella disposizione, per le foto selezionate."""
         photos = self._selected_photos()

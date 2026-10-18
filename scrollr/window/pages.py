@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPixmap, QImage, QPainter
 from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox
 
-from scrollr.dialogs import CarouselPreview
+from scrollr.dialogs import CarouselPreview, PageOrderDialog
 from scrollr.icons import make_icon
 from scrollr.keys import kb
 from scrollr.theme import THEME
@@ -86,25 +86,53 @@ class PagesMixin:
         if not (0 <= k < self.scene.num_frames and 0 <= j < self.scene.num_frames):
             self.statusBar().showMessage("La pagina è già al bordo del carosello", 3000)
             return
+        order = list(range(self.scene.num_frames))
+        order[k], order[j] = order[j], order[k]
+        self._reorder_pages(order)
+        self.statusBar().showMessage(f"Pagina {k + 1} spostata in posizione {j + 1}", 3000)
+
+    def _reorder_pages(self, order: List[int]):
+        """
+        Nuovo ordine delle pagine: order[nuova posizione] = vecchia posizione. Ogni pagina si porta
+        dietro foto, testi, disposizione e numero di foto.
+        """
+        n = self.scene.num_frames
+        if sorted(order) != list(range(n)) or order == list(range(n)):
+            return
+        new_pos = {old: new for new, old in enumerate(order)}
         fw = self.scene.frame_w
-        for it in self._all_elements():
-            page = self._page_of(it)
-            if page == k:
-                it.moveBy(direction * fw, 0)
-            elif page == j:
-                it.moveBy(-direction * fw, 0)
-        # Numero di foto e disposizione propria seguono la pagina, e l'ordine delle foto segue le pagine
-        # (così un nuovo ridisegno della disposizione non le rimette dov'erano)
+        pages = [(it, self._page_of(it)) for it in self._all_elements()]
+        for it, page in pages:
+            if 0 <= page < n:  # Gli elementi fuori dalla tela restano dove sono
+                it.moveBy((new_pos[page] - page) * fw, 0)
         for values in self._page_lists():
-            values.extend([None] * (max(k, j) + 1 - len(values)))
-            values[k], values[j] = values[j], values[k]
+            padded = values + [None] * (n - len(values))
+            values[:] = [padded[old] for old in order]
         self._trim_page_lists()
+        # L'ordine delle foto segue le pagine: un nuovo ridisegno non le rimette dov'erano
         photos = sorted(self.get_canvas_photos(), key=lambda p: (self._page_of(p), p.layout_index, p.uid))
         for i, p in enumerate(photos):
             p.layout_index = i
         self.scene.update()
-        self.statusBar().showMessage(f"Pagina {k + 1} spostata in posizione {j + 1}", 3000)
         self._schedule_commit()
+
+    def reorder_pages_dialog(self):
+        """Pagine → Riordina le pagine: miniature da trascinare nell'ordine voluto."""
+        if self.scene.num_frames < 2:
+            self.statusBar().showMessage("C'è una sola pagina: non c'è niente da riordinare", 4000)
+            return
+        self._flush_pending_commit()
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            thumbs = self._render_page_previews(max_side=260)
+        finally:
+            QApplication.restoreOverrideCursor()
+        dialog = PageOrderDialog(thumbs, [self.scene.page_label(i) for i in range(self.scene.num_frames)], self)
+        if dialog.exec():
+            order = dialog.order()
+            if order != list(range(self.scene.num_frames)):
+                self._reorder_pages(order)
+                self.statusBar().showMessage("Pagine riordinate", 3000)
 
     # ---------- Impostazioni pagina per pagina (numero di foto, disposizione) ----------
     def _page_lists(self) -> list:

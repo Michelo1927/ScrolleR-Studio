@@ -1,7 +1,7 @@
 """Foto interattiva sulla tela."""
 import math
 import os
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QCursor, QTransform
@@ -28,6 +28,7 @@ class PhotoItem(QGraphicsObject):
     """
     geometry_changed = pyqtSignal(object)  # Modifica in corso (per aggiornare l'Inspector)
     edit_finished = pyqtSignal()           # Modifica completata (per Annulla/Ripeti)
+    dropped = pyqtSignal(object)           # Rilasciata dopo un trascinamento (forse su un'altra pagina)
     HANDLE_PX = 11.0  # Maniglie di dimensione costante sullo schermo, a qualsiasi zoom
     MIN_CELL = 40.0
     SNAP_PX = 8.0     # Distanza di snap in pixel dello schermo
@@ -72,7 +73,8 @@ class PhotoItem(QGraphicsObject):
         self.free = False           # Foto libera: fuori dalla disposizione automatica, si muove a mano
         # Riquadro prima di "Proporzioni foto", per poterci tornare con un clic
         self.saved_cell: Optional[dict] = None
-        self._adjusted_cache: Optional[Tuple[tuple, QPixmap]] = None
+        # Regolazioni colore già applicate, una per versione (anteprima e nitida per lo zoom)
+        self._adjusted_cache: Dict[bool, Tuple[tuple, QPixmap]] = {}
 
         # Stato interazione maniglie
         self._resizing_handle: Optional[str] = None
@@ -101,16 +103,32 @@ class PhotoItem(QGraphicsObject):
         """Il file non è stato trovato (spostato o rinominato): la foto resta sulla tela come segnaposto."""
         return not IMAGE_CACHE.has(self.image_path)
 
-    def display_pixmap(self) -> QPixmap:
-        """Anteprima con le regolazioni colore applicate (ricalcolata solo quando cambiano)."""
-        pm = self.pixmap
+    def display_pixmap(self, sharp: bool = False) -> QPixmap:
+        """
+        Anteprima con le regolazioni colore applicate (ricalcolata solo quando cambiano).
+        Con sharp=True usa la versione nitida per lo zoom, se è già pronta.
+        """
+        hires = IMAGE_CACHE.hires(self.image_path) if sharp else None
+        sharp = hires is not None
+        pm = hires if sharp else self.pixmap
         if pm.isNull() or not adjustments_active(self.adjust):
             return pm
         key = (pm.cacheKey(), tuple(sorted(self.adjust.items())))
-        if self._adjusted_cache is None or self._adjusted_cache[0] != key:
+        cached = self._adjusted_cache.get(sharp)
+        if cached is None or cached[0] != key:
             out = apply_adjustments(qimage_to_pil(pm.toImage()), self.adjust)
-            self._adjusted_cache = (key, QPixmap.fromImage(pil_to_qimage(out)))
-        return self._adjusted_cache[1]
+            cached = self._adjusted_cache[sharp] = (key, QPixmap.fromImage(pil_to_qimage(out)))
+        return cached[1]
+
+    def _needs_sharp(self, painter: QPainter) -> bool:
+        """La foto è mostrata più grande dell'anteprima (zoom forte): serve la versione nitida."""
+        pm = self.pixmap
+        if pm.width() <= 0 or pm.height() <= 0:
+            return False
+        draw_w = self._cover_geometry(float(pm.width()), float(pm.height()))[3]
+        device = painter.device()
+        ratio = device.devicePixelRatioF() if device is not None else 1.0
+        return draw_w * self._view_scale() * ratio > pm.width() * 1.15
 
     def set_locked(self, locked: bool):
         self.locked = bool(locked)
@@ -373,7 +391,10 @@ class PhotoItem(QGraphicsObject):
         if is_exporting:
             self._paint_full_resolution(painter, cell_rect)
         else:
-            pm = self.display_pixmap()
+            sharp = self._needs_sharp(painter)
+            if sharp:
+                IMAGE_CACHE.request_hires(self.image_path)  # In sottofondo: per ora si usa l'anteprima
+            pm = self.display_pixmap(sharp)
             img_w, img_h = float(pm.width()), float(pm.height())
             if img_w > 0 and img_h > 0:
                 _, dx, dy, draw_w, draw_h = self._cover_geometry(img_w, img_h)
@@ -654,6 +675,7 @@ class PhotoItem(QGraphicsObject):
         if self._resizing_handle:
             self.saved_cell = None  # Ridimensionata a mano: il riquadro "di prima" non vale più
         was_editing = self._resizing_handle or self._panning_inner or self._dragging
+        was_dragged = self._dragging
         self._resizing_handle = None
         self._panning_inner = False
         self._dragging = False
@@ -664,4 +686,6 @@ class PhotoItem(QGraphicsObject):
         super().mouseReleaseEvent(event)
         if was_editing:
             self.geometry_changed.emit(self)
+            if was_dragged:
+                self.dropped.emit(self)
             self.edit_finished.emit()

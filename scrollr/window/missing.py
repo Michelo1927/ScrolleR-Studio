@@ -140,7 +140,7 @@ class MissingMixin:
         for p in self.get_canvas_photos():
             if p.image_path in mapping:
                 p.image_path = mapping[p.image_path]
-                p._adjusted_cache = None
+                p._adjusted_cache = {}
                 p.update()
         if self.scene.bg_blur_path in mapping:
             self.scene.bg_blur_path = mapping[self.scene.bg_blur_path]

@@ -498,6 +498,16 @@ class InspectorMixin:
         # Gestione della pagina sotto il cursore
         k = max(0, min(self.scene.num_frames - 1, int(math.floor(scene_pt.x() / self.scene.frame_w))))
         n = self.scene.num_frames
+        movable = [p for p in self._selected_photos() if not p.free]
+        if movable and self._pages_split():
+            current = self._photo_pages()
+            here = {current.get(p.uid) for p in movable}
+            move_menu = menu.addMenu(make_icon("page", THEME["text"], 16), "Sposta nella pagina")
+            for f in range(n):
+                act = move_menu.addAction(f"Pagina {f + 1}")
+                act.setEnabled(here != {f})
+                act.triggered.connect(lambda _c=False, t=f: self._move_photos_to_page(
+                    [p for p in self._selected_photos() if not p.free], t))
         menu.addSeparator()
         page_menu = menu.addMenu(make_icon("page", THEME["text"], 16), f"Pagina {k + 1}")
         page_menu.addAction("Aggiungi una pagina prima di questa", lambda: self._insert_page_at(k))
@@ -506,6 +516,8 @@ class InspectorMixin:
         a.setEnabled(k > 0)
         a = page_menu.addAction("Sposta a destra", lambda: self._move_page(k, 1))
         a.setEnabled(k < n - 1)
+        a = page_menu.addAction("Riordina le pagine…", self.reorder_pages_dialog)
+        a.setEnabled(n > 1)
         page_menu.addSeparator()
         self._fill_page_layout_menu(page_menu.addMenu("Disposizione di questa pagina"), k)
         self._fill_page_count_menu(page_menu.addMenu("Foto in questa pagina"), k)

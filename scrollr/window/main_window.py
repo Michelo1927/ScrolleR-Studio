@@ -11,7 +11,7 @@ from scrollr.canvas.scene import CollageScene
 from scrollr.canvas.view import CanvasView
 from scrollr.dialogs import BackgroundDialog
 from scrollr.icons import app_icon
-from scrollr.imaging import image_paths_from_mime
+from scrollr.imaging import IMAGE_CACHE, image_paths_from_mime
 from scrollr.theme import build_stylesheet
 from scrollr.window.export import ExportMixin
 from scrollr.window.history import HistoryMixin
@@ -111,6 +111,8 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self.page_grid.files_dropped.connect(self.load_images_from_paths)
         self.page_grid.zoom_changed.connect(self._on_zoom_changed)
         self.page_grid.context_menu_requested.connect(lambda view, pos: self._show_canvas_context_menu(pos, view))
+        # Versione nitida di una foto pronta (zoom forte): la tela si ridisegna con quella
+        IMAGE_CACHE.hires_notifier().ready.connect(lambda *_: self.scene.update())
 
         # Salvataggio automatico ogni minuto, per recuperare il lavoro dopo una chiusura improvvisa
         self._autosave_timer = QTimer(self)
