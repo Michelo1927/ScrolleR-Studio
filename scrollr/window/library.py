@@ -150,7 +150,7 @@ class LibraryMixin:
     def _on_library_item_double_clicked(self, item: QListWidgetItem):
         self._add_library_paths_to_canvas([item.data(Qt.ItemDataRole.UserRole)])
 
-    def _add_library_paths_to_canvas(self, paths: List[str]):
+    def _add_library_paths_to_canvas(self, paths: List[str], free: bool = False):
         # Le nuove foto compaiono al centro della zona visibile della tela
         center = self.view.mapToScene(self.view.viewport().rect().center())
         self.scene.clearSelection()
@@ -158,6 +158,13 @@ class LibraryMixin:
             if not IMAGE_CACHE.has(path):
                 continue
             new_item = self._spawn_photo_item(path)
+            if free:
+                # Foto libera: dimensione proporzionata alla pagina, fuori dalla disposizione automatica
+                new_item.set_free(True)
+                side = min(self.scene.frame_w, self.scene.frame_h) * 0.4
+                pm = new_item.pixmap
+                ratio = pm.width() / pm.height() if pm.width() > 0 and pm.height() > 0 else 1.0
+                new_item.set_cell_size(side * min(1.0, ratio), side * min(1.0, 1.0 / ratio))
             new_item.setPos(center - QPointF(new_item.cell_w / 2.0, new_item.cell_h / 2.0) + QPointF(i * 30, i * 30))
             new_item.setSelected(True)
         self._schedule_commit()
@@ -169,6 +176,7 @@ class LibraryMixin:
         menu = QMenu(self)
         act_only = menu.addAction(make_icon("grid", THEME["text"], 16), "Metti sulla tela solo queste")
         act_add = menu.addAction(make_icon("plus", THEME["text"], 16), "Aggiungi alla tela (tieni le altre)")
+        act_free = menu.addAction(make_icon("scatter", THEME["text"], 16), "Aggiungi come foto libera")
         menu.addSeparator()
         act_remove = menu.addAction(make_icon("trash", THEME["text"], 16), "Rimuovi dalla libreria")
         chosen = menu.exec(self.list_library.mapToGlobal(pos))
@@ -177,6 +185,8 @@ class LibraryMixin:
             self._put_paths_on_canvas(paths)
         elif chosen == act_add:
             self._add_library_paths_to_canvas(paths)
+        elif chosen == act_free:
+            self._add_library_paths_to_canvas(paths, free=True)
         elif chosen == act_remove:
             self._remove_selected_from_library()
 

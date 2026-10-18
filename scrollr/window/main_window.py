@@ -223,8 +223,8 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
     def _on_zoom_changed(self, scale: float):
         self.lbl_zoom.setText(f"{round(scale * 100)}%")
         self._update_doc_tab()
-        for p in self.get_canvas_photos():
-            p.view_scale_changed()
+        for it in self._all_elements():
+            it.view_scale_changed()
 
     # ================= TRASCINAMENTO FILE SULLA FINESTRA =================
     def dragEnterEvent(self, event):

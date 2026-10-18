@@ -6,6 +6,7 @@ from typing import Optional
 from PyQt6.QtCore import QEvent, QTimer
 from PyQt6.QtWidgets import QApplication
 
+from scrollr import crashlog
 from scrollr.config import PROJECT_EXT
 from scrollr.icons import app_icon
 from scrollr.theme import apply_app_style
@@ -48,6 +49,7 @@ def main():
     # (%APPDATA%\SCRL\SCRL Studio) e l'ID della barra delle applicazioni. Non cambiarli.
     app.setOrganizationName("SCRL")
     app.setApplicationName("SCRL Studio")
+    crashlog.install()
     app.setWindowIcon(app_icon())
     apply_app_style(app)
     window = MainWindow()

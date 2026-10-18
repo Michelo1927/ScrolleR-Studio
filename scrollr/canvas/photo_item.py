@@ -69,6 +69,7 @@ class PhotoItem(QGraphicsObject):
         self.photo_opacity = 100
         self.shadow = 0             # Intensità dell'ombra 0..100
         self.locked = False
+        self.free = False           # Foto libera: fuori dalla disposizione automatica, si muove a mano
         # Riquadro prima di "Proporzioni foto", per poterci tornare con un clic
         self.saved_cell: Optional[dict] = None
         self._adjusted_cache: Optional[Tuple[tuple, QPixmap]] = None
@@ -116,6 +117,10 @@ class PhotoItem(QGraphicsObject):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not self.locked)
         self.update()
 
+    def set_free(self, free: bool):
+        self.free = bool(free)
+        self.setToolTip("Foto libera: non segue la disposizione automatica" if self.free else "")
+
     def set_photo_opacity(self, value: int):
         self.photo_opacity = int(value)
         self.setOpacity(self.photo_opacity / 100.0)
@@ -152,6 +157,7 @@ class PhotoItem(QGraphicsObject):
             "opacity": self.photo_opacity,
             "shadow": self.shadow,
             "locked": self.locked,
+            "free": self.free,
             "saved_cell": dict(self.saved_cell) if self.saved_cell else None,
         }
 
@@ -176,6 +182,7 @@ class PhotoItem(QGraphicsObject):
         self.set_photo_opacity(s.get("opacity", 100))
         self.set_shadow(s.get("shadow", 0))
         self.set_locked(s.get("locked", False))
+        self.set_free(s.get("free", False))
         self.saved_cell = dict(s["saved_cell"]) if s.get("saved_cell") else None
         self.update()
 

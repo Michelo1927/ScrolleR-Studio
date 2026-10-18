@@ -472,6 +472,8 @@ class InspectorMixin:
             ("back", "Manda dietro", self._send_to_back, has_el),
             ("lock", "Sblocca posizione" if locked else "Blocca posizione", self._toggle_lock_selected, has_el),
             None,
+            ("scatter", "Rimetti nella disposizione" if has_photo and all(p.free for p in self._selected_photos())
+             else "Rendi foto libera (fuori dalla disposizione)", self._toggle_free_selected, has_photo),
             ("swap", "Scambia le 2 foto selezionate", self.swap_two_selected_photos, n_photos == 2),
             ("reset", "Reimposta zoom e posizione", self._reset_selected_framing, has_photo),
             ("ratio", self._ratio_button_text(long=True), self._restore_selected_original_ratio, has_photo),

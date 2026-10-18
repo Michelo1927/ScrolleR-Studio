@@ -127,6 +127,11 @@ class TextItem(QGraphicsObject):
             self.setPos(self.pos() + old_center - self._rect.center())
         self.update()
 
+    def view_scale_changed(self):
+        # Il margine di selezione ha misura costante sullo schermo: il boundingRect cambia con lo zoom
+        self.prepareGeometryChange()
+        self.update()
+
     def set_text(self, text: str):
         self.text = text
         self.relayout()

@@ -47,8 +47,12 @@ class LayoutMixin:
             self.apply_auto_layout(self.current_layout_mode)
             self._schedule_commit()
 
+    def _layout_photos(self) -> List[PhotoItem]:
+        """Foto ordinate dalla disposizione automatica: tutte tranne quelle libere."""
+        return [p for p in self.get_canvas_photos() if not p.free]
+
     def apply_auto_layout(self, mode: str):
-        photos = self.get_canvas_photos()
+        photos = self._layout_photos()
         if not photos:
             return
         self.current_layout_mode = mode
@@ -88,7 +92,9 @@ class LayoutMixin:
             if self.chk_per_frame.isChecked() and per_page > 0:
                 # Numero fisso di foto per pagina: le pagine si adeguano (tenendo quelle con dei testi)
                 needed = len(self._page_photo_counts(len(photos)))
+                # Restano anche le pagine con testi o foto libere
                 text_pages = [self._page_of(t) + 1 for t in self.get_canvas_texts()]
+                text_pages += [self._page_of(p) + 1 for p in self.get_canvas_photos() if p.free]
                 frames = max([1, needed] + [p for p in text_pages if p <= self.spin_frames.maximum()])
                 if frames != self.scene.num_frames:
                     self._set_frames_silently(frames)
@@ -435,7 +441,7 @@ class LayoutMixin:
 
     def shuffle_canvas_photos(self):
         """Rimescola l'ordine delle foto mantenendo esattamente le posizioni e dimensioni correnti."""
-        photos = self.get_canvas_photos()
+        photos = self._layout_photos()
         if len(photos) < 2:
             return
         slots = [self._slot(p) for p in photos]
@@ -445,6 +451,23 @@ class LayoutMixin:
         for p, slot in zip(photos, shuffled):
             self._apply_slot(p, slot)
         self.scene.update()
+        self._schedule_commit()
+
+    def _toggle_free_selected(self):
+        """Foto libera ↔ foto nella disposizione, per le foto selezionate."""
+        photos = self._selected_photos()
+        if not photos:
+            return
+        make_free = not all(p.free for p in photos)
+        for p in photos:
+            p.set_free(make_free)
+            if make_free:
+                p.setZValue(self._max_z() + 1.0)  # Davanti alle foto ordinate
+        self._relayout_keep()
+        if make_free:
+            self.statusBar().showMessage("Foto libera: spostala dove vuoi, la disposizione non la tocca più", 5000)
+        else:
+            self.statusBar().showMessage("La foto è tornata nella disposizione", 4000)
         self._schedule_commit()
 
     def swap_two_selected_photos(self):

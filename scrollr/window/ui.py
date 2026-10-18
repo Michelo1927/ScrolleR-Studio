@@ -485,6 +485,7 @@ class UiMixin:
         make("Copia stile", self._copy_style, QKeySequence("Ctrl+Shift+C"), m_edit)
         make("Incolla stile", self._paste_style, QKeySequence("Ctrl+Shift+V"), m_edit)
         make("Blocca / sblocca posizione", self._toggle_lock_selected, QKeySequence("Ctrl+L"), m_edit)
+        make("Foto libera / nella disposizione", self._toggle_free_selected, None, m_edit)
         m_edit.addSeparator()
         make("Specchia orizzontalmente", lambda: self._flip_selected("h"), None, m_edit)
         make("Specchia verticalmente", lambda: self._flip_selected("v"), None, m_edit)

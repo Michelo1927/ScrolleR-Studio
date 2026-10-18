@@ -62,6 +62,7 @@ packaging/              app build (PyInstaller; Inno Setup installer on Windows,
 scrollr/
   __main__.py           creates the QApplication and the window, opens double-clicked projects
   config.py             supported extensions, project format, optional HEIC
+  crashlog.py           error log (errori.log in the app data folder) and error notice instead of a crash
   keys.py               shortcut texts per platform (Ctrl on Windows, ⌘ on Mac)
   theme.py              palette, fonts, QSS stylesheet, Fusion style
   icons.py              code-drawn icons, thumbnails, badges

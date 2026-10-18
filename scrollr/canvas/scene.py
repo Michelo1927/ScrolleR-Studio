@@ -26,6 +26,10 @@ class CollageScene(QGraphicsScene):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Niente indice BSP: il riquadro di foto e testi dipende dallo zoom (maniglie a misura costante)
+        # e un indice non aggiornato all'istante fa leggere a Qt elementi già eliminati (crash).
+        # Con poche decine di elementi la ricerca lineare è comunque immediata.
+        self.setItemIndexMethod(QGraphicsScene.ItemIndexMethod.NoIndex)
         self.frame_w = 1080
         self.frame_h = 1440  # Default 3:4
         self.num_frames = 1
