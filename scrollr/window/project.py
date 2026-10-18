@@ -8,7 +8,7 @@ from PyQt6.QtCore import QSettings, QStandardPaths
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
 from scrollr.config import PROJECT_EXT, PROJECT_VERSION
-from scrollr.imaging import normalize_path
+from scrollr.imaging import IMAGE_CACHE, normalize_path
 
 
 class ProjectMixin:
@@ -34,7 +34,8 @@ class ProjectMixin:
     def _project_data(self, snap: dict, base_dir: str) -> dict:
         def rel(p):
             try:
-                return os.path.relpath(p, base_dir)
+                # Con "/" il percorso relativo vale sia su Windows sia su Mac
+                return os.path.relpath(p, base_dir).replace(os.sep, "/")
             except ValueError:  # Unità diversa su Windows
                 return None
 
@@ -44,7 +45,7 @@ class ProjectMixin:
         return {
             "version": PROJECT_VERSION,
             "canvas": canvas,
-            "library": [{"path": p, "rel": rel(p)} for p in self.loaded_library],
+            "library": [{"path": p, "rel": rel(p)} for p in self.loaded_library + self._missing_library],
             "items": [dict(s, rel=rel(s["path"])) for s in snap["items"]],
             "texts": snap.get("texts", []),
         }
@@ -93,7 +94,7 @@ class ProjectMixin:
             if os.path.isfile(entry["path"]):
                 return normalize_path(entry["path"])
             if entry.get("rel"):
-                candidate = os.path.join(base_dir, entry["rel"])
+                candidate = os.path.join(base_dir, entry["rel"].replace("\\", "/"))  # Anche progetti salvati su Windows
                 if os.path.isfile(candidate):
                     return normalize_path(candidate)
             return normalize_path(entry["path"])
@@ -110,7 +111,13 @@ class ProjectMixin:
             self.scene.removeItem(t)
         self.loaded_library.clear()
         self.list_library.clear()
-        _, errors = self._load_into_library(all_paths, "Apertura progetto…")
+        # Le foto non trovate (spostate o rinominate) non si perdono: restano come segnaposto
+        found = [p for p in all_paths if os.path.isfile(p)]
+        for p in all_paths:
+            if p not in found:
+                IMAGE_CACHE.forget(p)
+        self._missing_library = [p for p in dict.fromkeys(lib_paths) if not os.path.isfile(p)]
+        _, errors = self._load_into_library(found, "Apertura progetto…")
 
         self._restore_snapshot({"canvas": canvas, "items": items, "texts": texts})
         self._history = []
@@ -127,7 +134,11 @@ class ProjectMixin:
             self._add_recent(path)
         self._update_title()
         self.fit_canvas_in_view()
+        self._update_canvas_count()
         self._report_load_errors(errors)
+        missing = self._missing_paths()
+        if missing:
+            self._offer_relink(missing)
         return True
 
     # ---------- Progetti recenti ----------

@@ -76,6 +76,21 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+
+      # Titolo "ScrolleR Studio 1.2.2" e descrizione da release-notes/v1.2.2.md (le novità mostrate
+      # anche nell'avviso di aggiornamento dell'app)
+      - name: Titolo e novità
+        id: notes
+        run: |
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          if [ -f "release-notes/${GITHUB_REF_NAME}.md" ]; then
+            cp "release-notes/${GITHUB_REF_NAME}.md" notes.md
+          else
+            echo "::warning::Manca release-notes/${GITHUB_REF_NAME}.md: release senza descrizione"
+            echo "ScrolleR Studio ${GITHUB_REF_NAME#v}" > notes.md
+          fi
+
       - uses: actions/download-artifact@v8
         with:
           path: out
@@ -83,5 +98,6 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
+          name: ScrolleR Studio ${{ steps.notes.outputs.version }}
+          body_path: notes.md
           files: out/*
-          generate_release_notes: true

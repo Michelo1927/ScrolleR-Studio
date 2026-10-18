@@ -48,7 +48,9 @@ python3 -m venv .venv
 - push a tag like `v1.1.0` → the release is created with the Windows installer and the Mac `.dmg` attached;
 - **Actions → Build → Run workflow** → test build only; the files are downloadable from the run page.
 
-Before tagging, set the same version in `__version__` (`scrollr/__init__.py`).
+Before tagging, set the same version in `__version__` (`scrollr/__init__.py`) and write the release notes
+(in Italian) in `release-notes/v<version>.md`: the release is titled "ScrolleR Studio <version>" and uses that
+file as its description, which the app also shows in its new-version notice.
 Do not change the `AppId` in `packaging/scrl_studio.iss`: Windows updates rely on it.
 
 ## Structure
@@ -80,6 +82,7 @@ scrollr/
     text.py, pages.py   carousel texts and pages
     history.py          undo / redo
     project.py          save / open, recent files, autosave
+    missing.py          missing photos: placeholders, relinking, collect project into a folder
     export.py           high-resolution export
     updates.py          new-version notice (checks the latest GitHub release)
 ```

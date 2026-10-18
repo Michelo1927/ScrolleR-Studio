@@ -1,5 +1,6 @@
 """Foto interattiva sulla tela."""
 import math
+import os
 from typing import Optional, Tuple
 
 from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal
@@ -8,11 +9,11 @@ from PyQt6.QtWidgets import QGraphicsObject, QGraphicsItem
 from PIL import Image
 
 from scrollr.canvas.text_item import TextItem
-from scrollr.icons import draw_lock_badge
+from scrollr.icons import draw_lock_badge, icon_pixmap
 from scrollr.imaging import (
     IMAGE_CACHE, NEUTRAL_ADJUST, adjustments_active, apply_adjustments, pil_to_qimage, qimage_to_pil
 )
-from scrollr.theme import THEME
+from scrollr.theme import THEME, ui_font
 
 
 class PhotoItem(QGraphicsObject):
@@ -93,6 +94,11 @@ class PhotoItem(QGraphicsObject):
     @property
     def pixmap(self) -> QPixmap:
         return IMAGE_CACHE.preview(self.image_path)
+
+    @property
+    def is_missing(self) -> bool:
+        """Il file non è stato trovato (spostato o rinominato): la foto resta sulla tela come segnaposto."""
+        return not IMAGE_CACHE.has(self.image_path)
 
     def display_pixmap(self) -> QPixmap:
         """Anteprima con le regolazioni colore applicate (ricalcolata solo quando cambiano)."""
@@ -366,6 +372,8 @@ class PhotoItem(QGraphicsObject):
                 _, dx, dy, draw_w, draw_h = self._cover_geometry(img_w, img_h)
                 painter.setTransform(self._image_transform(), True)
                 painter.drawPixmap(QRectF(dx, dy, draw_w, draw_h), pm, QRectF(0, 0, img_w, img_h))
+            elif not clean and self.is_missing:
+                self._paint_missing(painter, cell_rect)
         painter.restore()
 
         # Bordo interno: non sborda nel gap e non viene tagliato ai margini della tela
@@ -421,6 +429,27 @@ class PhotoItem(QGraphicsObject):
             painter.setPen(hover_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(path)
+
+    def _paint_missing(self, painter: QPainter, cell_rect: QRectF):
+        """Segnaposto di una foto non trovata: tiene il posto e ricorda il nome del file."""
+        painter.fillRect(cell_rect, QColor(THEME["raised"]))
+        pen = QPen(QColor(THEME["muted"]), 1.5, Qt.PenStyle.DashLine)
+        pen.setCosmetic(True)
+        painter.setPen(pen)
+        painter.drawRect(cell_rect.adjusted(1, 1, -1, -1))
+        side = min(self.cell_w, self.cell_h)
+        icon = max(24, int(side * 0.16))
+        c = cell_rect.center()
+        icon_pm = icon_pixmap("image", THEME["muted"], icon)
+        painter.drawPixmap(QRectF(c.x() - icon / 2.0, c.y() - icon * 1.1, icon, icon), icon_pm, QRectF(icon_pm.rect()))
+        px = int(max(12, min(56, side * 0.065)))
+        painter.setPen(QColor(THEME["text"]))
+        painter.setFont(ui_font(px))
+        text_rect = QRectF(cell_rect.left() + 8, c.y() + icon * 0.1, cell_rect.width() - 16, px * 3.2)
+        name = os.path.basename(self.image_path)
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
+                         "Foto mancante\n" + painter.fontMetrics().elidedText(
+                             name, Qt.TextElideMode.ElideMiddle, int(text_rect.width())))
 
     def _paint_full_resolution(self, painter: QPainter, cell_rect: QRectF):
         """In esportazione ricampiona dall'originale solo la porzione visibile, alla risoluzione di uscita."""

@@ -466,6 +466,8 @@ class UiMixin:
         self.menu_recent.aboutToShow.connect(self._rebuild_recent_menu)
         make("Salva progetto", self.save_project, QKeySequence.StandardKey.Save, m_file)
         make("Salva progetto con nome…", self.save_project_as, QKeySequence("Ctrl+Shift+S"), m_file)
+        make("Raccogli progetto in una cartella…", self.collect_project, None, m_file)
+        make("Ricollega foto mancanti…", self.relink_missing_photos, None, m_file)
         m_file.addSeparator()
         make("Esporta collage intero…", self.export_full_collage, QKeySequence("Ctrl+E"), m_file)
         make("Esporta pagine separate…", self.export_split_frames, QKeySequence("Ctrl+Shift+E"), m_file)

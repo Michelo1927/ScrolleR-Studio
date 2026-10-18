@@ -122,6 +122,16 @@ class ImageCache:
     def has(self, path: str) -> bool:
         return path in self._previews
 
+    def forget(self, path: str):
+        """Il file non esiste più (spostato o rinominato con l'app aperta): non va più mostrato."""
+        self._previews.pop(path, None)
+        self._full.pop(path, None)
+
+    def alias(self, old: str, new: str):
+        """Il file `new` è una copia identica di `old` (raccolta del progetto): riusa l'anteprima."""
+        if old in self._previews:
+            self._previews[new] = self._previews[old]
+
     def full(self, path: str) -> Optional[Image.Image]:
         if path in self._full:
             self._full.move_to_end(path)

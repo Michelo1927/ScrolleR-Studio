@@ -117,7 +117,11 @@ class LibraryMixin:
             self._canvas_paths = paths
             self.list_library.viewport().update()
         n = len(self.get_canvas_photos())
-        self.lbl_count.setText("Tela vuota" if n == 0 else ("1 foto sulla tela" if n == 1 else f"{n} foto sulla tela"))
+        text = "Tela vuota" if n == 0 else ("1 foto sulla tela" if n == 1 else f"{n} foto sulla tela")
+        missing = self._missing_on_canvas()
+        if missing:
+            text += f"  ·  {missing} mancant" + ("e" if missing == 1 else "i")
+        self.lbl_count.setText(text)
         self.btn_clear_canvas.setEnabled(n > 0)
 
     def load_images_from_paths(self, paths: List[str]):

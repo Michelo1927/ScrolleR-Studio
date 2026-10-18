@@ -17,6 +17,7 @@ from scrollr.window.history import HistoryMixin
 from scrollr.window.inspector import InspectorMixin
 from scrollr.window.layouts import LayoutMixin
 from scrollr.window.library import LibraryMixin
+from scrollr.window.missing import MissingMixin
 from scrollr.window.pages import PagesMixin
 from scrollr.window.panels import PanelsMixin
 from scrollr.window.project import ProjectMixin
@@ -26,7 +27,7 @@ from scrollr.window.updates import UpdatesMixin
 
 
 class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin, TextMixin,
-                 PagesMixin, HistoryMixin, ProjectMixin, ExportMixin, UpdatesMixin, QMainWindow):
+                 PagesMixin, HistoryMixin, ProjectMixin, MissingMixin, ExportMixin, UpdatesMixin, QMainWindow):
     """Finestra principale. Le funzioni sono divise nei mixin del pacchetto window."""
 
     ASPECT_RATIOS = {
@@ -79,6 +80,7 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self.project_path: Optional[str] = None
         self._style_clipboard: Optional[dict] = None   # Stile copiato con "Copia stile"
         self._canvas_paths: set = set()                # Foto già sulla tela (segno nella libreria)
+        self._missing_library: List[str] = []          # Foto della libreria non trovate all'apertura
 
         # Cronologia Annulla/Ripeti (snapshot dello stato completo)
         self._history: List[dict] = []

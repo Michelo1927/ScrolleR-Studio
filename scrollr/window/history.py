@@ -3,8 +3,6 @@ import os
 
 from PyQt6.QtGui import QColor
 
-from scrollr.imaging import IMAGE_CACHE
-
 
 class HistoryMixin:
     """Annulla/Ripeti tramite snapshot dello stato completo."""
@@ -87,8 +85,7 @@ class HistoryMixin:
             existing = {p.uid: p for p in self.get_canvas_photos()}
             wanted = set()
             for s in snap["items"]:
-                if not IMAGE_CACHE.has(s["path"]):
-                    continue
+                # Anche le foto non trovate restano, come segnaposto «Foto mancante»
                 wanted.add(s["uid"])
                 item = existing.get(s["uid"]) or self._spawn_photo_item(s["path"], uid=s["uid"])
                 item.set_state(s)

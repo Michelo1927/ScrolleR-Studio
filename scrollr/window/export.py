@@ -49,6 +49,16 @@ class ExportMixin:
         self.scene.update()
 
     def _warn_if_empty(self) -> bool:
+        missing = self._missing_on_canvas()
+        if missing:
+            answer = QMessageBox.question(
+                self, "Foto mancanti",
+                ("1 foto sulla tela non è stata trovata e resterà vuota" if missing == 1
+                 else f"{missing} foto sulla tela non sono state trovate e resteranno vuote")
+                + " nell'immagine esportata.\n\nPuoi ricollegarle con File → Ricollega foto mancanti. "
+                "Esportare comunque?")
+            if answer != QMessageBox.StandardButton.Yes:
+                return False
         if self.get_canvas_photos():
             return True
         answer = QMessageBox.question(self, "Tela vuota", "Non ci sono foto sulla tela. Esportare comunque?")

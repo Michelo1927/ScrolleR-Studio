@@ -466,6 +466,8 @@ class InspectorMixin:
         entries = [
             ("text", "Aggiungi un testo qui", lambda: self.add_text(scene_pt), True),
             None,
+            *([("image", "Ricollega foto…", self._relink_selected_photo, True), None]
+              if any(p.is_missing for p in self._selected_photos()) else []),
             ("front", "Porta davanti", self._bring_to_front, has_el),
             ("back", "Manda dietro", self._send_to_back, has_el),
             ("lock", "Sblocca posizione" if locked else "Blocca posizione", self._toggle_lock_selected, has_el),
