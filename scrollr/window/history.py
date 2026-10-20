@@ -36,6 +36,7 @@ class HistoryMixin:
             },
             "items": [p.get_state() for p in self.get_canvas_photos()],
             "texts": [t.get_state() for t in self.get_canvas_texts()],
+            "shapes": [sh.get_state() for sh in self.get_canvas_shapes()],
         }
 
     def _restore_snapshot(self, snap: dict):
@@ -101,6 +102,15 @@ class HistoryMixin:
             for uid, t in existing_texts.items():
                 if uid not in wanted_texts:
                     self.scene.removeItem(t)
+            existing_shapes = {sh.uid: sh for sh in self.get_canvas_shapes()}
+            wanted_shapes = set()
+            for ss in snap.get("shapes", []):
+                wanted_shapes.add(ss["uid"])
+                sh = existing_shapes.get(ss["uid"]) or self._spawn_shape_item(ss.get("kind", "rect"), uid=ss["uid"])
+                sh.set_state(ss)
+            for uid, sh in existing_shapes.items():
+                if uid not in wanted_shapes:
+                    self.scene.removeItem(sh)
             self.scene.update()
             if canvas_changed:
                 self.fit_canvas_in_view()

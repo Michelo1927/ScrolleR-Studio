@@ -48,6 +48,7 @@ class ProjectMixin:
             "library": [{"path": p, "rel": rel(p)} for p in self.loaded_library + self._missing_library],
             "items": [dict(s, rel=rel(s["path"])) for s in snap["items"]],
             "texts": snap.get("texts", []),
+            "shapes": snap.get("shapes", []),
         }
 
     def _write_project(self, path: str) -> bool:
@@ -82,6 +83,7 @@ class ProjectMixin:
             canvas = data["canvas"]
             items = data["items"]
             texts = data.get("texts", [])
+            shapes = data.get("shapes", [])
             library = data.get("library", [])
         except (OSError, ValueError, KeyError) as e:
             QMessageBox.critical(self, "Progetto non aperto", f"Il file non è un progetto valido:\n{e}")
@@ -107,7 +109,7 @@ class ProjectMixin:
         all_paths = list(dict.fromkeys(lib_paths + [s["path"] for s in items]))
 
         self._remove_all_photos()
-        for t in self.get_canvas_texts():
+        for t in self.get_canvas_texts() + self.get_canvas_shapes():
             self.scene.removeItem(t)
         self.loaded_library.clear()
         self.list_library.clear()
@@ -119,7 +121,7 @@ class ProjectMixin:
         self._missing_library = [p for p in dict.fromkeys(lib_paths) if not os.path.isfile(p)]
         _, errors = self._load_into_library(found, "Apertura progetto…")
 
-        self._restore_snapshot({"canvas": canvas, "items": items, "texts": texts})
+        self._restore_snapshot({"canvas": canvas, "items": items, "texts": texts, "shapes": shapes})
         self._history = []
         self._history_index = -1
         self._commit_history()

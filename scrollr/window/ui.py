@@ -130,6 +130,7 @@ class UiMixin:
         groups = [
             ("Inserisci", [
                 ("text", "Testo", kb("Aggiungi un testo sulla tela: titolo, didascalia, numero (Ctrl+T)"), self.add_text),
+                ("shape", "Forma", "Aggiungi una forma: rettangolo, cerchio, stella, linea, freccia…", lambda: None),
             ]),
             ("Ordine", [
                 ("shuffle", "Rimescola", "Cambia a caso quale foto va in quale posizione", self.shuffle_canvas_photos),
@@ -169,6 +170,12 @@ class UiMixin:
                 if icon == "trash":
                     btn.setProperty("danger", True)
                 btn.setFixedSize(66, 44)
+                if icon == "shape":
+                    # Un clic apre l'elenco delle forme
+                    shape_menu = QMenu(btn)
+                    self._fill_shape_menu(shape_menu)
+                    btn.setMenu(shape_menu)
+                    btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
                 lay.addWidget(btn, 0, Qt.AlignmentFlag.AlignHCenter)
                 self._tool_buttons[icon] = btn
         lay.addStretch()
@@ -182,7 +189,7 @@ class UiMixin:
         n_photos_sel = len(self._selected_photos())
         n_canvas = len(self.get_canvas_photos())
         for icon, btn in self._tool_buttons.items():
-            if icon == "text":
+            if icon in ("text", "shape"):
                 btn.setEnabled(True)
             elif icon == "shuffle":
                 btn.setEnabled(n_canvas >= 2)
@@ -509,6 +516,7 @@ class UiMixin:
 
         m_insert = menubar.addMenu("&Inserisci")
         make("Testo", self.add_text, QKeySequence("Ctrl+T"), m_insert)
+        self._fill_shape_menu(m_insert.addMenu(make_icon("shape", THEME["text"], 16), "Forma"))
         make("Foto…", self.open_file_dialog, None, m_insert)
 
         m_pages = menubar.addMenu("&Pagine")

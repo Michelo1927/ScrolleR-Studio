@@ -8,7 +8,7 @@ from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, Q
 from PyQt6.QtWidgets import QGraphicsObject, QGraphicsItem
 from PIL import Image
 
-from scrollr.canvas.text_item import TextItem
+from scrollr.canvas.snap import snap_selection
 from scrollr.icons import draw_lock_badge, icon_pixmap
 from scrollr.imaging import (
     IMAGE_CACHE, NEUTRAL_ADJUST, adjustments_active, apply_adjustments, pil_to_qimage, qimage_to_pil
@@ -31,7 +31,6 @@ class PhotoItem(QGraphicsObject):
     dropped = pyqtSignal(object)           # Rilasciata dopo un trascinamento (forse su un'altra pagina)
     HANDLE_PX = 11.0  # Maniglie di dimensione costante sullo schermo, a qualsiasi zoom
     MIN_CELL = 40.0
-    SNAP_PX = 8.0     # Distanza di snap in pixel dello schermo
 
     _next_uid = 1
 
@@ -634,54 +633,13 @@ class PhotoItem(QGraphicsObject):
         self.setPos(self._pos_for_local_point(anchor_local, self._resize_anchor_scene))
         self.geometry_changed.emit(self)
 
+    def snap_rect(self) -> QRectF:
+        """Riquadro in scena usato come riferimento dallo snap degli altri elementi."""
+        return self.mapRectToScene(QRectF(0, 0, self.cell_w, self.cell_h))
+
     def _apply_snap(self):
-        """Snap magnetico ai bordi/centri di tela, frame e altre foto. Sposta insieme tutta la selezione."""
-        scene = self.scene()
-        if not (self.snap_enabled and scene and hasattr(scene, "canvas_rect")):
-            if scene is not None and hasattr(scene, "set_snap_lines"):
-                scene.set_snap_lines([], [])
-            return
-
-        snap_dist = self.SNAP_PX / self._view_scale()
-
-        canvas = scene.canvas_rect()
-        targets_x = []
-        targets_y = [canvas.top(), canvas.center().y(), canvas.bottom()]
-        for i in range(scene.num_frames + 1):
-            fx = i * scene.frame_w
-            targets_x.append(fx)
-            if i < scene.num_frames:
-                targets_x.append(fx + scene.frame_w / 2.0)
-
-        for other in scene.items():
-            if isinstance(other, PhotoItem) and not other.isSelected():
-                r = other.mapRectToScene(QRectF(0, 0, other.cell_w, other.cell_h))
-                targets_x += [r.left(), r.center().x(), r.right()]
-                targets_y += [r.top(), r.center().y(), r.bottom()]
-
-        me = self.mapRectToScene(QRectF(0, 0, self.cell_w, self.cell_h))
-
-        def best_offset(edges, targets):
-            best = None
-            for e in edges:
-                for t in targets:
-                    d = t - e
-                    if abs(d) < snap_dist and (best is None or abs(d) < abs(best[0])):
-                        best = (d, t)
-            return best
-
-        bx = best_offset([me.left(), me.center().x(), me.right()], targets_x)
-        by = best_offset([me.top(), me.center().y(), me.bottom()], targets_y)
-        off_x = bx[0] if bx else 0.0
-        off_y = by[0] if by else 0.0
-
-        if off_x or off_y:
-            for it in scene.selectedItems():
-                if isinstance(it, (PhotoItem, TextItem)) and not it.locked:
-                    it.moveBy(off_x, off_y)
-            if not self.isSelected():
-                self.moveBy(off_x, off_y)
-        scene.set_snap_lines([bx[1]] if bx else [], [by[1]] if by else [])
+        """Snap magnetico ai bordi/centri di tela, frame e altri elementi. Sposta insieme tutta la selezione."""
+        snap_selection(self, self.snap_rect(), self._view_scale())
 
     def mouseReleaseEvent(self, event):
         if self._resizing_handle:

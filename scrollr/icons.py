@@ -3,8 +3,9 @@ import math
 from typing import Dict, Optional
 
 from PyQt6.QtCore import Qt, QRectF, QPointF
-from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QIcon, QPolygonF
+from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QIcon, QPolygonF, QConicalGradient
 
+from scrollr.shapes import LINE_KINDS, shape_path
 from scrollr.theme import THEME
 
 
@@ -226,6 +227,23 @@ def icon_pixmap(name: str, color: str, size: int) -> QPixmap:
         rr(5.5, 3.5, 13, 17, 1.6)
         line(9, 9, 15, 9)
         line(9, 12.5, 15, 12.5)
+    elif name == "shape":
+        # Inserisci forma: un quadrato e un cerchio sovrapposti
+        rr(3.5, 9, 11, 11, 1.2)
+        clear(10.6, 3.6, 10, 10)
+        p.setBrush(tint)
+        p.drawEllipse(QRectF(10.6, 3.6, 10, 10))
+    elif name.startswith("shape_"):
+        kind = name[len("shape_"):]
+        if kind in LINE_KINDS:
+            line(4.5, 19.5, 19.5, 4.5)
+            heads = {"line": (), "arrow": ((19.5, 4.5, 1),), "double_arrow": ((19.5, 4.5, 1), (4.5, 19.5, -1))}
+            for x, y, d in heads[kind]:
+                poly((x - d * 6.5, y), (x, y), (x, y + d * 6.5))
+        else:
+            box = QRectF(4, 4.5, 16, 15) if kind != "rect" else QRectF(3.5, 6, 17, 12)
+            p.setBrush(tint)
+            p.drawPath(shape_path(kind, box, 1.6))
     elif name.startswith("mosaic_"):
         for x, y, w, h, filled in MOSAIC_ICON_CELLS.get(name[len("mosaic_"):], ()):
             rr(x, y, w, h, 1.2, brush=tint if filled else None)
@@ -292,6 +310,40 @@ def swatch_icon(color: QColor, size: int = 16) -> QIcon:
     p.setPen(QPen(QColor(255, 255, 255, 90), 1.0))
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.drawRect(QRectF(2.5, 2.5, size - 5, size - 5))
+    p.end()
+    return QIcon(pm)
+
+
+def no_color_icon(size: int = 16) -> QIcon:
+    """Campione «nessun colore» (trasparente): bianco con una diagonale rossa, come negli editor grafici."""
+    pm = QPixmap(size * 2, size * 2)
+    pm.setDevicePixelRatio(2.0)
+    pm.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    p.setPen(QPen(QColor("#000000"), 1.0))
+    p.setBrush(QBrush(QColor("#FFFFFF")))
+    p.drawRect(QRectF(1.5, 1.5, size - 3, size - 3))
+    p.setPen(QPen(QColor(THEME["danger"]), 1.6))
+    p.drawLine(QPointF(size - 3, 3), QPointF(3, size - 3))
+    p.end()
+    return QIcon(pm)
+
+
+def color_wheel_icon(size: int = 16) -> QIcon:
+    """Ruota dei colori: «scegli un altro colore» col selettore completo."""
+    pm = QPixmap(size * 2, size * 2)
+    pm.setDevicePixelRatio(2.0)
+    pm.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    c = QPointF(size / 2.0, size / 2.0)
+    grad = QConicalGradient(c, 90)
+    for i in range(7):
+        grad.setColorAt(i / 6.0, QColor.fromHsv((i * 60) % 360, 230, 255))
+    p.setPen(QPen(QColor(0, 0, 0, 160), 1.0))
+    p.setBrush(QBrush(grad))
+    p.drawEllipse(c, size / 2.0 - 1.5, size / 2.0 - 1.5)
     p.end()
     return QIcon(pm)
 

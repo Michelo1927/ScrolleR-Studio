@@ -11,8 +11,9 @@ from PyQt6.QtWidgets import (
 
 from scrollr.icons import icon_pixmap, make_icon, swatch_icon
 from scrollr.keys import kb
+from scrollr.shapes import SHAPE_KINDS
 from scrollr.theme import THEME
-from scrollr.widgets import DropZone, LibraryCheckDelegate, LibraryListWidget, ToggleSwitch
+from scrollr.widgets import ColorSwatchRow, DropZone, LibraryCheckDelegate, LibraryListWidget, ToggleSwitch
 
 
 class PanelsMixin:
@@ -301,10 +302,10 @@ class PanelsMixin:
         empty_icon.setPixmap(icon_pixmap("image", THEME["faint"], 40))
         empty_icon.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         el.addWidget(empty_icon)
-        title = self._label("Nessuna foto selezionata", "EmptyTitle")
+        title = self._label("Nessun elemento selezionato", "EmptyTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         el.addWidget(title)
-        body = self._label(kb("Clicca una foto o un testo sulla tela per modificarli.\n\n"
+        body = self._label(kb("Clicca una foto, un testo o una forma sulla tela per modificarli.\n\n"
                               "Ctrl+clic per selezionarne più di uno: le modifiche valgono per tutti."), "Hint")
         body.setWordWrap(True)
         body.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -352,6 +353,8 @@ class PanelsMixin:
 
         # Pagina 2: testo
         self.insp_stack.addWidget(self._build_text_inspector())
+        # Pagina 3: forma
+        self.insp_stack.addWidget(self._build_shape_inspector())
         outer.addStretch()
         return panel
 
@@ -557,5 +560,105 @@ class PanelsMixin:
         self._build_align_block(dl)
         dl.addStretch()
         self.text_tabs.addWidget(dp)
+        lay.addStretch()
+        return page
+
+    def _build_shape_inspector(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(6)
+        head = QHBoxLayout()
+        head.setSpacing(12)
+        self.lbl_shape_icon = QLabel()
+        self.lbl_shape_icon.setFixedSize(40, 40)
+        self.lbl_shape_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        head.addWidget(self.lbl_shape_icon)
+        head_text = QVBoxLayout()
+        head_text.setSpacing(2)
+        self.lbl_shape_title = self._label("Forma", "SelName")
+        head_text.addWidget(self.lbl_shape_title)
+        self.lbl_shape_info = self._label("", "Hint")
+        self.lbl_shape_info.setWordWrap(True)
+        head_text.addWidget(self.lbl_shape_info)
+        head.addLayout(head_text, 1)
+        lay.addLayout(head)
+
+        self.shape_tabs = QStackedWidget()
+        lay.addWidget(self._seg_tabs([
+            ("Forma", "Tipo, riempimento, bordo, opacità e rotazione"),
+            ("Disponi", "Allinea, distribuisci, blocca"),
+        ], self.shape_tabs))
+        lay.addWidget(self.shape_tabs)
+
+        fp, fl = self._tab_page()
+        kind_row = QHBoxLayout()
+        kind_row.setSpacing(8)
+        kind_row.addWidget(self._label("Tipo"))
+        self.combo_shape_kind = QComboBox()
+        self.combo_shape_kind.setIconSize(QSize(16, 16))
+        for kind, name in SHAPE_KINDS:
+            self.combo_shape_kind.addItem(make_icon("shape_" + kind, THEME["text"], 16), name, kind)
+        self.combo_shape_kind.setToolTip("Cambia la forma tenendo colori e posizione")
+        self.combo_shape_kind.currentIndexChanged.connect(
+            lambda i: self._on_shape_prop("kind", self.combo_shape_kind.itemData(i)))
+        kind_row.addWidget(self.combo_shape_kind, 1)
+        fl.addLayout(kind_row)
+
+        # Riempimento (non per linee e frecce)
+        self.shape_fill_box = QWidget()
+        fb = QVBoxLayout(self.shape_fill_box)
+        fb.setContentsMargins(0, 0, 0, 0)
+        fb.setSpacing(6)
+        self._section_header(fb, "Riempimento")
+        self.shape_fill_row = ColorSwatchRow("Colore di riempimento", allow_none=True)
+        self.shape_fill_row.setToolTip("Il primo campione toglie il riempimento: resta solo il bordo")
+        self.shape_fill_row.color_picked.connect(lambda c: self._set_shape_color("fill", c))
+        fb.addWidget(self.shape_fill_row)
+        fl.addWidget(self.shape_fill_box)
+
+        stroke_head = QHBoxLayout()
+        stroke_head.setContentsMargins(0, 0, 0, 0)
+        self.lbl_shape_stroke = self._label("Bordo", "SectionTitle")
+        stroke_head.addWidget(self.lbl_shape_stroke)
+        stroke_head.addStretch()
+        fl.addLayout(stroke_head)
+        self.shape_stroke_row = ColorSwatchRow("Colore del bordo")
+        self.shape_stroke_row.color_picked.connect(lambda c: self._set_shape_color("stroke", c))
+        fl.addWidget(self.shape_stroke_row)
+        self.slider_shape_stroke = self._make_slider(fl, "Spessore", 0, 80, 0, " px")
+        self.slider_shape_stroke.setToolTip("Spessore del bordo (0 = senza bordo) o della linea")
+        self.slider_shape_stroke.valueChanged.connect(lambda v: self._on_shape_prop("stroke_width", v))
+        dash_row = QHBoxLayout()
+        dash_row.setSpacing(8)
+        dash_row.addWidget(self._label("Tratto"))
+        self.combo_shape_dash = QComboBox()
+        for key, text in (("solid", "Continuo"), ("dash", "Tratteggiato"), ("dot", "A puntini")):
+            self.combo_shape_dash.addItem(text, key)
+        self.combo_shape_dash.currentIndexChanged.connect(
+            lambda i: self._on_shape_prop("stroke_style", self.combo_shape_dash.itemData(i)))
+        dash_row.addWidget(self.combo_shape_dash, 1)
+        fl.addLayout(dash_row)
+
+        self.shape_radius_box = QWidget()
+        rb = QVBoxLayout(self.shape_radius_box)
+        rb.setContentsMargins(0, 0, 0, 0)
+        self.slider_shape_radius = self._make_slider(rb, "Angoli arrotondati", 0, 300, 0, " px")
+        self.slider_shape_radius.valueChanged.connect(lambda v: self._on_shape_prop("radius", v))
+        fl.addWidget(self.shape_radius_box)
+
+        self._section_header(fl, "Trasparenza e rotazione")
+        self.slider_shape_opacity = self._make_slider(fl, "Opacità", 5, 100, 100, "%", resettable=True)
+        self.slider_shape_opacity.valueChanged.connect(lambda v: self._on_shape_prop("opacity", v))
+        self.slider_shape_rotation = self._make_slider(fl, "Angolo", -180, 180, 0, "°", signed=True, resettable=True)
+        self.slider_shape_rotation.setToolTip("Puoi ruotare anche col pallino sopra la forma (Shift: scatti di 15°)")
+        self.slider_shape_rotation.valueChanged.connect(lambda v: self._on_shape_prop("rotation", v))
+        fl.addStretch()
+        self.shape_tabs.addWidget(fp)
+
+        dp, dl = self._tab_page()
+        self._build_align_block(dl)
+        dl.addStretch()
+        self.shape_tabs.addWidget(dp)
         lay.addStretch()
         return page

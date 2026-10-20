@@ -8,6 +8,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QMessageBox, QMenu, QProgressDialog
 
 from scrollr.canvas.photo_item import PhotoItem
+from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.config import IMAGE_EXTS
 from scrollr.icons import make_icon, rounded_thumb
@@ -145,12 +146,13 @@ class LibraryMixin:
             self._canvas_paths = paths
             self.list_library.viewport().update()
         n = len(self.get_canvas_photos())
-        text = "Tela vuota" if n == 0 else ("1 foto sulla tela" if n == 1 else f"{n} foto sulla tela")
+        others = bool(self.get_canvas_texts() or self.get_canvas_shapes())
+        text = ("Nessuna foto sulla tela" if others else "Tela vuota") if n == 0 else             ("1 foto sulla tela" if n == 1 else f"{n} foto sulla tela")
         missing = self._missing_on_canvas()
         if missing:
             text += f"  ·  {missing} mancant" + ("e" if missing == 1 else "i")
         self.lbl_count.setText(text)
-        self.btn_clear_canvas.setEnabled(n > 0)
+        self.btn_clear_canvas.setEnabled(n > 0 or others)
 
     def load_images_from_paths(self, paths: List[str]):
         loaded, errors = self._load_into_library(paths, "Caricamento foto…")
@@ -292,7 +294,7 @@ class LibraryMixin:
 
     def clear_canvas_photos(self):
         self._remove_all_photos()
-        for t in self.get_canvas_texts():
+        for t in self.get_canvas_texts() + self.get_canvas_shapes():
             self.scene.removeItem(t)
         self._update_canvas_count()
         self._schedule_commit()
@@ -314,17 +316,30 @@ class LibraryMixin:
     def _selected_texts(self) -> List[TextItem]:
         return [it for it in self.scene.selectedItems() if isinstance(it, TextItem)]
 
+    def get_canvas_shapes(self) -> List[ShapeItem]:
+        items = [it for it in self.scene.items() if isinstance(it, ShapeItem)]
+        items.sort(key=lambda sh: sh.uid)
+        return items
+
+    def _selected_shapes(self) -> List[ShapeItem]:
+        return [it for it in self.scene.selectedItems() if isinstance(it, ShapeItem)]
+
     def _selected_elements(self) -> list:
-        """Foto e testi selezionati."""
-        return [it for it in self.scene.selectedItems() if isinstance(it, (PhotoItem, TextItem))]
+        """Foto, testi e forme selezionati."""
+        return [it for it in self.scene.selectedItems() if isinstance(it, (PhotoItem, TextItem, ShapeItem))]
 
     def _all_elements(self) -> list:
-        return self.get_canvas_photos() + self.get_canvas_texts()
+        return self.get_canvas_photos() + self.get_canvas_texts() + self.get_canvas_shapes()
 
     @staticmethod
     def _element_rect(it) -> QRectF:
-        """Ingombro in scena (rotazione inclusa) di una foto o di un testo."""
-        local = it.text_rect() if isinstance(it, TextItem) else QRectF(0, 0, it.cell_w, it.cell_h)
+        """Ingombro in scena (rotazione inclusa) di una foto, un testo o una forma."""
+        if isinstance(it, TextItem):
+            local = it.text_rect()
+        elif isinstance(it, ShapeItem):
+            local = it.frame_rect()
+        else:
+            local = QRectF(0, 0, it.cell_w, it.cell_h)
         return it.mapRectToScene(local)
 
     def _max_z(self) -> float:

@@ -33,6 +33,12 @@ THEME = {
     "snap": "#FF3DCB",
 }
 
+# Colori rapidi per forme e disegni (contenuto del collage, non dell'interfaccia)
+SWATCHES = [
+    "#FFFFFF", "#000000", "#8E8E93", "#FF3B30", "#FF9500", "#FFCC00",
+    "#34C759", "#00C7BE", "#007AFF", "#5856D6", "#AF52DE", "#FF2D55",
+]
+
 _FONT_CACHE: Dict[str, str] = {}
 
 
@@ -308,6 +314,10 @@ def build_stylesheet() -> str:
             font-size: 11px;
             padding: 3px 0 2px 0;
         }
+        QToolButton#ToolButton::menu-indicator {
+            image: none;
+            width: 0;
+        }
         QToolButton#ToolButton:disabled {
             color: @faint;
         }
@@ -331,8 +341,16 @@ def build_stylesheet() -> str:
             border-color: @line;
         }
         QToolButton#ColorChip {
-            border: none;
-            padding: 0;
+            border: 1px solid transparent;
+            border-radius: 2px;
+            padding: 1px;
+        }
+        QToolButton#ColorChip:hover {
+            border-color: @edge;
+        }
+        QToolButton#ColorChip:checked {
+            border-color: @accent;
+            background-color: rgba(38, 128, 235, 0.22);
         }
         QToolButton#ToggleButton {
             border: 1px solid transparent;

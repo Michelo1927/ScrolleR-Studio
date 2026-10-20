@@ -1,12 +1,15 @@
 """Widget personalizzati dell'interfaccia."""
 from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal, QSize
 from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QPolygonF, QFontMetricsF
-from PyQt6.QtWidgets import QFrame, QCheckBox, QStyledItemDelegate, QStyle, QListWidget
+from PyQt6.QtWidgets import (
+    QFrame, QCheckBox, QStyledItemDelegate, QStyle, QListWidget, QWidget, QGridLayout, QToolButton,
+    QButtonGroup, QColorDialog
+)
 
 from scrollr.config import LIBRARY_MIME
 
-from scrollr.icons import icon_pixmap
-from scrollr.theme import THEME, ui_font
+from scrollr.icons import color_wheel_icon, icon_pixmap, no_color_icon, swatch_icon
+from scrollr.theme import SWATCHES, THEME, ui_font
 
 
 # ================= WIDGET PERSONALIZZATI =================
@@ -172,3 +175,73 @@ class DropZone(QFrame):
                    Qt.AlignmentFlag.AlignHCenter | Qt.TextFlag.TextWordWrap,
                    "oppure clicca per sceglierle dal PC.\nNessun limite di numero.")
         p.end()
+
+
+class ColorSwatchRow(QWidget):
+    """
+    Colori rapidi in griglia, più «Nessuno» (trasparente, se allow_none) e «Altro…» (selettore completo,
+    con trasparenza). Il campione del colore attuale resta acceso; emette color_picked(QColor).
+    """
+    color_picked = pyqtSignal(QColor)
+    COLUMNS = 7
+
+    def __init__(self, title: str, allow_none: bool = False, parent=None):
+        super().__init__(parent)
+        self._title = title
+        self._current = QColor("#FFFFFF")
+        grid = QGridLayout(self)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(2)
+        self._group = QButtonGroup(self)
+        self._group.setExclusive(True)
+        self._chips = []  # (pulsante, colore o None = nessuno)
+        entries = ([None] if allow_none else []) + [QColor(c) for c in SWATCHES]
+        for i, color in enumerate(entries):
+            chip = self._chip(no_color_icon(18) if color is None else swatch_icon(color, 18),
+                              "Nessuno (trasparente)" if color is None else color.name().upper())
+            chip.setCheckable(True)
+            chip.clicked.connect(lambda _c=False, col=color: self._pick(QColor(0, 0, 0, 0) if col is None else QColor(col)))
+            self._group.addButton(chip)
+            self._chips.append((chip, color))
+            grid.addWidget(chip, i // self.COLUMNS, i % self.COLUMNS)
+        self._more = self._chip(color_wheel_icon(18), "Altro colore…  (anche semitrasparente)")
+        self._more.setCheckable(True)
+        self._group.addButton(self._more)
+        self._more.clicked.connect(self._pick_custom)
+        n = len(entries)
+        grid.addWidget(self._more, n // self.COLUMNS, n % self.COLUMNS)
+        grid.setColumnStretch(self.COLUMNS, 1)  # Campioni vicini, allineati a sinistra
+
+    @staticmethod
+    def _chip(icon, tooltip: str) -> QToolButton:
+        chip = QToolButton()
+        chip.setObjectName("ColorChip")
+        chip.setIcon(icon)
+        chip.setIconSize(QSize(18, 18))
+        chip.setFixedSize(24, 24)
+        chip.setToolTip(tooltip)
+        chip.setCursor(Qt.CursorShape.PointingHandCursor)
+        return chip
+
+    def set_color(self, color: QColor):
+        """Mostra il colore attuale (senza emettere segnali)."""
+        self._current = QColor(color)
+        match = self._more  # Colore scelto col selettore: resta acceso «Altro colore»
+        for chip, c in self._chips:
+            if (c is None and color.alpha() == 0) or (c is not None and color.alpha() == 255 and c.rgb() == color.rgb()):
+                match = chip
+                break
+        match.setChecked(True)
+
+    def _pick(self, color: QColor):
+        self.set_color(color)
+        self.color_picked.emit(color)
+
+    def _pick_custom(self):
+        start = self._current if self._current.alpha() > 0 else QColor(self._current.red(), self._current.green(),
+                                                                       self._current.blue(), 255)
+        col = QColorDialog.getColor(start, self, self._title, QColorDialog.ColorDialogOption.ShowAlphaChannel)
+        if col.isValid():
+            self._pick(col)
+        else:
+            self.set_color(self._current)  # Annullato: torna acceso il campione di prima

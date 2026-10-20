@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QGraphicsScene
 from PIL import ImageEnhance, ImageFilter
 
 from scrollr.canvas.photo_item import PhotoItem
+from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.icons import icon_pixmap
 from scrollr.imaging import IMAGE_CACHE, pil_to_qimage, qimage_to_pil
@@ -180,7 +181,7 @@ class CollageScene(QGraphicsScene):
         painter.fillPath(outer_path.subtracted(inner_path), veil)
 
         light_bg = is_light(self.bg_color)
-        has_photos = any(isinstance(it, (PhotoItem, TextItem)) for it in self.items())
+        has_photos = any(isinstance(it, (PhotoItem, TextItem, ShapeItem)) for it in self.items())
         if self.show_guides and has_photos:
             # Linee guida centrali leggere
             guide = QColor(THEME["guide"])

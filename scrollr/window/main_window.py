@@ -22,12 +22,13 @@ from scrollr.window.missing import MissingMixin
 from scrollr.window.pages import PagesMixin
 from scrollr.window.panels import PanelsMixin
 from scrollr.window.project import ProjectMixin
+from scrollr.window.shapes import ShapesMixin
 from scrollr.window.text import TextMixin
 from scrollr.window.ui import UiMixin
 from scrollr.window.updates import UpdatesMixin
 
 
-class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin, TextMixin,
+class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin, TextMixin, ShapesMixin,
                  PagesMixin, HistoryMixin, ProjectMixin, MissingMixin, ExportMixin, UpdatesMixin, QMainWindow):
     """Finestra principale. Le funzioni sono divise nei mixin del pacchetto window."""
 
@@ -80,6 +81,7 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self._restoring = False
         self.project_path: Optional[str] = None
         self._style_clipboard: Optional[dict] = None   # Stile copiato con "Copia stile"
+        self._last_shape_style: dict = {}              # Ultimo stile usato per forme piene e linee
         self._canvas_paths: set = set()                # Foto già sulla tela (segno nella libreria)
         self._missing_library: List[str] = []          # Foto della libreria non trovate all'apertura
 
@@ -219,7 +221,7 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self.scene.update()
 
     def _toggle_snap(self, checked: bool):
-        for item in self.get_canvas_photos():
+        for item in self.get_canvas_photos() + self.get_canvas_shapes():
             item.snap_enabled = checked
 
     # ---------- Pagine in fila o a scacchiera ----------

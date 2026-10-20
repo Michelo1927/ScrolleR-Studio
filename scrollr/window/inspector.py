@@ -8,6 +8,7 @@ from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import QColorDialog, QMenu
 
 from scrollr.canvas.photo_item import PhotoItem
+from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.icons import make_icon, rounded_thumb, swatch_icon
 from scrollr.imaging import NEUTRAL_ADJUST
@@ -26,22 +27,29 @@ class InspectorMixin:
     def _on_selection_changed(self):
         self._sync_inspector_from_item(self._get_primary_selected())
 
-    def _on_item_geometry_changed(self, item: PhotoItem):
-        if item is self._get_primary_selected():
-            self._sync_inspector_from_item(item)
+    def _on_item_geometry_changed(self, item):
+        primary = self._get_primary_selected()
+        if item is primary or (primary is None and isinstance(item, ShapeItem) and item.isSelected()):
+            self._sync_inspector_from_item(primary)
 
     def _sync_inspector_from_item(self, item: Optional[PhotoItem]):
         self._updating_inspector = True
         count = len(self._selected_photos())
         texts = self._selected_texts()
+        shapes = self._selected_shapes()
         if item is None and texts:
             self.insp_stack.setCurrentIndex(2)
             self._sync_text_inspector(texts[0], len(texts))
             self.lbl_hint.setText("Trascina il testo per spostarlo.   Doppio clic: modifica il testo.   "
                                   "Frecce: sposta di 1 px (Shift: 10 px).")
+        elif item is None and shapes:
+            self.insp_stack.setCurrentIndex(3)
+            self._sync_shape_inspector(shapes[0], len(shapes))
+            self.lbl_hint.setText("Maniglie: ridimensiona (Shift sugli angoli: proporzioni).   Pallino in alto: ruota "
+                                  "(Shift: 15°).   Frecce: sposta di 1 px (Shift: 10 px).")
         else:
             self.insp_stack.setCurrentIndex(0 if item is None else 1)
-        if item is None and not texts:
+        if item is None and not texts and not shapes:
             self.lbl_hint.setText("Clicca una foto per selezionarla.   Rotella: zoom della vista.   "
                                   "Tasto centrale + trascina: sposta la vista.")
         elif item is not None:
@@ -73,7 +81,7 @@ class InspectorMixin:
             self.slider_shadow.setValue(item.shadow)
             self.btn_paste_style.setEnabled(self._style_clipboard is not None)
             self._update_ratio_button()
-        primary = item if item is not None else (texts[0] if texts else None)
+        primary = item if item is not None else (texts[0] if texts else (shapes[0] if shapes else None))
         if primary is not None:
             for sw in self._lock_switches:
                 sw.setChecked(primary.locked)
@@ -417,6 +425,9 @@ class InspectorMixin:
             if isinstance(item, TextItem):
                 dup = self._spawn_text_item()
                 state.update(uid=dup.uid, z=self._max_z() + 1.0, x=state["x"] + 30, y=state["y"] + 30, locked=False)
+            elif isinstance(item, ShapeItem):
+                dup = self._spawn_shape_item(item.kind)
+                state.update(uid=dup.uid, z=self._max_z() + 1.0, x=state["x"] + 30, y=state["y"] + 30, locked=False)
             else:
                 dup = self._spawn_photo_item(item.image_path)
                 # Copia tutto (incluso zoom/pan interni) tranne identità, livello e ordine
@@ -452,7 +463,7 @@ class InspectorMixin:
     def _show_canvas_context_menu(self, pos, view=None):
         view = view or self.view  # Con le pagine a scacchiera arriva la vista della pagina cliccata
         # Il clic destro su un elemento non selezionato lo seleziona (come in ogni editor grafico)
-        clicked = next((it for it in view.items(pos) if isinstance(it, (PhotoItem, TextItem))), None)
+        clicked = next((it for it in view.items(pos) if isinstance(it, (PhotoItem, TextItem, ShapeItem))), None)
         if clicked is not None and not clicked.isSelected():
             self.scene.clearSelection()
             clicked.setSelected(True)
@@ -464,8 +475,9 @@ class InspectorMixin:
         has_el = bool(elements)
         locked = has_el and all(it.locked for it in elements)
         menu = QMenu(self)
+        menu.addAction(make_icon("text", THEME["text"], 16), "Aggiungi un testo qui", lambda: self.add_text(scene_pt))
+        self._fill_shape_menu(menu.addMenu(make_icon("shape", THEME["text"], 16), "Aggiungi una forma qui"), scene_pt)
         entries = [
-            ("text", "Aggiungi un testo qui", lambda: self.add_text(scene_pt), True),
             None,
             *([("image", "Ricollega foto…", self._relink_selected_photo, True), None]
               if any(p.is_missing for p in self._selected_photos()) else []),

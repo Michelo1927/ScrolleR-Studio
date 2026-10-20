@@ -90,10 +90,10 @@ class LayoutMixin:
         else:
             per_page = self.spin_per_page.value()
             if self.chk_per_frame.isChecked() and per_page > 0:
-                # Numero fisso di foto per pagina: le pagine si adeguano (tenendo quelle con dei testi)
+                # Numero fisso di foto per pagina: le pagine si adeguano (tenendo quelle con testi e forme)
                 needed = len(self._page_photo_counts(len(photos)))
-                # Restano anche le pagine con testi o foto libere
-                text_pages = [self._page_of(t) + 1 for t in self.get_canvas_texts()]
+                # Restano anche le pagine con testi, forme o foto libere
+                text_pages = [self._page_of(t) + 1 for t in self.get_canvas_texts() + self.get_canvas_shapes()]
                 text_pages += [self._page_of(p) + 1 for p in self.get_canvas_photos() if p.free]
                 frames = max([1, needed] + [p for p in text_pages if p <= self.spin_frames.maximum()])
                 if frames != self.scene.num_frames:

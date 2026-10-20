@@ -66,12 +66,15 @@ scrollr/
   keys.py               shortcut texts per platform (Ctrl on Windows, ⌘ on Mac)
   theme.py              palette, fonts, QSS stylesheet, Fusion style
   icons.py              code-drawn icons, thumbnails, badges
+  shapes.py             graphic shapes: list and geometry (used by the canvas and the icons)
   imaging.py            photo loading (EXIF, ICC → sRGB), color adjustments, cache
   widgets.py            ToggleSwitch, DropZone, library delegate
   dialogs.py            carousel preview, background dialog
   canvas/
     photo_item.py       photos on the canvas (crop, inner zoom, borders, snapping)
     text_item.py        text boxes
+    shape_item.py       shapes, lines and arrows (resize handles, rotate handle, endpoints)
+    snap.py             magnetic snapping shared by photos and shapes
     scene.py            pages, background, guides
     view.py             zoom, pan, scroll bars, file drag & drop
     page_grid.py        pages shown as a grid (one view per page of the same canvas)
@@ -82,6 +85,7 @@ scrollr/
     layouts.py          automatic layouts (grid, mosaic, polaroid, straddle…)
     inspector.py        editing selected items, align and distribute
     text.py, pages.py   carousel texts and pages
+    shapes.py           inserting shapes and editing their fill, border and opacity
     history.py          undo / redo
     project.py          save / open, recent files, autosave
     missing.py          missing photos: placeholders, relinking, collect project into a folder
