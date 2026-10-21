@@ -69,6 +69,24 @@ class ProjectMixin:
         self.statusBar().showMessage(f"Progetto salvato: {os.path.basename(path)}", 3000)
         return True
 
+    def new_project(self):
+        """File → Nuovo progetto: tela, libreria e impostazioni tornano come all'avvio."""
+        if not self._confirm_discard_changes():
+            return
+        self._restore_snapshot(self._blank_snapshot)
+        self.loaded_library.clear()
+        self.list_library.clear()
+        self._missing_library = []
+        self._update_library_ui()
+        self._reset_history("Nuovo progetto")
+        self.project_path = None
+        self._saved_snapshot = self._history[-1]
+        self._remove_autosave()
+        self._update_title()
+        self.fit_canvas_in_view()
+        self._update_canvas_count()
+        self.statusBar().showMessage("Nuovo progetto", 3000)
+
     def open_project(self):
         if not self._confirm_discard_changes():
             return
@@ -122,9 +140,7 @@ class ProjectMixin:
         _, errors = self._load_into_library(found, "Apertura progetto…")
 
         self._restore_snapshot({"canvas": canvas, "items": items, "texts": texts, "shapes": shapes})
-        self._history = []
-        self._history_index = -1
-        self._commit_history()
+        self._reset_history("Lavoro recuperato" if recovered else "Progetto aperto")
         if recovered:
             # Lavoro recuperato: resta "da salvare", con il nome del progetto originale se c'era
             original = data.get("original_path")
@@ -219,7 +235,7 @@ class ProjectMixin:
 
     def _confirm_discard_changes(self) -> bool:
         self._flush_pending_commit()
-        if not self._is_dirty() or not self.get_canvas_photos():
+        if not self._is_dirty() or not self._all_elements():
             return True
         answer = QMessageBox.question(
             self, "Modifiche non salvate",

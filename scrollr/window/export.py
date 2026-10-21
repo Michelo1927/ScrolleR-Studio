@@ -1,5 +1,6 @@
 """Esportazione del collage ad alta risoluzione."""
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional
 
@@ -7,6 +8,7 @@ from PyQt6.QtCore import QRectF, QStandardPaths, Qt, QUrl
 from PyQt6.QtGui import QDesktopServices, QImage, QPainter
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox, QProgressDialog
 
+from scrollr.dialogs import PageExportDialog
 from scrollr.imaging import IMAGE_CACHE, ImageCache
 
 
@@ -20,10 +22,9 @@ class ExportMixin:
     def _export_ext(self) -> str:
         return ".jpg" if self.combo_format.currentIndex() == 1 else ".png"
 
-    @staticmethod
-    def _save_image(img: QImage, path: str) -> bool:
+    def _save_image(self, img: QImage, path: str) -> bool:
         if path.lower().endswith((".jpg", ".jpeg")):
-            return img.convertToFormat(QImage.Format.Format_RGB32).save(path, "JPG", 92)
+            return img.convertToFormat(QImage.Format.Format_RGB32).save(path, "JPG", self.spin_jpg_quality.value())
         # PNG resta senza perdite; con una compressione un po' più bassa si salva in circa metà tempo
         return img.save(path, "PNG", 80)
 
@@ -65,6 +66,23 @@ class ExportMixin:
             return True
         answer = QMessageBox.question(self, "Tela vuota", "Non ci sono foto sulla tela. Esportare comunque?")
         return answer == QMessageBox.StandardButton.Yes
+
+    # ---------- Nome dei file ----------
+    @staticmethod
+    def _clean_file_name(name: str) -> str:
+        """Nome usabile come file su Windows e Mac: niente caratteri vietati, spazi ai bordi o estensione."""
+        name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", name).strip().strip(".")
+        return re.sub(r"\.(png|jpe?g)$", "", name, flags=re.IGNORECASE).strip()
+
+    def _page_file_name(self, k: int, ext: str) -> str:
+        """Nome del file della pagina k: «viaggio_01.jpg» col nome scelto, altrimenti «frame_01.jpg»."""
+        return f"{self._clean_file_name(self.export_name) or 'frame'}_{k + 1:02d}{ext}"
+
+    def _set_export_name(self, name: str):
+        name = self._clean_file_name(name)
+        if name != self.export_name:
+            self.export_name = name  # Vale per il progetto: si salva con lui
+            self._schedule_commit()
 
     # ---------- Cartella di esportazione ----------
     def _export_dir(self) -> str:
@@ -147,13 +165,18 @@ class ExportMixin:
         filters = ["PNG alta qualità (*.png)", "JPEG, file leggero (*.jpg *.jpeg)"]
         if ext == ".jpg":
             filters.reverse()
-        name = f"collage_{self.scene.frame_w}x{self.scene.frame_h}{frames_tag}_{out_w}x{out_h}{ext}"
+        base = self._clean_file_name(self.export_name)
+        name = (f"{base}{ext}" if base else
+                f"collage_{self.scene.frame_w}x{self.scene.frame_h}{frames_tag}_{out_w}x{out_h}{ext}")
         path, _ = QFileDialog.getSaveFileName(
             self, f"Dove salvo il collage? ({out_w}×{out_h} px)",
             os.path.join(self._export_dir(), name), ";;".join(filters))
         if not path:
             return
         self._remember_export_dir(os.path.dirname(path))
+        if base:
+            # Il nome cambiato nella finestra di salvataggio diventa il nome dei file del progetto
+            self._set_export_name(os.path.splitext(os.path.basename(path))[0])
 
         n_photos = self._export_photo_count()
         progress = self._export_progress(n_photos + 2)
@@ -190,22 +213,48 @@ class ExportMixin:
             self._export_done("Collage esportato", f"Salvato in:\n{path}\n\nRisoluzione: {out_w}×{out_h} px",
                               os.path.dirname(path))
 
-    def export_split_frames(self):
-        if not self._warn_if_empty():
+    def _choose_export_pages(self) -> Optional[List[int]]:
+        """Finestra con le miniature per scegliere le pagine da esportare e il nome dei file (None = annullato)."""
+        self._flush_pending_commit()
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            thumbs = self._render_page_previews(max_side=260)
+        finally:
+            QApplication.restoreOverrideCursor()
+        dialog = PageExportDialog(thumbs, [self.scene.page_label(i) for i in range(self.scene.num_frames)],
+                                  self.export_name, self._export_ext(), self)
+        if not dialog.exec():
+            return None
+        self._set_export_name(dialog.file_name())
+        return dialog.pages()
+
+    def export_split_frames(self, pages: Optional[List[int]] = None):
+        """Una immagine per pagina. Senza `pages` si scelgono le pagine dalle miniature."""
+        if pages is None:
+            pages = self._choose_export_pages()
+            if not pages:
+                return
+        pages = [k for k in pages if 0 <= k < self.scene.num_frames]
+        if not pages or not self._warn_if_empty():
             return
-        folder = QFileDialog.getExistingDirectory(self, "In quale cartella salvo le pagine?", self._export_dir())
+        title = ("In quale cartella salvo le pagine?" if len(pages) > 1
+                 else f"In quale cartella salvo la pagina {pages[0] + 1}?")
+        folder = QFileDialog.getExistingDirectory(self, title, self._export_dir())
         if not folder:
             return
         self._remember_export_dir(folder)
 
-        num_frames = self.scene.num_frames
+        num_frames = len(pages)
         ext = self._export_ext()
-        file_paths = [os.path.join(folder, f"frame_{i + 1:02d}{ext}") for i in range(num_frames)]
+        file_paths = [os.path.join(folder, self._page_file_name(k, ext)) for k in pages]
         existing = [p for p in file_paths if os.path.exists(p)]
         if existing:
             answer = QMessageBox.question(
                 self, "Sostituire i file?",
-                f"Nella cartella ci sono già {len(existing)} file frame_XX{ext}. Vuoi sostituirli?"
+                (f"Nella cartella c'è già il file {os.path.basename(existing[0])}. Vuoi sostituirlo?"
+                 if len(existing) == 1 else
+                 f"Nella cartella ci sono già {len(existing)} file con questi nomi "
+                 f"({os.path.basename(existing[0])}…). Vuoi sostituirli?")
             )
             if answer != QMessageBox.StandardButton.Yes:
                 return
@@ -226,14 +275,14 @@ class ExportMixin:
             if not self._prefetch_originals(scale, progress):
                 canceled = True
             else:
-                for i, file_path in enumerate(file_paths):
+                for i, (k, file_path) in enumerate(zip(pages, file_paths)):
                     progress.setValue(n_photos + i)
-                    progress.setLabelText(f"Pagina {i + 1} di {num_frames}…")
+                    progress.setLabelText(f"Pagina {k + 1} ({i + 1} di {num_frames})…")
                     QApplication.processEvents()
                     if progress.wasCanceled():
                         canceled = True
                         break
-                    img = self._render_region(QRectF(i * fw, 0, fw, fh), out_w, out_h)
+                    img = self._render_region(QRectF(k * fw, 0, fw, fh), out_w, out_h)
                     if img is not None and self._save_image(img, file_path):
                         saved_files.append(file_path)
                     else:
@@ -245,7 +294,10 @@ class ExportMixin:
         if canceled and not saved_files:
             self.statusBar().showMessage("Esportazione annullata", 4000)
             return
-        msg = f"{len(saved_files)} pagine esportate ({out_w}×{out_h} px ciascuna) in:\n{folder}"
+        if len(saved_files) == 1:
+            msg = f"Pagina esportata ({out_w}×{out_h} px):\n{saved_files[0]}"
+        else:
+            msg = f"{len(saved_files)} pagine esportate ({out_w}×{out_h} px ciascuna) in:\n{folder}"
         if canceled:
             msg += "\n\nEsportazione interrotta: le pagine successive non sono state salvate."
         if failed:

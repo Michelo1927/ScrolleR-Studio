@@ -394,6 +394,18 @@ class UiMixin:
         self.combo_format.addItems(["PNG (massima qualità)", "JPG (file leggeri)"])
         self.combo_format.setToolTip("Tipo di file esportato.\nJPG pesa molto meno ed è ideale per Instagram.")
         bar.addWidget(self.combo_format)
+        # Qualità JPG: compare solo scegliendo JPG (più alta = file più pesante)
+        self.spin_jpg_quality = QSpinBox()
+        self.spin_jpg_quality.setRange(50, 100)
+        self.spin_jpg_quality.setPrefix("Qualità ")
+        self.spin_jpg_quality.setSuffix("%")
+        self.spin_jpg_quality.setValue(self._settings().value("jpg_quality", 92, type=int))
+        self.spin_jpg_quality.setToolTip("Qualità dei file JPG: più alta = più dettagli e file più pesanti.\n"
+                                         "92% va bene quasi sempre; sotto l'80% si possono vedere difetti.")
+        self.spin_jpg_quality.valueChanged.connect(lambda v: self._settings().setValue("jpg_quality", v))
+        self.combo_format.currentIndexChanged.connect(lambda i: self.spin_jpg_quality.setVisible(i == 1))
+        self.spin_jpg_quality.setVisible(False)
+        bar.addWidget(self.spin_jpg_quality)
         self.combo_quality = QComboBox()
         self.combo_quality.addItems(["Qualità standard (1×)", "Alta definizione (2×)"])
         self.combo_quality.setCurrentIndex(1)  # 2× di default per massima nitidezza
@@ -403,7 +415,7 @@ class UiMixin:
         btn_export = self._button("Esporta", lambda: None, "export", "Primary")
         export_menu = QMenu(btn_export)
         export_menu.addAction(kb("Collage intero, in un'unica immagine…  (Ctrl+E)"), self.export_full_collage)
-        export_menu.addAction(kb("Pagine separate, una immagine per pagina…  (Ctrl+Shift+E)"), self.export_split_frames)
+        export_menu.addAction(kb("Pagine separate, una immagine per pagina…  (Ctrl+Shift+E)"), lambda *_: self.export_split_frames())
         btn_export.setMenu(export_menu)
         bar.addWidget(btn_export)
         return bar
@@ -416,6 +428,10 @@ class UiMixin:
 
         self.lbl_count = self._label("", "StatusText")
         sb.addPermanentWidget(self.lbl_count)
+        sb.addPermanentWidget(self._vsep())
+        sb.addPermanentWidget(self._icon_button("history", kb("Cronologia: l'elenco delle modifiche, per tornare indietro "
+                                                             "di più passi in una volta (Ctrl+H)"),
+                                                self.show_history_panel, "Cronologia"))
         sb.addPermanentWidget(self._vsep())
         sb.addPermanentWidget(self._icon_button("minus", "Riduci zoom", lambda: self._zoom_view(1 / 1.25)))
         self.lbl_zoom = self._label("100%", "StatusText")
@@ -480,6 +496,7 @@ class UiMixin:
             return act
 
         m_file = menubar.addMenu("&File")
+        make("Nuovo progetto", self.new_project, QKeySequence.StandardKey.New, m_file)
         make("Aggiungi foto…", self.open_file_dialog, QKeySequence.StandardKey.Open, m_file)
         m_file.addSeparator()
         make("Apri progetto…", self.open_project, QKeySequence("Ctrl+Shift+O"), m_file)
@@ -491,7 +508,7 @@ class UiMixin:
         make("Ricollega foto mancanti…", self.relink_missing_photos, None, m_file)
         m_file.addSeparator()
         make("Esporta collage intero…", self.export_full_collage, QKeySequence("Ctrl+E"), m_file)
-        make("Esporta pagine separate…", self.export_split_frames, QKeySequence("Ctrl+Shift+E"), m_file)
+        make("Esporta pagine separate…", lambda *_: self.export_split_frames(), QKeySequence("Ctrl+Shift+E"), m_file)
         m_file.addSeparator()
         make("Esci", self.close, QKeySequence.StandardKey.Quit, m_file)
 
@@ -499,6 +516,11 @@ class UiMixin:
         self.act_undo = make("Annulla", self.undo, QKeySequence.StandardKey.Undo, m_edit)
         self.act_redo = make("Ripeti", self.redo, [QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")], m_edit)
         m_edit.addSeparator()
+        # Taglia/Copia/Incolla valgono sulla tela: nei campi di testo restano quelli normali del campo
+        canvas_views = [self.view, self.page_grid]
+        make("Taglia", self._cut_selected, QKeySequence.StandardKey.Cut, m_edit, target=canvas_views)
+        make("Copia", self._copy_selected, QKeySequence.StandardKey.Copy, m_edit, target=canvas_views)
+        make("Incolla", self._paste_elements, QKeySequence.StandardKey.Paste, m_edit, target=canvas_views)
         make("Duplica", self._duplicate_selected, QKeySequence("Ctrl+D"), m_edit)
         make("Reimposta zoom e posizione", self._reset_selected_framing, QKeySequence("Ctrl+R"), m_edit)
         make("Seleziona tutte", self._select_all, QKeySequence.StandardKey.SelectAll, m_edit)
@@ -506,6 +528,8 @@ class UiMixin:
         make("Copia stile", self._copy_style, QKeySequence("Ctrl+Shift+C"), m_edit)
         make("Incolla stile", self._paste_style, QKeySequence("Ctrl+Shift+V"), m_edit)
         make("Blocca / sblocca posizione", self._toggle_lock_selected, QKeySequence("Ctrl+L"), m_edit)
+        make("Raggruppa", self._group_selected, QKeySequence("Ctrl+G"), m_edit)
+        make("Separa il gruppo", self._ungroup_selected, QKeySequence("Ctrl+Shift+G"), m_edit)
         make("Foto libera / nella disposizione", self._toggle_free_selected, None, m_edit)
         m_edit.addSeparator()
         make("Specchia orizzontalmente", lambda: self._flip_selected("h"), None, m_edit)
@@ -528,6 +552,7 @@ class UiMixin:
         make("Sposta la pagina corrente a sinistra", lambda: self._move_page(self._current_page(), -1), None, m_pages)
         make("Sposta la pagina corrente a destra", lambda: self._move_page(self._current_page(), 1), None, m_pages)
         make("Riordina le pagine…", self.reorder_pages_dialog, None, m_pages)
+        make("Duplica la pagina corrente", lambda: self._duplicate_page(self._current_page()), None, m_pages)
         m_pages.addSeparator()
         self.menu_page_layout = m_pages.addMenu("Disposizione della pagina corrente")
         self.menu_page_layout.aboutToShow.connect(self._rebuild_current_page_layout_menu)
@@ -540,6 +565,7 @@ class UiMixin:
 
         m_view = menubar.addMenu("&Vista")
         make("Anteprima carosello", self.show_carousel_preview, QKeySequence("F5"), m_view)
+        make("Cronologia…", self.show_history_panel, QKeySequence("Ctrl+H"), m_view)
         self.act_grid_pages = make("Pagine a scacchiera", lambda on: self._set_page_view(on), None, m_view)
         self.act_grid_pages.setCheckable(True)
         m_view.addSeparator()

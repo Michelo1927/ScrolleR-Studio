@@ -81,12 +81,19 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self._restoring = False
         self.project_path: Optional[str] = None
         self._style_clipboard: Optional[dict] = None   # Stile copiato con "Copia stile"
+        self._paste_serial = 0                         # Incolla ripetuti nella stessa pagina: copie sfalsate
+        self._prev_selection: set = set()              # Selezione precedente (per selezionare i gruppi interi)
+        self._expanding_groups = False
         self._last_shape_style: dict = {}              # Ultimo stile usato per forme piene e linee
         self._canvas_paths: set = set()                # Foto già sulla tela (segno nella libreria)
         self._missing_library: List[str] = []          # Foto della libreria non trovate all'apertura
+        self.export_name = ""                          # Nome dei file esportati (vuoto = nomi di sempre)
 
         # Cronologia Annulla/Ripeti (snapshot dello stato completo)
         self._history: List[dict] = []
+        self._history_labels: List[str] = []           # Nome di ogni passaggio, per il pannello Cronologia
+        self._history_start_label = "Inizio"
+        self._history_panel = None
         self._history_index = -1
         self._saved_snapshot: Optional[dict] = None
         self._commit_timer = QTimer(self)
@@ -134,6 +141,7 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self._sync_inspector_from_item(None)
         self._commit_history()
         self._saved_snapshot = self._history[-1]
+        self._blank_snapshot = self._history[-1]  # Stato di partenza, per File → Nuovo progetto
         self._update_title()
         self._set_page_view(self._settings().value("pages_grid", False, type=bool), fit=False)
         # La vista ha le dimensioni reali solo dopo show(): adattamento al primo giro dell'event loop

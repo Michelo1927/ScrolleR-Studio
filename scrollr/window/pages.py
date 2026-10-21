@@ -6,6 +6,8 @@ from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPixmap, QImage, QPainter
 from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox
 
+from scrollr.canvas.shape_item import ShapeItem
+from scrollr.canvas.text_item import TextItem
 from scrollr.dialogs import CarouselPreview, PageOrderDialog
 from scrollr.icons import make_icon
 from scrollr.keys import kb
@@ -51,6 +53,118 @@ class PagesMixin:
 
     def _insert_page_after(self, k: int):
         self._insert_page_at(k + 1)
+
+    def _duplicate_page(self, k: int):
+        """
+        Copia la pagina k subito dopo di lei, con foto, testi, forme e impostazioni della pagina.
+        Con una disposizione per ogni pagina le foto copiate restano nella disposizione della pagina nuova;
+        con la tela continua diventano foto libere, così la copia resta identica.
+        """
+        n = self.scene.num_frames
+        if not (0 <= k < n):
+            return
+        if n >= self.spin_frames.maximum():
+            self.statusBar().showMessage(f"Massimo {n} pagine", 4000)
+            return
+        self._flush_pending_commit()
+        split = self._pages_split()
+        current = self._photo_pages() if split else {}
+        inside = [it for it in self._all_elements() if self._page_of(it) == k]
+        fw = self.scene.frame_w
+        # Le pagine dopo k scorrono a destra; le impostazioni della pagina k valgono anche per la copia
+        for it in self._all_elements():
+            if self._page_of(it) > k:
+                it.moveBy(fw, 0)
+        for values in self._page_lists():
+            if k < len(values):
+                values.insert(k + 1, dict(values[k]) if isinstance(values[k], dict) else values[k])
+        self._seam_added_frames = None
+        self._set_frames_silently(n + 1)
+
+        first_group = self._new_group_id()
+        groups = {}
+        copies = []
+        for it in sorted(inside, key=lambda x: x.zValue()):
+            state = it.get_state()
+            if isinstance(it, TextItem):
+                dup = self._spawn_text_item()
+            elif isinstance(it, ShapeItem):
+                dup = self._spawn_shape_item(it.kind)
+            else:
+                dup = self._spawn_photo_item(it.image_path)
+                state.update(layout_index=dup.layout_index, free=it.free or not split)
+            if it.group:
+                state["group"] = groups.setdefault(it.group, first_group + len(groups))
+            state.update(uid=dup.uid, z=self._max_z() + 1.0, x=state["x"] + fw)
+            dup.set_state(state)
+            copies.append(dup)
+
+        if split:
+            # Ordine delle foto per pagina, con le copie nella pagina nuova: ogni pagina fissa le sue
+            by_page = [[] for _ in range(n + 1)]
+            for p in self._layout_photos():
+                if p in copies:
+                    by_page[k + 1].append(p)
+                else:
+                    page = current.get(p.uid, n - 1)
+                    by_page[page + 1 if page > k else page].append(p)
+            counts = self.scene.page_counts
+            counts.extend([None] * (n + 1 - len(counts)))
+            counts[k] = len(by_page[k])
+            counts[k + 1] = len(by_page[k + 1])
+            self._trim_page_lists()
+            for i, p in enumerate(p for page in by_page for p in page):
+                p.layout_index = i
+            self._relayout_keep()
+        self.scene.clearSelection()
+        self._update_canvas_count()
+        self.statusBar().showMessage(f"Pagina {k + 1} duplicata: la copia è la pagina {k + 2}", 4000)
+        self._schedule_commit()
+
+    # ---------- Numero di pagina e «scorri» ----------
+    def _sync_overlay_widgets(self):
+        """Pannello Numeri di pagina allineato alla scena (all'avvio, con Annulla e all'apertura)."""
+        if not hasattr(self, "chk_page_numbers"):
+            return
+        sc = self.scene
+        widgets = (self.chk_page_numbers, self.combo_pn_format, self.combo_pn_pos, self.chk_swipe,
+                   self.edit_swipe_text, self.combo_swipe_pos, self.combo_overlay_style)
+        for w in widgets:
+            w.blockSignals(True)
+        self.chk_page_numbers.setChecked(sc.page_numbers)
+        self.chk_swipe.setChecked(sc.swipe_hint)
+        if self.edit_swipe_text.text() != sc.swipe_text:
+            self.edit_swipe_text.setText(sc.swipe_text)
+        for combo, value in ((self.combo_pn_format, sc.page_number_format), (self.combo_pn_pos, sc.page_number_pos),
+                             (self.combo_swipe_pos, sc.swipe_pos), (self.combo_overlay_style, sc.overlay_style)):
+            combo.setCurrentIndex(max(0, combo.findData(value)))
+        for w in widgets:
+            w.blockSignals(False)
+        for w in (self.chk_page_numbers, self.chk_swipe):
+            w.update()
+        self._update_overlay_enabled()
+
+    def _update_overlay_enabled(self):
+        self.combo_pn_format.setEnabled(self.scene.page_numbers)
+        self.combo_pn_pos.setEnabled(self.scene.page_numbers)
+        self.edit_swipe_text.setEnabled(self.scene.swipe_hint)
+        self.combo_swipe_pos.setEnabled(self.scene.swipe_hint)
+        self.combo_overlay_style.setEnabled(self.scene.page_numbers or self.scene.swipe_hint)
+
+    def _on_overlay_changed(self, *_):
+        sc = self.scene
+        sc.page_numbers = self.chk_page_numbers.isChecked()
+        sc.page_number_format = self.combo_pn_format.currentData()
+        sc.page_number_pos = self.combo_pn_pos.currentData()
+        sc.swipe_hint = self.chk_swipe.isChecked()
+        sc.swipe_text = self.edit_swipe_text.text()
+        sc.swipe_pos = self.combo_swipe_pos.currentData()
+        sc.overlay_style = self.combo_overlay_style.currentData()
+        self._update_overlay_enabled()
+        if sc.page_numbers and sc.num_frames < 2:
+            self.statusBar().showMessage("Il numero compare quando il carosello ha almeno 2 pagine", 4000)
+        sc.update()
+        self._schedule_commit()
 
     def _delete_page(self, k: int):
         n = self.scene.num_frames

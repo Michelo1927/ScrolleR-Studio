@@ -12,6 +12,8 @@ IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp") + ((".heic", ".heif") if
 PROJECT_EXT = ".scrlproj"
 # Trascinamento dalla libreria alla tela: percorsi delle foto, uno per riga (formato interno all'app)
 LIBRARY_MIME = "application/x-scrollr-library-paths"
+# Foto, testi e forme copiati con Ctrl+C (negli appunti, anche tra due finestre dell'app)
+ELEMENTS_MIME = "application/x-scrollr-elements"
 PROJECT_VERSION = 1
 
 # Pagina pubblica del progetto (menu ? → Informazioni, Scarica l'ultima versione)

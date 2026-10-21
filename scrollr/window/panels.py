@@ -6,7 +6,7 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QSlider, QListWidget,
     QGridLayout, QToolButton, QButtonGroup, QStackedWidget, QListView, QSizePolicy, QPlainTextEdit,
-    QFontComboBox, QSpinBox, QAbstractSpinBox
+    QFontComboBox, QSpinBox, QAbstractSpinBox, QLineEdit
 )
 
 from scrollr.icons import icon_pixmap, make_icon, swatch_icon
@@ -192,7 +192,61 @@ class PanelsMixin:
         self.slider_margin = self._make_slider(lay, "Margine", 0, 120, 24, " px", resettable=True)
         self.slider_margin.valueChanged.connect(self._relayout_keep)
 
+        lay.addSpacing(2)
+        lay.addWidget(self._divider())
+        lay.addSpacing(2)
+        self._build_overlay_block(lay)
         return panel
+
+    def _build_overlay_block(self, lay: QVBoxLayout):
+        """Numero di pagina e indicatore «scorri»: si aggiornano da soli quando cambiano le pagine."""
+        self._section_header(lay, "Numeri di pagina")
+
+        def combo(items, tip):
+            c = QComboBox()
+            for key, text in items:
+                c.addItem(text, key)
+            c.setToolTip(tip)
+            c.currentIndexChanged.connect(self._on_overlay_changed)
+            return c
+
+        def field_row(label, widget):
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            row.addWidget(self._label(label))
+            row.addWidget(widget, 1)
+            lay.addLayout(row)
+
+        self.chk_page_numbers = ToggleSwitch("Numero di pagina")
+        self.chk_page_numbers.setToolTip("Scrive «1/5», «2/5»… su ogni pagina, anche nell'esportazione.\n"
+                                         "Si aggiorna da solo quando aggiungi, togli o riordini le pagine.")
+        self.chk_page_numbers.toggled.connect(self._on_overlay_changed)
+        lay.addWidget(self.chk_page_numbers)
+        self.combo_pn_format = combo([("slash", "1/5"), ("of", "1 di 5"), ("padded", "01/05"), ("plain", "1")],
+                                     "Come si scrive il numero")
+        field_row("Formato", self.combo_pn_format)
+        self.combo_pn_pos = combo([("bc", "In basso al centro"), ("br", "In basso a destra"), ("bl", "In basso a sinistra"),
+                                   ("tc", "In alto al centro"), ("tr", "In alto a destra"), ("tl", "In alto a sinistra")],
+                                  "Dove va il numero nella pagina")
+        field_row("Posizione", self.combo_pn_pos)
+
+        self.chk_swipe = ToggleSwitch("Indicatore «scorri»")
+        self.chk_swipe.setToolTip("Invita a scorrere il carosello: compare su tutte le pagine tranne l'ultima")
+        self.chk_swipe.toggled.connect(self._on_overlay_changed)
+        lay.addWidget(self.chk_swipe)
+        self.edit_swipe_text = QLineEdit()
+        self.edit_swipe_text.setPlaceholderText("Scorri →")
+        self.edit_swipe_text.setToolTip("Testo dell'indicatore, per esempio «Scorri →» o «Swipe →»")
+        self.edit_swipe_text.textEdited.connect(self._on_overlay_changed)
+        field_row("Testo", self.edit_swipe_text)
+        self.combo_swipe_pos = combo([("br", "In basso a destra"), ("cr", "Al centro a destra")],
+                                     "Dove va l'indicatore nella pagina")
+        field_row("Posizione", self.combo_swipe_pos)
+
+        self.combo_overlay_style = combo([("dark", "Etichetta scura"), ("light", "Etichetta chiara"), ("plain", "Solo testo")],
+                                         "Aspetto del numero e dell'indicatore")
+        field_row("Stile", self.combo_overlay_style)
+        self._sync_overlay_widgets()
 
     def _tab_page(self) -> Tuple[QWidget, QVBoxLayout]:
         page = QWidget()
@@ -245,7 +299,7 @@ class PanelsMixin:
         return btn
 
     def _build_align_block(self, lay: QVBoxLayout):
-        """Allinea / distribuisci / blocca: usato sia per le foto sia per i testi."""
+        """Allinea / distribuisci / raggruppa / blocca: usato per foto, testi e forme."""
         self._section_header(lay, "Allinea")
         hint = self._label("", "Hint")
         hint.setWordWrap(True)
@@ -273,6 +327,18 @@ class PanelsMixin:
             self._distribute_buttons.append(b)
             row.addWidget(b)
         lay.addLayout(row)
+        self._section_header(lay, "Gruppo")
+        row = QHBoxLayout()
+        row.setSpacing(4)
+        group = self._icon_button("group", kb("Unisci gli elementi selezionati: si selezionano e si spostano insieme "
+                                              "(Ctrl+G)"), self._group_selected, "Raggruppa", "SoftButton")
+        ungroup = self._icon_button("ungroup", kb("Separa il gruppo: gli elementi tornano indipendenti (Ctrl+Shift+G)"),
+                                    self._ungroup_selected, "Separa", "SoftButton")
+        self._group_buttons.append(group)
+        self._ungroup_buttons.append(ungroup)
+        row.addWidget(group)
+        row.addWidget(ungroup)
+        lay.addLayout(row)
         lay.addSpacing(4)
         lock = ToggleSwitch("Blocca posizione e dimensioni")
         lock.setToolTip(kb("L'elemento non si sposta né si ridimensiona per sbaglio (Ctrl+L).\n"
@@ -289,6 +355,8 @@ class PanelsMixin:
         self._align_hints: List[QLabel] = []
         self._distribute_buttons: List[QPushButton] = []
         self._lock_switches: List[ToggleSwitch] = []
+        self._group_buttons: List[QToolButton] = []
+        self._ungroup_buttons: List[QToolButton] = []
 
         self.insp_stack = QStackedWidget()
         outer.addWidget(self.insp_stack)
@@ -532,11 +600,24 @@ class PanelsMixin:
             self.text_align_buttons[key] = b
         tp._align_group = align_group
         tl.addLayout(align_row)
+        self.slider_line_height = self._make_slider(tl, "Interlinea", 60, 250, 100, "%", resettable=True)
+        self.slider_line_height.setToolTip("Distanza tra le righe (100% = normale)")
+        self.slider_line_height.valueChanged.connect(lambda v: self._on_text_prop("line_height", v))
+        self.slider_letter_spacing = self._make_slider(tl, "Spaziatura lettere", -10, 60, 0, "%",
+                                                       signed=True, resettable=True)
+        self.slider_letter_spacing.setToolTip("Lettere più distanziate (+) o più strette (−)")
+        self.slider_letter_spacing.valueChanged.connect(lambda v: self._on_text_prop("letter_spacing", v))
 
         self._section_header(tl, "Colore ed effetti")
         self.btn_text_color = self._icon_button("plus", "Colore del testo", lambda: self._pick_text_color("color"),
                                                 "Colore testo", "SoftButton")
         tl.addWidget(self.btn_text_color)
+        self.slider_text_outline = self._make_slider(tl, "Contorno", 0, 40, 0, " px", resettable=True)
+        self.slider_text_outline.setToolTip("Bordo attorno alle lettere: rende il testo leggibile sopra qualsiasi foto")
+        self.slider_text_outline.valueChanged.connect(lambda v: self._on_text_prop("outline", v))
+        self.btn_outline_color = self._icon_button("plus", "Colore del contorno delle lettere",
+                                                   lambda: self._pick_text_color("outline"), "Colore contorno", "SoftButton")
+        tl.addWidget(self.btn_outline_color)
         self.chk_text_shadow = ToggleSwitch("Ombra dietro al testo")
         self.chk_text_shadow.setToolTip("Rende il testo leggibile anche sopra le foto")
         self.chk_text_shadow.toggled.connect(lambda c: self._on_text_prop("shadow", c))

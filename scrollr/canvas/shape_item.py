@@ -54,6 +54,7 @@ class ShapeItem(QGraphicsObject):
         self.corner_radius = 0.0      # Solo per il rettangolo
         self.shape_opacity = 100
         self.locked = False
+        self.group = 0                # Gruppo di elementi che si selezionano insieme (0 = nessuno)
         self.snap_enabled = True
 
         self._handle: Optional[str] = None   # Maniglia trascinata ("tl"…, "p1"/"p2" o "rot")
@@ -91,6 +92,7 @@ class ShapeItem(QGraphicsObject):
             "radius": self.corner_radius,
             "opacity": self.shape_opacity,
             "locked": self.locked,
+            "group": self.group,
         }
 
     def set_state(self, s: dict):
@@ -106,6 +108,7 @@ class ShapeItem(QGraphicsObject):
         self.setZValue(s.get("z", 0.0))
         self.set_shape_opacity(s.get("opacity", 100))
         self.set_locked(s.get("locked", False))
+        self.group = int(s.get("group", 0))
 
     def set_locked(self, locked: bool):
         self.locked = bool(locked)

@@ -1,9 +1,9 @@
-"""Scena del collage: pagine, sfondo, guide e snap."""
+"""Scena del collage: pagine, sfondo, numeri di pagina, guide e snap."""
 from typing import Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QRectF, QPointF
 from PyQt6.QtGui import (
-    QPixmap, QPainter, QPen, QColor, QBrush, QFont, QPainterPath, QTransform, QLinearGradient
+    QPixmap, QPainter, QPen, QColor, QBrush, QFont, QFontMetricsF, QPainterPath, QTransform, QLinearGradient
 )
 from PyQt6.QtWidgets import QGraphicsScene
 from PIL import ImageEnhance, ImageFilter
@@ -14,7 +14,7 @@ from scrollr.canvas.text_item import TextItem
 from scrollr.icons import icon_pixmap
 from scrollr.imaging import IMAGE_CACHE, pil_to_qimage, qimage_to_pil
 from scrollr.keys import kb
-from scrollr.theme import THEME, is_light, ui_font
+from scrollr.theme import THEME, font_family, is_light, ui_font
 
 
 class CollageScene(QGraphicsScene):
@@ -47,12 +47,21 @@ class CollageScene(QGraphicsScene):
         self.bg_blur_path = ""
         self.bg_blur_amount = 50
         self.bg_dim = 15
+        # Numero di pagina e indicatore «scorri», disegnati sopra tutto ed esportati con le pagine
+        self.page_numbers = False
+        self.page_number_format = "slash"   # "slash" = 1/5, "of" = 1 di 5, "plain" = 1, "padded" = 01/05
+        self.page_number_pos = "bc"         # b/t (basso/alto) + l/c/r (sinistra/centro/destra)
+        self.overlay_style = "dark"         # "dark" = etichetta scura, "light" = chiara, "plain" = solo testo
+        self.swipe_hint = False             # «Scorri →» su tutte le pagine tranne l'ultima
+        self.swipe_text = "Scorri →"
+        self.swipe_pos = "br"               # "br" = in basso a destra, "cr" = al centro a destra
         self._blur_cache: Optional[Tuple[tuple, QPixmap]] = None
         self.show_guides = True
         self.is_exporting = False
         self.clean_render = False        # Anteprima: niente guide, etichette né selezione
         self.grid_mode = False           # Pagine a scacchiera: etichette disegnate da ogni vista di pagina
         self.display_scale = 1.0         # Zoom della vista attiva (maniglie a misura costante sullo schermo)
+        self.last_click_page: Optional[int] = None  # Pagina dell'ultimo clic sulla tela (dove incollare)
         self._snap_x: List[float] = []
         self._snap_y: List[float] = []
         self._dot_tile = self._make_dot_tile()
@@ -165,7 +174,74 @@ class CollageScene(QGraphicsScene):
             label += "  ·  Vuota" if fixed == 0 else (f"  ·  {fixed} foto" if fixed != 1 else "  ·  1 foto")
         return label
 
+    def mousePressEvent(self, event):
+        # Ricorda la pagina cliccata (su un elemento o sul vuoto): Incolla mette lì gli elementi copiati
+        x = event.scenePos().x()
+        if self.canvas_rect().contains(event.scenePos()):
+            self.last_click_page = max(0, min(self.num_frames - 1, int(x // self.frame_w)))
+        super().mousePressEvent(event)
+
+    # ---------- Numero di pagina e «scorri» ----------
+    def page_number_text(self, i: int) -> str:
+        n = self.num_frames
+        return {"of": f"{i + 1} di {n}", "plain": f"{i + 1}", "padded": f"{i + 1:02d}/{n:02d}"}.get(
+            self.page_number_format, f"{i + 1}/{n}")
+
+    def _overlay_badge(self, painter: QPainter, page: QRectF, text: str, pos: str, font: QFont, lift: float = 0.0) -> float:
+        """Etichetta arrotondata con `text` nella posizione `pos` della pagina; ritorna la sua altezza."""
+        fm = QFontMetricsF(font)
+        size = font.pixelSize()
+        pad_x, pad_y = size * 0.75, size * 0.38
+        w = fm.horizontalAdvance(text) + 2 * pad_x
+        h = fm.height() + 2 * pad_y
+        margin = min(page.width(), page.height()) * 0.04
+        vert, horiz = pos[0], pos[1]
+        x = {"l": page.left() + margin, "c": page.center().x() - w / 2.0}.get(horiz, page.right() - margin - w)
+        if vert == "t":
+            y = page.top() + margin + lift
+        elif vert == "c":
+            y = page.center().y() - h / 2.0 - lift
+        else:
+            y = page.bottom() - margin - h - lift
+        box = QRectF(x, y, w, h)
+        painter.setFont(font)
+        if self.overlay_style == "plain":
+            # Solo testo: bianco con un'ombra leggera, leggibile sulle foto
+            painter.setPen(QColor(0, 0, 0, 120))
+            off = max(1.0, size * 0.06)
+            painter.drawText(box.translated(off, off), Qt.AlignmentFlag.AlignCenter, text)
+            painter.setPen(QColor("#FFFFFF"))
+        else:
+            light = self.overlay_style == "light"
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(255, 255, 255, 225) if light else QColor(0, 0, 0, 140))
+            painter.drawRoundedRect(box, h / 2.0, h / 2.0)
+            painter.setPen(QColor("#1A1A1A") if light else QColor("#FFFFFF"))
+        painter.drawText(box, Qt.AlignmentFlag.AlignCenter, text)
+        return h
+
+    def paint_page_overlays(self, painter: QPainter):
+        if not (self.page_numbers or self.swipe_hint):
+            return
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+        font = QFont(font_family("display"))
+        font.setPixelSize(max(8, round(min(self.frame_w, self.frame_h) * 0.03)))
+        font.setWeight(QFont.Weight.DemiBold)
+        n = self.num_frames
+        for i in range(n):
+            page = QRectF(i * self.frame_w, 0, self.frame_w, self.frame_h)
+            lift = 0.0
+            if self.swipe_hint and i < n - 1 and self.swipe_text.strip():
+                h = self._overlay_badge(painter, page, self.swipe_text.strip(), self.swipe_pos, font)
+                lift = h + font.pixelSize() * 0.5 if self.page_number_pos == self.swipe_pos else 0.0
+            if self.page_numbers and n > 1:
+                self._overlay_badge(painter, page, self.page_number_text(i), self.page_number_pos, font, lift)
+        painter.restore()
+
     def drawForeground(self, painter: QPainter, rect: QRectF):
+        self.paint_page_overlays(painter)
         if self.is_exporting or self.clean_render:
             return
 

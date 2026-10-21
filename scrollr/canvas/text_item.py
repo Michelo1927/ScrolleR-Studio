@@ -2,7 +2,7 @@
 from typing import List, Optional
 
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
-from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QPainterPath, QCursor, QFontMetricsF
+from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QPainterPath, QPainterPathStroker, QCursor, QFontMetricsF
 from PyQt6.QtWidgets import QGraphicsObject, QGraphicsItem
 
 from scrollr.icons import draw_lock_badge
@@ -36,9 +36,15 @@ class TextItem(QGraphicsObject):
         self.box = False
         self.box_color = QColor(0, 0, 0, 150)
         self.text_opacity = 100
+        self.outline = 0.0                   # Spessore del contorno delle lettere in px (0 = senza)
+        self.outline_color = QColor("#000000")
+        self.line_height = 100               # Interlinea in % di quella normale del carattere
+        self.letter_spacing = 0              # Spazio in più tra le lettere, in % della dimensione
         self.locked = False
+        self.group = 0                       # Gruppo di elementi che si selezionano insieme (0 = nessuno)
         self._rect = QRectF()
         self._pad = 0.0
+        self._outline_cache = None
         self._hovered = False
         self._dragging = False
         self.setFlags(
@@ -68,7 +74,12 @@ class TextItem(QGraphicsObject):
             "box": self.box,
             "box_color": self.box_color.name(QColor.NameFormat.HexArgb),
             "opacity": self.text_opacity,
+            "outline": self.outline,
+            "outline_color": self.outline_color.name(QColor.NameFormat.HexArgb),
+            "line_height": self.line_height,
+            "letter_spacing": self.letter_spacing,
             "locked": self.locked,
+            "group": self.group,
         }
 
     def set_state(self, s: dict):
@@ -82,6 +93,11 @@ class TextItem(QGraphicsObject):
         self.shadow = s.get("shadow", True)
         self.box = s.get("box", False)
         self.box_color = QColor(s.get("box_color", "#96000000"))
+        self.outline = float(s.get("outline", 0.0))
+        self.outline_color = QColor(s.get("outline_color", "#FF000000"))
+        self.line_height = int(s.get("line_height", 100))
+        self.letter_spacing = int(s.get("letter_spacing", 0))
+        self.group = int(s.get("group", 0))
         self.relayout(keep_center=False)
         self.setPos(s["x"], s["y"])
         self.setRotation(s.get("rotation", 0.0))
@@ -104,7 +120,13 @@ class TextItem(QGraphicsObject):
         f.setPixelSize(max(4, int(round(self.font_size))))
         f.setBold(self.bold)
         f.setItalic(self.italic)
+        if self.letter_spacing:
+            f.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, self.font_size * self.letter_spacing / 100.0)
         return f
+
+    def _line_step(self, fm: QFontMetricsF) -> float:
+        """Distanza tra l'inizio di una riga e quello della successiva (con l'interlinea scelta)."""
+        return fm.lineSpacing() * self.line_height / 100.0
 
     def _lines(self) -> List[str]:
         return self.text.split("\n") if self.text else [" "]
@@ -119,8 +141,8 @@ class TextItem(QGraphicsObject):
         fm = QFontMetricsF(self._font())
         lines = self._lines()
         w = max(fm.horizontalAdvance(line) for line in lines)
-        h = fm.lineSpacing() * len(lines)
-        self._pad = self.font_size * (0.35 if self.box else 0.08)
+        h = fm.lineSpacing() + self._line_step(fm) * (len(lines) - 1)
+        self._pad = self.font_size * (0.35 if self.box else 0.08) + self.outline
         self._rect = QRectF(0, 0, w + 2 * self._pad, h + 2 * self._pad)
         self.setTransformOriginPoint(self._rect.center())
         if keep_center and old_center is not None:
@@ -170,18 +192,21 @@ class TextItem(QGraphicsObject):
             self.align, Qt.AlignmentFlag.AlignHCenter)
         flags = h_align | Qt.AlignmentFlag.AlignVCenter
         inner = self._rect.adjusted(self._pad, self._pad, -self._pad, -self._pad)
-        y = inner.top()
         off = max(1.0, self.font_size * 0.035)
-        for line in self._lines():
-            line_rect = QRectF(inner.left(), y, inner.width(), fm.lineSpacing())
-            if self.shadow:
-                painter.setPen(QColor(0, 0, 0, 70))
-                painter.drawText(line_rect.translated(off * 0.9, off * 1.8), flags, line)
-                painter.setPen(QColor(0, 0, 0, 110))
-                painter.drawText(line_rect.translated(off * 0.5, off), flags, line)
-            painter.setPen(self.color)
-            painter.drawText(line_rect, flags, line)
-            y += fm.lineSpacing()
+        if self.outline > 0:
+            self._paint_outlined(painter, font, fm, inner, off)
+        else:
+            y = inner.top()
+            for line in self._lines():
+                line_rect = QRectF(inner.left(), y, inner.width(), fm.lineSpacing())
+                if self.shadow:
+                    painter.setPen(QColor(0, 0, 0, 70))
+                    painter.drawText(line_rect.translated(off * 0.9, off * 1.8), flags, line)
+                    painter.setPen(QColor(0, 0, 0, 110))
+                    painter.drawText(line_rect.translated(off * 0.5, off), flags, line)
+                painter.setPen(self.color)
+                painter.drawText(line_rect, flags, line)
+                y += self._line_step(fm)
 
         if clean:
             return
@@ -202,6 +227,41 @@ class TextItem(QGraphicsObject):
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRect(self._rect)
+
+    def _outlined_paths(self, font: QFont, fm: QFontMetricsF, inner: QRectF, pen: QPen):
+        """Tracciati delle lettere e sagoma per l'ombra; ricalcolati solo quando cambia il testo o lo stile."""
+        key = (self.text, font.toString(), self.align, self.line_height, self.outline,
+               inner.left(), inner.top(), inner.width())
+        if self._outline_cache is not None and self._outline_cache[0] == key:
+            return self._outline_cache[1], self._outline_cache[2]
+        path = QPainterPath()
+        y = inner.top()
+        for line in self._lines():
+            adv = fm.horizontalAdvance(line)
+            if self.align == "left":
+                x = inner.left()
+            elif self.align == "right":
+                x = inner.right() - adv
+            else:
+                x = inner.left() + (inner.width() - adv) / 2.0
+            # Stessa linea di base del testo senza contorno (centrato in verticale nella sua riga)
+            path.addText(x, y + (fm.lineSpacing() - fm.height()) / 2.0 + fm.ascent(), font, line)
+            y += self._line_step(fm)
+        # L'ombra segue la sagoma intera, contorno compreso
+        silhouette = QPainterPathStroker(pen).createStroke(path).united(path)
+        self._outline_cache = (key, path, silhouette)
+        return path, silhouette
+
+    def _paint_outlined(self, painter: QPainter, font: QFont, fm: QFontMetricsF, inner: QRectF, off: float):
+        """Testo con contorno: le lettere diventano tracciati, bordati sotto e riempiti sopra."""
+        pen = QPen(self.outline_color, self.outline * 2.0)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        path, silhouette = self._outlined_paths(font, fm, inner, pen)
+        if self.shadow:
+            painter.fillPath(silhouette.translated(off * 0.9, off * 1.8), QColor(0, 0, 0, 70))
+            painter.fillPath(silhouette.translated(off * 0.5, off), QColor(0, 0, 0, 110))
+        painter.strokePath(path, pen)
+        painter.fillPath(path, self.color)
 
     # ---------- Interazione ----------
     def hoverEnterEvent(self, event):

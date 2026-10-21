@@ -175,6 +175,23 @@ def icon_pixmap(name: str, color: str, size: int) -> QPixmap:
     elif name == "duplicate":
         rr(8.5, 8.5, 11.5, 11.5, 1.8)
         poly((4.5, 15.5), (4.5, 4.5), (15.5, 4.5))
+    elif name in ("group", "ungroup"):
+        # Due elementi dentro una cornice tratteggiata (Separa: cornice aperta a metà)
+        rr(6.5, 6.5, 6.5, 6.5, 1.2, brush=tint)
+        rr(11, 11, 6.5, 6.5, 1.2)
+        dash = QPen(pen)
+        dash.setWidthF(1.2)
+        dash.setDashPattern([1.6, 1.8])
+        p.setPen(dash)
+        if name == "group":
+            rr(3, 3, 18, 18, 2.2)
+        else:
+            poly((10, 3), (3, 3), (3, 10))
+            poly((14, 21), (21, 21), (21, 14))
+    elif name == "history":
+        # Orologio con freccia all'indietro
+        arc_arrow(160, -290)
+        poly((12, 8.5), (12, 12.5), (14.8, 14.2))
     elif name == "trash":
         line(4, 7, 20, 7)
         poly((9.5, 7), (9.5, 4.5), (14.5, 4.5), (14.5, 7))

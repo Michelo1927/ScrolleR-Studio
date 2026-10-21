@@ -69,7 +69,7 @@ scrollr/
   shapes.py             graphic shapes: list and geometry (used by the canvas and the icons)
   imaging.py            photo loading (EXIF, ICC → sRGB), color adjustments, cache
   widgets.py            ToggleSwitch, DropZone, library delegate
-  dialogs.py            carousel preview, background dialog
+  dialogs.py            carousel preview, page order, pages to export, background dialog
   canvas/
     photo_item.py       photos on the canvas (crop, inner zoom, borders, snapping)
     text_item.py        text boxes

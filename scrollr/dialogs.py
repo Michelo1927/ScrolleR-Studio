@@ -1,4 +1,4 @@
-"""Finestre di dialogo: anteprima carosello, ordine delle pagine e sfondo."""
+"""Finestre di dialogo: anteprima carosello, ordine delle pagine, pagine da esportare e sfondo."""
 from typing import TYPE_CHECKING
 import os
 from typing import Dict, List
@@ -7,7 +7,8 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QPixmap, QColor, QIcon
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QColorDialog,
-    QButtonGroup, QDialog, QRadioButton, QListWidget, QListWidgetItem, QListView, QAbstractItemView
+    QButtonGroup, QDialog, QRadioButton, QListWidget, QListWidgetItem, QListView, QAbstractItemView, QLineEdit,
+    QSizePolicy
 )
 
 from scrollr.icons import make_icon, rounded_thumb, swatch_icon
@@ -184,6 +185,124 @@ class PageOrderDialog(QDialog):
                        key=lambda it: it.data(Qt.ItemDataRole.UserRole))
         for it in items:
             self.list.addItem(it)
+
+
+class PageExportDialog(QDialog):
+    """
+    Sceglie quali pagine esportare (tutte all'inizio: un clic su una miniatura la toglie o la rimette)
+    e il nome dei file, con l'anteprima del nome che avranno.
+    """
+
+    def __init__(self, thumbs: List[QPixmap], labels: List[str], name: str, ext: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Esporta pagine")
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 16, 16, 12)
+        lay.setSpacing(10)
+        hint = QLabel("Clicca le pagine da esportare (di nuovo per toglierle). Ogni pagina diventa un'immagine.")
+        hint.setObjectName("Hint")
+        hint.setWordWrap(True)
+        lay.addWidget(hint)
+
+        side = 150
+        self.list = QListWidget()
+        self.list.setViewMode(QListView.ViewMode.IconMode)
+        self.list.setFlow(QListView.Flow.LeftToRight)
+        self.list.setWrapping(True)
+        self.list.setResizeMode(QListView.ResizeMode.Adjust)
+        self.list.setMovement(QListView.Movement.Static)
+        self.list.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        self.list.setIconSize(QSize(side, side))
+        self.list.setGridSize(QSize(side + 24, side + 44))
+        self.list.setSpacing(6)
+        self.list.setUniformItemSizes(True)
+        for i, (pm, label) in enumerate(zip(thumbs, labels)):
+            item = QListWidgetItem(QIcon(pm), f"Pagina {i + 1}")
+            item.setData(Qt.ItemDataRole.UserRole, i)
+            item.setToolTip(label)
+            self.list.addItem(item)
+        self.list.selectAll()
+        self.list.itemSelectionChanged.connect(self._refresh)
+        lay.addWidget(self.list, 1)
+
+        self.ext = ext
+        name_row = QHBoxLayout()
+        name_row.setSpacing(8)
+        name_lbl = QLabel("Nome dei file")
+        name_lbl.setObjectName("FieldLabel")
+        name_row.addWidget(name_lbl)
+        self.edit_name = QLineEdit(name)
+        self.edit_name.setPlaceholderText("frame")
+        self.edit_name.setToolTip("Per esempio «viaggio»: le pagine diventano viaggio_01, viaggio_02…\n"
+                                  "Il nome resta salvato nel progetto.")
+        self.edit_name.textChanged.connect(self._refresh)
+        name_row.addWidget(self.edit_name, 1)
+        lay.addLayout(name_row)
+        # Anteprima del nome sotto il campo: se è lunga si accorcia al centro, il campo resta largo uguale
+        self.lbl_example = QLabel()
+        self.lbl_example.setObjectName("Hint")
+        self.lbl_example.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        lay.addWidget(self.lbl_example)
+
+        buttons = QHBoxLayout()
+        self.btn_all = btn_all = QPushButton("Tutte")
+        btn_all.setToolTip("Sceglie tutte le pagine")
+        btn_all.clicked.connect(self.list.selectAll)
+        self.btn_none = btn_none = QPushButton("Nessuna")
+        btn_none.setToolTip("Toglie tutte le pagine, per sceglierne poche")
+        btn_none.clicked.connect(self.list.clearSelection)
+        self.lbl_count = QLabel()
+        self.lbl_count.setObjectName("Hint")
+        cancel = QPushButton("Annulla")
+        cancel.clicked.connect(self.reject)
+        self.btn_export = QPushButton("Esporta")
+        self.btn_export.setObjectName("Primary")
+        self.btn_export.setDefault(True)
+        self.btn_export.clicked.connect(self.accept)
+        buttons.addWidget(btn_all)
+        buttons.addWidget(btn_none)
+        buttons.addSpacing(8)
+        buttons.addWidget(self.lbl_count)
+        buttons.addStretch()
+        buttons.addWidget(cancel)
+        buttons.addWidget(self.btn_export)
+        lay.addLayout(buttons)
+        self._refresh()
+
+        cols = max(1, min(len(thumbs), 5))
+        rows = (len(thumbs) + cols - 1) // cols
+        self.resize(cols * (side + 30) + 60, min(720, rows * (side + 50) + 140))
+
+    def file_name(self) -> str:
+        return self.edit_name.text()
+
+    def pages(self) -> List[int]:
+        """Pagine scelte, in ordine."""
+        return sorted(it.data(Qt.ItemDataRole.UserRole) for it in self.list.selectedItems())
+
+    def _refresh(self):
+        n = len(self.list.selectedItems())
+        total = self.list.count()
+        self.lbl_count.setText("Tutte le pagine" if n == total else
+                               "Nessuna pagina scelta" if n == 0 else
+                               "1 pagina scelta" if n == 1 else f"{n} pagine scelte")
+        self.btn_export.setEnabled(n > 0)
+        self.btn_export.setToolTip("" if n else "Scegli almeno una pagina da esportare")
+        self.btn_all.setEnabled(n < total)
+        self.btn_none.setEnabled(n > 0)
+        pages = self.pages()
+        base = self.edit_name.text().strip() or "frame"
+        first = pages[0] + 1 if pages else 1
+        example = f"I file si chiameranno {base}_{first:02d}{self.ext}" + (", …" if len(pages) > 1 else "")
+        width = self.lbl_example.width()
+        if width > 50:
+            example = self.lbl_example.fontMetrics().elidedText(example, Qt.TextElideMode.ElideMiddle, width)
+        self.lbl_example.setText(example)
+        self.lbl_example.setToolTip(f"{base}_{first:02d}{self.ext}")
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._refresh()
 
 
 class BackgroundDialog(QDialog):

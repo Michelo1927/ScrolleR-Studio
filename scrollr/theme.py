@@ -270,6 +270,11 @@ def build_stylesheet() -> str:
             background-color: @accent_hover;
             border-color: @accent_hover;
         }
+        QPushButton#Primary:disabled, QPushButton#Ghost:disabled, QPushButton#Danger:disabled {
+            background-color: transparent;
+            border-color: @hover;
+            color: @faint;
+        }
         QPushButton#Primary::menu-indicator {
             image: none;
             width: 0;

@@ -34,6 +34,7 @@ class TextMixin:
         t.shadow = dark_bg
         # Etichetta in contrasto col testo: scura dietro il testo bianco, chiara dietro quello scuro
         t.box_color = QColor(0, 0, 0, 150) if dark_bg else QColor(255, 255, 255, 215)
+        t.outline_color = QColor("#000000") if dark_bg else QColor("#FFFFFF")
         t.font_size = round(sc.frame_w * 0.07)
         t.relayout(keep_center=False)
         t.setZValue(self._max_z() + 1.0)
@@ -82,6 +83,12 @@ class TextMixin:
                 t.box = bool(value)
             elif prop == "opacity":
                 t.set_text_opacity(value)
+            elif prop == "outline":
+                t.outline = float(value)
+            elif prop == "line_height":
+                t.line_height = int(value)
+            elif prop == "letter_spacing":
+                t.letter_spacing = int(value)
             t.relayout()
         if prop == "box":
             self.btn_box_color.setEnabled(bool(value))
@@ -91,14 +98,19 @@ class TextMixin:
         texts = self._selected_texts()
         if not texts:
             return
-        initial = texts[0].color if which == "color" else texts[0].box_color
+        initial = {"color": texts[0].color, "box": texts[0].box_color, "outline": texts[0].outline_color}[which]
         options = QColorDialog.ColorDialogOption.ShowAlphaChannel if which == "box" else QColorDialog.ColorDialogOption(0)
-        col = QColorDialog.getColor(initial, self, "Colore del testo" if which == "color" else "Colore dell'etichetta", options)
+        title = {"color": "Colore del testo", "box": "Colore dell'etichetta", "outline": "Colore del contorno"}[which]
+        col = QColorDialog.getColor(initial, self, title, options)
         if not col.isValid():
             return
         for t in texts:
             if which == "color":
                 t.color = col
+            elif which == "outline":
+                t.outline_color = col
+                if t.outline <= 0:
+                    t.outline = max(2.0, round(t.font_size * 0.05))  # Scelto il colore: il contorno si vede subito
             else:
                 t.box_color = col
                 t.box = True

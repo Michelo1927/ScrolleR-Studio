@@ -1,17 +1,19 @@
 """Inspector e modifica degli elementi selezionati."""
+import json
 import math
 import os
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import Qt, QMimeData, QRectF
 from PyQt6.QtGui import QColor, QFont
-from PyQt6.QtWidgets import QColorDialog, QMenu
+from PyQt6.QtWidgets import QApplication, QColorDialog, QMenu
 
 from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
+from scrollr.config import ELEMENTS_MIME
 from scrollr.icons import make_icon, rounded_thumb, swatch_icon
-from scrollr.imaging import NEUTRAL_ADJUST
+from scrollr.imaging import IMAGE_CACHE, NEUTRAL_ADJUST
 from scrollr.keys import kb
 from scrollr.theme import THEME
 
@@ -25,7 +27,158 @@ class InspectorMixin:
         return selected[0] if selected else None
 
     def _on_selection_changed(self):
+        if self._expanding_groups:
+            return
+        self._expand_group_selection()
         self._sync_inspector_from_item(self._get_primary_selected())
+
+    # ---------- Gruppi ----------
+    def _expand_group_selection(self):
+        """
+        Gli elementi di un gruppo si selezionano tutti insieme (e quindi si spostano insieme).
+        Se ne viene tolto uno dalla selezione (Ctrl+clic) si toglie l'intero gruppo.
+        """
+        now = set(self._selected_elements())
+        removed = set()
+        # Col tasto premuto si sta disegnando il riquadro di selezione: lì si aggiunge soltanto,
+        # altrimenti un gruppo toccato solo in parte si accenderebbe e spegnerebbe a ogni movimento
+        if not QApplication.mouseButtons() & Qt.MouseButton.LeftButton:
+            removed = {it.group for it in self._prev_selection - now if it.group and it.scene() is self.scene}
+        added = {it.group for it in now if it.group} - removed
+        if removed or added:
+            self._expanding_groups = True
+            try:
+                for it in self._all_elements():
+                    if it.group in removed:
+                        it.setSelected(False)
+                    elif it.group in added:
+                        it.setSelected(True)
+            finally:
+                self._expanding_groups = False
+        self._prev_selection = set(self._selected_elements())
+
+    def _new_group_id(self) -> int:
+        return max([it.group for it in self._all_elements()], default=0) + 1
+
+    def _group_selected(self):
+        selected = self._selected_elements()
+        if len(selected) < 2:
+            self.statusBar().showMessage("Seleziona almeno 2 elementi da raggruppare (Ctrl+clic)", 4000)
+            return
+        gid = self._new_group_id()
+        for it in selected:
+            it.group = gid
+        self.statusBar().showMessage(kb(f"{len(selected)} elementi raggruppati: si selezionano e si spostano insieme "
+                                        "(Ctrl+Shift+G per separarli)"), 5000)
+        self._update_align_ui()
+        self._schedule_commit()
+
+    def _ungroup_selected(self):
+        grouped = [it for it in self._selected_elements() if it.group]
+        if not grouped:
+            self.statusBar().showMessage("Nessun gruppo selezionato", 3000)
+            return
+        for it in grouped:
+            it.group = 0
+        self.statusBar().showMessage("Gruppo separato: ora gli elementi si spostano uno per uno", 4000)
+        self._update_align_ui()
+        self._schedule_commit()
+
+    def _selection_is_one_group(self) -> bool:
+        groups = {it.group for it in self._selected_elements()}
+        return len(groups) == 1 and 0 not in groups
+
+    # ---------- Copia, taglia e incolla elementi ----------
+    def _copy_selected(self) -> bool:
+        """Copia foto, testi e forme selezionati negli appunti (vale anche tra due progetti)."""
+        selected = self._selected_elements()
+        if not selected:
+            self.statusBar().showMessage("Seleziona prima gli elementi da copiare", 3000)
+            return False
+        entries = []
+        for it in sorted(selected, key=lambda x: x.zValue()):
+            kind = "text" if isinstance(it, TextItem) else "shape" if isinstance(it, ShapeItem) else "photo"
+            entries.append({"type": kind, "state": it.get_state()})
+        rect = self._element_rect(selected[0])
+        for it in selected[1:]:
+            rect = rect.united(self._element_rect(it))
+        page = round(self._page_rect_at(rect.center().x()).left() / self.scene.frame_w)
+        mime = QMimeData()
+        mime.setData(ELEMENTS_MIME, json.dumps({"page": page, "elements": entries}).encode("utf-8"))
+        QApplication.clipboard().setMimeData(mime)
+        self._paste_serial = 0
+        n = len(entries)
+        self.statusBar().showMessage("1 elemento copiato" if n == 1 else f"{n} elementi copiati", 3000)
+        return True
+
+    def _cut_selected(self):
+        if self._copy_selected():
+            self._delete_selected()
+            self._paste_serial = -1  # L'originale non c'è più: il primo Incolla lo rimette dov'era
+
+    @staticmethod
+    def _clipboard_elements() -> Optional[dict]:
+        mime = QApplication.clipboard().mimeData()
+        if mime is None or not mime.hasFormat(ELEMENTS_MIME):
+            return None
+        try:
+            data = json.loads(bytes(mime.data(ELEMENTS_MIME)).decode("utf-8"))
+        except ValueError:
+            return None
+        return data if isinstance(data, dict) and data.get("elements") else None
+
+    def _paste_elements(self, page: Optional[int] = None):
+        """
+        Incolla gli elementi copiati nella pagina indicata (di base l'ultima pagina cliccata,
+        altrimenti quella al centro della vista),
+        nella stessa posizione che avevano nella loro pagina. Nella stessa pagina si spostano un po',
+        così la copia non copre l'originale. Le foto incollate sono foto libere: restano dove sono.
+        """
+        data = self._clipboard_elements()
+        if data is None:
+            self.statusBar().showMessage("Non c'è niente da incollare: copia prima foto, testi o forme", 4000)
+            return
+        if not isinstance(page, int) or isinstance(page, bool):
+            page = self.scene.last_click_page
+        if page is None or not (0 <= page < self.scene.num_frames):
+            page = round(self._page_rect_at(self._visible_center_scene().x()).left() / self.scene.frame_w)
+        src = int(data.get("page", 0))
+        dx = (page - src) * self.scene.frame_w
+        dy = 0.0
+        if page == src:
+            self._paste_serial += 1
+            dx = dy = 30.0 * self._paste_serial
+        # Foto copiate da un altro progetto: entrano anche nella libreria
+        paths = [e["state"]["path"] for e in data["elements"] if e["type"] == "photo"]
+        new_paths = [p for p in dict.fromkeys(paths) if not IMAGE_CACHE.has(p) and os.path.isfile(p)]
+        if new_paths:
+            self._load_into_library(new_paths, "Caricamento foto…")
+        first_group = self._new_group_id()
+        groups = {}  # Gruppi copiati → gruppi nuovi, separati dagli originali
+        pasted = []
+        for e in data["elements"]:
+            state = dict(e["state"])
+            if e["type"] == "text":
+                item = self._spawn_text_item()
+            elif e["type"] == "shape":
+                item = self._spawn_shape_item(state.get("kind", "rect"))
+            else:
+                item = self._spawn_photo_item(state["path"])
+                state.update(layout_index=item.layout_index, free=True)
+            if state.get("group"):
+                groups.setdefault(state["group"], first_group + len(groups))
+            state.update(uid=item.uid, z=self._max_z() + 1.0, x=state["x"] + dx, y=state["y"] + dy,
+                         locked=False, group=groups.get(state.get("group"), 0))
+            item.set_state(state)
+            pasted.append(item)
+        self.scene.clearSelection()
+        for item in pasted:
+            item.setSelected(True)
+        self._update_canvas_count()
+        n = len(pasted)
+        self.statusBar().showMessage(("1 elemento incollato" if n == 1 else f"{n} elementi incollati")
+                                     + f" nella pagina {page + 1}", 3000)
+        self._schedule_commit()
 
     def _on_item_geometry_changed(self, item):
         primary = self._get_primary_selected()
@@ -104,9 +257,18 @@ class InspectorMixin:
         self.chk_text_shadow.setChecked(t.shadow)
         self.chk_text_box.setChecked(t.box)
         self.slider_text_opacity.setValue(t.text_opacity)
+        self.slider_text_outline.setValue(round(t.outline))
+        self.btn_outline_color.setIcon(swatch_icon(t.outline_color))
+        self.slider_line_height.setValue(t.line_height)
+        self.slider_letter_spacing.setValue(t.letter_spacing)
 
     def _update_align_ui(self):
         n = len(self._selected_elements())
+        one_group = self._selection_is_one_group()
+        for b in self._group_buttons:
+            b.setEnabled(n >= 2 and not one_group)
+        for b in self._ungroup_buttons:
+            b.setEnabled(any(it.group for it in self._selected_elements()))
         text = ("Allinea alla pagina in cui si trova." if n <= 1
                 else f"Allinea i {n} elementi selezionati tra loro.")
         for hint in self._align_hints:
@@ -420,8 +582,12 @@ class InspectorMixin:
         if not selected:
             return
         duplicates = []
+        first_group = self._new_group_id()
+        groups = {}  # La copia di un gruppo diventa un gruppo nuovo, separato dall'originale
         for item in selected:
             state = item.get_state()
+            if item.group:
+                state["group"] = groups.setdefault(item.group, first_group + len(groups))
             if isinstance(item, TextItem):
                 dup = self._spawn_text_item()
                 state.update(uid=dup.uid, z=self._max_z() + 1.0, x=state["x"] + 30, y=state["y"] + 30, locked=False)
@@ -474,7 +640,17 @@ class InspectorMixin:
         elements = self._selected_elements()
         has_el = bool(elements)
         locked = has_el and all(it.locked for it in elements)
+        k = max(0, min(self.scene.num_frames - 1, int(math.floor(scene_pt.x() / self.scene.frame_w))))
         menu = QMenu(self)
+        act = menu.addAction(make_icon("duplicate", THEME["text"], 16), "Copia", self._copy_selected)
+        act.setEnabled(has_el)
+        act = menu.addAction(make_icon("plus", THEME["text"], 16), "Incolla qui", lambda: self._paste_elements(k))
+        act.setEnabled(self._clipboard_elements() is not None)
+        if len(elements) >= 2 and not self._selection_is_one_group():
+            menu.addAction(make_icon("group", THEME["text"], 16), "Raggruppa", self._group_selected)
+        if any(it.group for it in elements):
+            menu.addAction(make_icon("ungroup", THEME["text"], 16), "Separa il gruppo", self._ungroup_selected)
+        menu.addSeparator()
         menu.addAction(make_icon("text", THEME["text"], 16), "Aggiungi un testo qui", lambda: self.add_text(scene_pt))
         self._fill_shape_menu(menu.addMenu(make_icon("shape", THEME["text"], 16), "Aggiungi una forma qui"), scene_pt)
         entries = [
@@ -508,7 +684,6 @@ class InspectorMixin:
             act.triggered.connect(slot)
 
         # Gestione della pagina sotto il cursore
-        k = max(0, min(self.scene.num_frames - 1, int(math.floor(scene_pt.x() / self.scene.frame_w))))
         n = self.scene.num_frames
         movable = [p for p in self._selected_photos() if not p.free]
         if movable and self._pages_split():
@@ -524,6 +699,8 @@ class InspectorMixin:
         page_menu = menu.addMenu(make_icon("page", THEME["text"], 16), f"Pagina {k + 1}")
         page_menu.addAction("Aggiungi una pagina prima di questa", lambda: self._insert_page_at(k))
         page_menu.addAction("Aggiungi una pagina dopo questa", lambda: self._insert_page_after(k))
+        page_menu.addAction(make_icon("duplicate", THEME["text"], 16), "Duplica questa pagina",
+                            lambda: self._duplicate_page(k))
         a = page_menu.addAction("Sposta a sinistra", lambda: self._move_page(k, -1))
         a.setEnabled(k > 0)
         a = page_menu.addAction("Sposta a destra", lambda: self._move_page(k, 1))
@@ -533,6 +710,9 @@ class InspectorMixin:
         page_menu.addSeparator()
         self._fill_page_layout_menu(page_menu.addMenu("Disposizione di questa pagina"), k)
         self._fill_page_count_menu(page_menu.addMenu("Foto in questa pagina"), k)
+        page_menu.addSeparator()
+        page_menu.addAction(make_icon("export", THEME["text"], 16), "Esporta questa pagina…",
+                            lambda: self.export_split_frames([k]))
         page_menu.addSeparator()
         a = page_menu.addAction("Elimina questa pagina…", lambda: self._delete_page(k))
         a.setEnabled(n > 1)

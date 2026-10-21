@@ -69,6 +69,7 @@ class PhotoItem(QGraphicsObject):
         self.photo_opacity = 100
         self.shadow = 0             # Intensità dell'ombra 0..100
         self.locked = False
+        self.group = 0              # Gruppo di elementi che si selezionano insieme (0 = nessuno)
         self.free = False           # Foto libera: fuori dalla disposizione automatica, si muove a mano
         # Riquadro prima di "Proporzioni foto", per poterci tornare con un clic
         self.saved_cell: Optional[dict] = None
@@ -176,6 +177,7 @@ class PhotoItem(QGraphicsObject):
             "locked": self.locked,
             "free": self.free,
             "saved_cell": dict(self.saved_cell) if self.saved_cell else None,
+            "group": self.group,
         }
 
     def set_state(self, s: dict):
@@ -201,6 +203,7 @@ class PhotoItem(QGraphicsObject):
         self.set_locked(s.get("locked", False))
         self.set_free(s.get("free", False))
         self.saved_cell = dict(s["saved_cell"]) if s.get("saved_cell") else None
+        self.group = int(s.get("group", 0))
         self.update()
 
     # ---------- Geometria ----------
