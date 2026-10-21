@@ -11,8 +11,9 @@ from PyQt6.QtWidgets import (
 
 from scrollr import __version__
 from scrollr.config import REPO_URL
+from scrollr.dialogs import ShortcutsDialog
 from scrollr.icons import icon_pixmap, make_icon
-from scrollr.keys import kb
+from scrollr.keys import HISTORY_KEY, kb
 from scrollr.theme import THEME
 
 
@@ -430,7 +431,7 @@ class UiMixin:
         sb.addPermanentWidget(self.lbl_count)
         sb.addPermanentWidget(self._vsep())
         sb.addPermanentWidget(self._icon_button("history", kb("Cronologia: l'elenco delle modifiche, per tornare indietro "
-                                                             "di più passi in una volta (Ctrl+H)"),
+                                                             f"di più passi in una volta ({HISTORY_KEY})"),
                                                 self.show_history_panel, "Cronologia"))
         sb.addPermanentWidget(self._vsep())
         sb.addPermanentWidget(self._icon_button("minus", "Riduci zoom", lambda: self._zoom_view(1 / 1.25)))
@@ -565,7 +566,7 @@ class UiMixin:
 
         m_view = menubar.addMenu("&Vista")
         make("Anteprima carosello", self.show_carousel_preview, QKeySequence("F5"), m_view)
-        make("Cronologia…", self.show_history_panel, QKeySequence("Ctrl+H"), m_view)
+        make("Cronologia…", self.show_history_panel, QKeySequence(HISTORY_KEY), m_view)
         self.act_grid_pages = make("Pagine a scacchiera", lambda on: self._set_page_view(on), None, m_view)
         self.act_grid_pages.setCheckable(True)
         m_view.addSeparator()
@@ -574,7 +575,9 @@ class UiMixin:
         make("Dimensioni reali (100%)", self._zoom_actual_size, QKeySequence("Ctrl+1"), m_view)
         make("Adatta alla finestra", self.fit_canvas_in_view, QKeySequence("Ctrl+0"), m_view)
 
-        m_help = menubar.addMenu("&?")
+        m_help = menubar.addMenu("&Guida")
+        make("Scorciatoie da tastiera e mouse…", self.show_shortcuts, QKeySequence("F1"), m_help)
+        m_help.addSeparator()
         make("Pagina del progetto su GitHub", lambda *_: QDesktopServices.openUrl(QUrl(REPO_URL)), None, m_help)
         make("Scarica l'ultima versione", lambda *_: QDesktopServices.openUrl(QUrl(REPO_URL + "/releases/latest")),
              None, m_help)
@@ -593,6 +596,10 @@ class UiMixin:
             make("", lambda _c=False, a=dx, b=dy: self._nudge_selected(a * 10, b * 10),
                  QKeySequence(QKeyCombination(Qt.KeyboardModifier.ShiftModifier, key)), target=[self.view, self.page_grid])
         self._update_undo_actions()
+
+    def show_shortcuts(self):
+        """Guida → Scorciatoie (F1): tutti i tasti e i gesti del mouse."""
+        ShortcutsDialog(self).exec()
 
     def show_about(self):
         """Versione, link al progetto e licenza."""

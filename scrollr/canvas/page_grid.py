@@ -61,16 +61,20 @@ class PageTileView(CanvasView):
         if sc.is_exporting or sc.clean_render:
             return
         # Fuori dalla pagina si vedrebbero i bordi delle pagine vicine: coperti del tutto dallo sfondo
+        # La copertura è allineata ai pixel dello schermo, così sui bordi non restano filini sfumati
         page = self.page_rect()
-        outer = QPainterPath()
-        outer.addRect(rect)
-        inner = QPainterPath()
-        inner.addRect(page)
-        painter.fillPath(outer.subtracted(inner), QColor(THEME["backdrop"]))
-        # Etichetta della pagina, in pixel dello schermo
-        top_left = painter.worldTransform().map(page.topLeft())
+        dev = painter.worldTransform().mapRect(page)
+        page_px = QRectF(QPointF(round(dev.left()), round(dev.top())), QPointF(round(dev.right()), round(dev.bottom())))
+        top_left = page_px.topLeft()
         painter.save()
         painter.resetTransform()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        outer = QPainterPath()
+        outer.addRect(QRectF(self.viewport().rect()).adjusted(-2, -2, 2, 2))
+        inner = QPainterPath()
+        inner.addRect(page_px)
+        painter.fillPath(outer.subtracted(inner), QColor(THEME["backdrop"]))
+        # Etichetta della pagina, in pixel dello schermo
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
         painter.setFont(ui_font(11))
         painter.setPen(QColor(THEME["muted"]))
@@ -94,6 +98,7 @@ class PageGridView(QScrollArea):
         self.columns = 1
         self.tiles: List[PageTileView] = []
         self._shape = None  # (pagine, larghezza, altezza) delle viste costruite
+        self._drag = None   # Trascinamento tra le pagine: (tasto, inizio, ultimo punto, spostato)
         self.setObjectName("PageGridArea")
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setWidgetResizable(True)
@@ -191,9 +196,47 @@ class PageGridView(QScrollArea):
         self.set_scale(self.scale * factor)
 
     def wheelEvent(self, event):
-        # Rotella = zoom, come sulla tela in fila (per muoversi ci sono le barre)
+        # Rotella = zoom, come sulla tela in fila
         self.zoom_by(1.15 if event.angleDelta().y() > 0 else 1.0 / 1.15)
         event.accept()
+
+    # ---------- Trascinamento dello spazio tra le pagine: sposta la griglia ----------
+    def mousePressEvent(self, event):
+        if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.MiddleButton):
+            self._drag = (event.button(), event.globalPosition(), event.globalPosition(), False)
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        drag = self._drag
+        if drag is None:
+            super().mouseMoveEvent(event)
+            if event.buttons() == Qt.MouseButton.NoButton:
+                self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
+            return
+        button, origin, last, moved = drag
+        pos = event.globalPosition()
+        if not moved and (pos - origin).manhattanLength() < PageTileView.DRAG_THRESHOLD:
+            return
+        self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
+        delta = pos - last
+        self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - round(delta.x()))
+        self.verticalScrollBar().setValue(self.verticalScrollBar().value() - round(delta.y()))
+        self._drag = (button, origin, pos, True)
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        drag = self._drag
+        if drag is not None and event.button() == drag[0]:
+            self._drag = None
+            if not drag[3] and event.button() == Qt.MouseButton.LeftButton \
+                    and not event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                self._scene.clearSelection()  # Clic semplice tra le pagine: toglie la selezione
+            self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     # ---------- Posizione ----------
     def visible_center_scene(self) -> QPointF:

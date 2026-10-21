@@ -1,4 +1,4 @@
-"""Finestre di dialogo: anteprima carosello, ordine delle pagine, pagine da esportare e sfondo."""
+"""Finestre di dialogo: anteprima carosello, ordine delle pagine, pagine da esportare, scorciatoie e sfondo."""
 from typing import TYPE_CHECKING
 import os
 from typing import Dict, List
@@ -8,10 +8,11 @@ from PyQt6.QtGui import QPixmap, QColor, QIcon
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QColorDialog,
     QButtonGroup, QDialog, QRadioButton, QListWidget, QListWidgetItem, QListView, QAbstractItemView, QLineEdit,
-    QSizePolicy
+    QSizePolicy, QScrollArea, QGridLayout, QFrame
 )
 
 from scrollr.icons import make_icon, rounded_thumb, swatch_icon
+from scrollr.keys import SHORTCUTS, kb
 from scrollr.imaging import IMAGE_CACHE
 from scrollr.theme import THEME
 
@@ -303,6 +304,63 @@ class PageExportDialog(QDialog):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._refresh()
+
+
+class ShortcutsDialog(QDialog):
+    """Guida → Scorciatoie: tasti e gesti del mouse, divisi per argomento."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Scorciatoie da tastiera e mouse")
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(16, 16, 16, 12)
+        outer.setSpacing(10)
+        intro = QLabel("Le scorciatoie valgono quando la tela è attiva (clicca sulla tela se non rispondono).")
+        intro.setObjectName("Hint")
+        intro.setWordWrap(True)
+        outer.addWidget(intro)
+
+        body = QWidget()
+        body.setObjectName("Panel")
+        grid = QGridLayout(body)
+        grid.setContentsMargins(0, 0, 8, 0)
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(5)
+        grid.setColumnStretch(1, 1)
+        row = 0
+        for section, entries in SHORTCUTS:
+            if row:
+                grid.setRowMinimumHeight(row, 10)
+                row += 1
+            title = QLabel(section)
+            title.setObjectName("SectionTitle")
+            grid.addWidget(title, row, 0, 1, 2)
+            row += 1
+            for keys, action in entries:
+                chip = QLabel(kb(keys))
+                chip.setObjectName("ValueChip")
+                chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                grid.addWidget(chip, row, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                text = QLabel(action)
+                text.setWordWrap(True)
+                grid.addWidget(text, row, 1, Qt.AlignmentFlag.AlignVCenter)
+                row += 1
+        scroll = QScrollArea()
+        scroll.setObjectName("PanelScroll")
+        scroll.setWidget(body)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        outer.addWidget(scroll, 1)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch()
+        close = QPushButton("Chiudi")
+        close.setObjectName("Primary")
+        close.setDefault(True)
+        close.clicked.connect(self.accept)
+        buttons.addWidget(close)
+        outer.addLayout(buttons)
+        self.resize(620, 640)
 
 
 class BackgroundDialog(QDialog):

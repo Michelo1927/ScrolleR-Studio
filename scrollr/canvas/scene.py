@@ -271,7 +271,8 @@ class CollageScene(QGraphicsScene):
                 painter.drawLine(QPointF(cx, 0), QPointF(cx, self.frame_h))
 
         # Giunzioni tra le pagine del carosello: sempre visibili, come guide piene
-        if self.num_frames > 1:
+        # (non a scacchiera: lì le pagine sono già separate e la linea resterebbe a metà sul bordo)
+        if self.num_frames > 1 and not self.grid_mode:
             sep_pen = QPen(QColor(THEME["guide"]), 1.0, Qt.PenStyle.SolidLine)
             sep_pen.setCosmetic(True)
             painter.setPen(sep_pen)

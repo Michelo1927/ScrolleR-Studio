@@ -203,8 +203,8 @@ class InspectorMixin:
         else:
             self.insp_stack.setCurrentIndex(0 if item is None else 1)
         if item is None and not texts and not shapes:
-            self.lbl_hint.setText("Clicca una foto per selezionarla.   Rotella: zoom della vista.   "
-                                  "Tasto centrale + trascina: sposta la vista.")
+            self.lbl_hint.setText(kb("Trascina sul vuoto: sposta la vista.   Shift + trascina: seleziona più elementi.   "
+                                     "Rotella: zoom.   F1: tutte le scorciatoie."))
         elif item is not None:
             self.lbl_selection_thumb.setPixmap(rounded_thumb(item.display_pixmap(), 40, 2))
             if count > 1:
