@@ -24,7 +24,7 @@ class ExportMixin:
 
     def _save_image(self, img: QImage, path: str) -> bool:
         if path.lower().endswith((".jpg", ".jpeg")):
-            return img.convertToFormat(QImage.Format.Format_RGB32).save(path, "JPG", self.spin_jpg_quality.value())
+            return img.convertToFormat(QImage.Format.Format_RGB32).save(path, "JPG", self.combo_jpg_quality.currentData())
         # PNG resta senza perdite; con una compressione un po' più bassa si salva in circa metà tempo
         return img.save(path, "PNG", 80)
 

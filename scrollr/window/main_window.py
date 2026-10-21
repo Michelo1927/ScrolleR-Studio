@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QPointF, QTimer
 from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QMainWindow, QColorDialog
+from PyQt6.QtWidgets import QApplication, QMainWindow, QColorDialog
 
 from scrollr.canvas.page_grid import PageGridView
 from scrollr.canvas.scene import CollageScene
@@ -13,6 +13,7 @@ from scrollr.dialogs import BackgroundDialog
 from scrollr.icons import app_icon
 from scrollr.imaging import IMAGE_CACHE, image_paths_from_mime
 from scrollr.theme import build_stylesheet
+from scrollr.widgets import WheelGuard
 from scrollr.window.export import ExportMixin
 from scrollr.window.history import HistoryMixin
 from scrollr.window.inspector import InspectorMixin
@@ -130,6 +131,10 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self._autosave_timer.setInterval(60_000)
         self._autosave_timer.timeout.connect(self._autosave)
         self._autosave_timer.start()
+
+        # Rotella sopra tendine, slider e caselle numeriche: scorre il pannello, non cambia il valore
+        self._wheel_guard = WheelGuard(self)
+        QApplication.instance().installEventFilter(self._wheel_guard)
 
         self._apply_theme()
         self._build_ui()

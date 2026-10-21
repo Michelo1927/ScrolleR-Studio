@@ -395,18 +395,21 @@ class UiMixin:
         self.combo_format.addItems(["PNG (massima qualità)", "JPG (file leggeri)"])
         self.combo_format.setToolTip("Tipo di file esportato.\nJPG pesa molto meno ed è ideale per Instagram.")
         bar.addWidget(self.combo_format)
-        # Qualità JPG: compare solo scegliendo JPG (più alta = file più pesante)
-        self.spin_jpg_quality = QSpinBox()
-        self.spin_jpg_quality.setRange(50, 100)
-        self.spin_jpg_quality.setPrefix("Qualità ")
-        self.spin_jpg_quality.setSuffix("%")
-        self.spin_jpg_quality.setValue(self._settings().value("jpg_quality", 92, type=int))
-        self.spin_jpg_quality.setToolTip("Qualità dei file JPG: più alta = più dettagli e file più pesanti.\n"
-                                         "92% va bene quasi sempre; sotto l'80% si possono vedere difetti.")
-        self.spin_jpg_quality.valueChanged.connect(lambda v: self._settings().setValue("jpg_quality", v))
-        self.combo_format.currentIndexChanged.connect(lambda i: self.spin_jpg_quality.setVisible(i == 1))
-        self.spin_jpg_quality.setVisible(False)
-        bar.addWidget(self.spin_jpg_quality)
+        # Qualità JPG: compare solo scegliendo JPG (più alta = più dettagli e file più pesante)
+        self.combo_jpg_quality = QComboBox()
+        for value, text in ((100, "JPG massimo (100%)"), (95, "JPG molto alto (95%)"), (92, "JPG alto (92%)"),
+                            (85, "JPG medio (85%)"), (75, "JPG leggero (75%)")):
+            self.combo_jpg_quality.addItem(text, value)
+        saved = self._settings().value("jpg_quality", 92, type=int)
+        self.combo_jpg_quality.setCurrentIndex(min(range(self.combo_jpg_quality.count()),
+                                                   key=lambda i: abs(self.combo_jpg_quality.itemData(i) - saved)))
+        self.combo_jpg_quality.setToolTip("Qualità dei file JPG: più alta = più dettagli e file più pesanti.\n"
+                                          "Alto (92%) va bene quasi sempre; con Leggero si possono vedere difetti.")
+        self.combo_jpg_quality.currentIndexChanged.connect(
+            lambda _i: self._settings().setValue("jpg_quality", self.combo_jpg_quality.currentData()))
+        self.combo_format.currentIndexChanged.connect(lambda i: self.combo_jpg_quality.setVisible(i == 1))
+        self.combo_jpg_quality.setVisible(False)
+        bar.addWidget(self.combo_jpg_quality)
         self.combo_quality = QComboBox()
         self.combo_quality.addItems(["Qualità standard (1×)", "Alta definizione (2×)"])
         self.combo_quality.setCurrentIndex(1)  # 2× di default per massima nitidezza

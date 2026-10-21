@@ -1,15 +1,37 @@
 """Widget personalizzati dell'interfaccia."""
-from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, QEvent, QObject, QRectF, QPointF, pyqtSignal, QSize
 from PyQt6.QtGui import QPainter, QPen, QColor, QFont, QPolygonF, QFontMetricsF
 from PyQt6.QtWidgets import (
     QFrame, QCheckBox, QStyledItemDelegate, QStyle, QListWidget, QWidget, QGridLayout, QToolButton,
-    QButtonGroup, QColorDialog
+    QButtonGroup, QColorDialog, QApplication, QComboBox, QAbstractSlider, QAbstractSpinBox, QScrollBar,
+    QAbstractScrollArea
 )
 
 from scrollr.config import LIBRARY_MIME
 
 from scrollr.icons import color_wheel_icon, icon_pixmap, no_color_icon, swatch_icon
 from scrollr.theme import SWATCHES, THEME, ui_font
+
+
+# ================= ROTELLA DEL MOUSE =================
+class WheelGuard(QObject):
+    """
+    La rotella non cambia menu a tendina, slider e caselle numeriche passandoci sopra (così scorrendo
+    il pannello non si cambiano per sbaglio pagine o impostazioni): fa scorrere il pannello che li contiene.
+    I valori si cambiano con clic, trascinamento o tastiera.
+    """
+
+    def eventFilter(self, obj, event):
+        if event.type() != QEvent.Type.Wheel or not isinstance(obj, (QComboBox, QAbstractSlider, QAbstractSpinBox))                 or isinstance(obj, QScrollBar):
+            return False
+        parent = obj.parentWidget()
+        while parent is not None and not isinstance(parent, QAbstractScrollArea):
+            parent = parent.parentWidget()
+        if parent is not None:
+            bar = parent.verticalScrollBar()
+            if bar.isVisible():
+                QApplication.sendEvent(bar, event)
+        return True
 
 
 # ================= WIDGET PERSONALIZZATI =================
