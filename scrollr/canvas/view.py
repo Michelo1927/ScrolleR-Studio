@@ -1,5 +1,5 @@
 """Vista della tela: zoom, pan e trascinamento file."""
-from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal
+from PyQt6.QtCore import Qt, QEvent, QRectF, QPointF, pyqtSignal
 from PyQt6.QtGui import QPainter
 from PyQt6.QtWidgets import QGraphicsView, QFrame
 
@@ -7,12 +7,55 @@ from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.scene import CollageScene
 from scrollr.config import LIBRARY_MIME
 from scrollr.imaging import image_paths_from_mime
+from scrollr.keys import IS_MAC
+
+
+def is_trackpad_scroll(event) -> bool:
+    """
+    Scorrimento con due dita sul trackpad (e non rotella del mouse). Qt non lo dice in modo sicuro:
+    il trackpad ha le fasi del gesto o i pixel (Mac), oppure passi piccoli e continui; la rotella
+    scatta a gradini di 120.
+    """
+    if event.phase() != Qt.ScrollPhase.NoScrollPhase or not event.pixelDelta().isNull():
+        return True
+    if IS_MAC:
+        return False  # Sul Mac il mouse ha l'accelerazione (passi non a 120) ma niente pixel precisi
+    d = event.angleDelta()
+    return d.x() % 120 != 0 or d.y() % 120 != 0
+
+
+def wheel_action(event, mode: str):
+    """
+    Cosa fa una rotella o uno scorrimento sulla tela:
+    ("zoom", fattore) · ("pan", dx, dy) in pixel · ("inner", verso) per lo zoom dentro la foto · ("none",).
+    `mode`: "auto" = trackpad sposta e rotella zooma, "zoom" = sempre zoom, "pan" = sempre sposta.
+    """
+    mods = event.modifiers()
+    d = event.angleDelta()
+    if mods & Qt.KeyboardModifier.AltModifier:
+        # Con Alt Windows può girare la rotella in orizzontale: vale la direzione che c'è
+        step = d.y() or d.x()
+        return ("inner", step) if step else ("none",)
+    if mods & Qt.KeyboardModifier.ControlModifier:
+        # Ctrl + rotella e pizzico sul trackpad di Windows: zoom graduale, che segue il gesto
+        return ("zoom", 1.15 ** (d.y() / 120.0)) if d.y() else ("none",)
+    trackpad = is_trackpad_scroll(event)
+    if mode == "pan" or (mode == "auto" and trackpad):
+        pixels = event.pixelDelta()
+        dx, dy = (pixels.x(), pixels.y()) if not pixels.isNull() else (d.x(), d.y())
+        if mods & Qt.KeyboardModifier.ShiftModifier and not dx:
+            dx, dy = dy, 0  # Shift + rotella del mouse: in orizzontale
+        return ("pan", dx, dy) if (dx or dy) else ("none",)
+    if not d.y():
+        return ("none",)
+    return ("zoom", 1.15 ** (d.y() / 120.0))
 
 
 class CanvasView(QGraphicsView):
     """
-    Vista interattiva: zoom con la rotella, spostamento trascinando lo spazio vuoto (o col tasto centrale),
-    selezione a riquadro con Shift + trascinamento e drag-and-drop di file immagine dal PC.
+    Vista interattiva: zoom con rotella, Ctrl + rotella o pizzico; spostamento con due dita sul trackpad,
+    trascinando lo spazio vuoto o col tasto centrale; selezione a riquadro con Shift + trascinamento;
+    drag-and-drop di file immagine dal PC.
     """
     files_dropped = pyqtSignal(list, QPointF)     # File dal PC, punto della tela dove sono rilasciati
     library_dropped = pyqtSignal(list, QPointF)   # Miniature trascinate dalla libreria
@@ -32,7 +75,7 @@ class CanvasView(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
         # Il riquadro di selezione si accende solo con Shift (vedi mousePressEvent)
         self.setDragMode(QGraphicsView.DragMode.NoDrag)
-        # Barre di scorrimento per muoversi sulla tela (anche con la rotella del mouse si fa zoom)
+        # Barre di scorrimento per muoversi sulla tela (anche con due dita sul trackpad o trascinando)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setFrameShape(QFrame.Shape.NoFrame)
@@ -60,21 +103,64 @@ class CanvasView(QGraphicsView):
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.zoom_changed.emit(self.current_scale())
 
+    def zoom_at(self, factor: float, view_pos: QPointF):
+        """Zoom tenendo fermo il punto della tela sotto `view_pos` (la posizione del mouse nella vista)."""
+        target = self.current_scale() * factor
+        if not (self.MIN_SCALE <= target <= self.MAX_SCALE):
+            return
+        anchor = self.mapToScene(view_pos.toPoint())
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.NoAnchor)
+        self.scale(factor, factor)
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        # Dove è finito quel punto dopo lo zoom: le barre lo riportano sotto il mouse
+        moved = self.viewportTransform().map(anchor) - view_pos
+        h_bar, v_bar = self.horizontalScrollBar(), self.verticalScrollBar()
+        h_bar.setValue(h_bar.value() + round(moved.x()))
+        v_bar.setValue(v_bar.value() + round(moved.y()))
+        self.zoom_changed.emit(self.current_scale())
+
     def fit_to(self, rect: QRectF):
         self.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
         self.zoom_changed.emit(self.current_scale())
 
+    def _wheel_zoom(self, factor: float, event):
+        """Zoom verso il punto sotto il mouse (la vista a scacchiera lo fa sulla griglia)."""
+        self.zoom_at(factor, event.position())
+
+    def _wheel_pan(self, dx: float, dy: float):
+        h_bar, v_bar = self._pan_bars()
+        h_bar.setValue(h_bar.value() - round(dx))
+        v_bar.setValue(v_bar.value() - round(dy))
+
     def wheelEvent(self, event):
-        step_up = event.angleDelta().y() > 0
-        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            # Ctrl + Rotella su una foto selezionata = zoom interno della foto
+        action = wheel_action(event, getattr(self.scene(), "wheel_mode", "auto"))
+        if action[0] == "inner":
+            # Alt + rotella su una foto selezionata = zoom dentro la foto (come Alt + trascina per l'inquadratura)
             for it in self.items(event.position().toPoint()):
                 if isinstance(it, PhotoItem) and it.isSelected():
-                    it.zoom_by(0.08 if step_up else -0.08)
+                    it.zoom_by(0.08 if action[1] > 0 else -0.08)
                     event.accept()
                     return
-        self.zoom_by(1.15 if step_up else 1.0 / 1.15)
+            event.accept()
+            return
+        if action[0] == "zoom":
+            self._wheel_zoom(action[1], event)
+        elif action[0] == "pan":
+            self._wheel_pan(action[1], action[2])
+        else:
+            event.ignore()
+            return
         event.accept()
+
+    def viewportEvent(self, event):
+        # Pizzico sul trackpad del Mac: arriva come gesto nativo, non come rotella
+        if event.type() == QEvent.Type.NativeGesture and event.gestureType() == Qt.NativeGestureType.ZoomNativeGesture:
+            self._pinch_zoom(1.0 + event.value(), event)
+            return True
+        return super().viewportEvent(event)
+
+    def _pinch_zoom(self, factor: float, event):
+        self.zoom_at(factor, event.position())
 
     def _element_at(self, pos) -> bool:
         return self.itemAt(pos) is not None

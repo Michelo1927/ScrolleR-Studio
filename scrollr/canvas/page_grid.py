@@ -2,12 +2,12 @@
 import math
 from typing import List
 
-from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF, pyqtSignal
+from PyQt6.QtCore import Qt, QEvent, QPoint, QPointF, QRectF, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath
 from PyQt6.QtWidgets import QFrame, QGridLayout, QScrollArea, QWidget
 
 from scrollr.canvas.scene import CollageScene
-from scrollr.canvas.view import CanvasView
+from scrollr.canvas.view import CanvasView, wheel_action
 from scrollr.theme import THEME, ui_font
 
 # Margini di ogni pagina sullo schermo, in pixel: in alto c'è l'etichetta "Pagina N"
@@ -48,6 +48,12 @@ class PageTileView(CanvasView):
 
     def zoom_by(self, factor: float, under_mouse: bool = True):
         self.grid.zoom_by(factor)
+
+    def _wheel_zoom(self, factor: float, event):
+        self.grid.zoom_at(factor, event.globalPosition())
+
+    def _pinch_zoom(self, factor: float, event):
+        self.grid.zoom_at(factor, event.globalPosition())
 
     def fit_to(self, rect: QRectF):
         self.grid.fit()
@@ -195,10 +201,48 @@ class PageGridView(QScrollArea):
     def zoom_by(self, factor: float, under_mouse: bool = True):
         self.set_scale(self.scale * factor)
 
+    def zoom_at(self, factor: float, global_pos: QPointF):
+        """
+        Zoom tenendo fermo sotto il mouse lo stesso punto: della tela, se il mouse è su una pagina,
+        altrimenti dello spazio tra le pagine.
+        """
+        s = max(self.MIN_SCALE, min(self.MAX_SCALE, self.scale * factor))
+        if abs(s - self.scale) < 1e-9:
+            return
+        g = global_pos.toPoint()
+        in_view = self.viewport().mapFromGlobal(g)
+        in_grid = self._container.mapFromGlobal(g)
+        tile = next((t for t in self.tiles if t.geometry().contains(in_grid)), None)
+        scene_pt = tile.mapToScene(tile.viewport().mapFromGlobal(g)) if tile else None
+        fx = in_grid.x() / max(1, self._container.width())
+        fy = in_grid.y() / max(1, self._container.height())
+        self.scale = s
+        self._place()
+        self._resize_now()
+        if tile is not None:
+            target = tile.viewport().mapTo(self._container, tile.mapFromScene(scene_pt))
+        else:
+            target = QPoint(round(fx * self._container.width()), round(fy * self._container.height()))
+        self.horizontalScrollBar().setValue(target.x() - in_view.x())
+        self.verticalScrollBar().setValue(target.y() - in_view.y())
+        self.zoom_changed.emit(self.scale)
+
     def wheelEvent(self, event):
-        # Rotella = zoom, come sulla tela in fila
-        self.zoom_by(1.15 if event.angleDelta().y() > 0 else 1.0 / 1.15)
+        # Tra le pagine come sulle pagine: rotella zoom verso il mouse, due dita sul trackpad spostano
+        action = wheel_action(event, getattr(self._scene, "wheel_mode", "auto"))
+        if action[0] == "zoom":
+            self.zoom_at(action[1], event.globalPosition())
+        elif action[0] == "pan":
+            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - round(action[1]))
+            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - round(action[2]))
         event.accept()
+
+    def viewportEvent(self, event):
+        # Pizzico sul trackpad del Mac nello spazio tra le pagine
+        if event.type() == QEvent.Type.NativeGesture and event.gestureType() == Qt.NativeGestureType.ZoomNativeGesture:
+            self.zoom_at(1.0 + event.value(), event.globalPosition())
+            return True
+        return super().viewportEvent(event)
 
     # ---------- Trascinamento dello spazio tra le pagine: sposta la griglia ----------
     def mousePressEvent(self, event):

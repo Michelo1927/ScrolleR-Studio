@@ -1,18 +1,35 @@
 """Foto interattiva sulla tela."""
 import math
 import os
-from typing import Dict, Optional, Tuple
+import random
+from typing import Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal
-from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QCursor, QTransform
+from PyQt6.QtGui import (
+    QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QCursor, QTransform, QImage, QRadialGradient
+)
 from PyQt6.QtWidgets import QGraphicsObject, QGraphicsItem
 from PIL import Image
 
 from scrollr.canvas.snap import snap_selection
 from scrollr.icons import draw_lock_badge, icon_pixmap
 from scrollr.imaging import (
-    IMAGE_CACHE, NEUTRAL_ADJUST, adjustments_active, apply_adjustments, pil_to_qimage, qimage_to_pil
+    IMAGE_CACHE, NEUTRAL_ADJUST, PIXEL_ADJUST, adjustments_active, apply_adjustments, auto_levels_lut,
+    pil_to_qimage, qimage_to_pil
 )
+
+_GRAIN_TILE: Optional[QImage] = None
+
+
+def grain_tile() -> QImage:
+    """Riquadro di rumore grigio sempre uguale (stesso seme): la grana non cambia a ogni ridisegno."""
+    global _GRAIN_TILE
+    if _GRAIN_TILE is None:
+        side = 256
+        data = random.Random(20261022).randbytes(side * side)
+        gray = QImage(data, side, side, side, QImage.Format.Format_Grayscale8)
+        _GRAIN_TILE = gray.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
+    return _GRAIN_TILE
 from scrollr.theme import THEME, ui_font
 
 
@@ -22,7 +39,7 @@ class PhotoItem(QGraphicsObject):
     Supporta:
     - Ridimensionamento cella tramite maniglie agli angoli (con object-fit: cover automatico),
       corretto anche su foto ruotate
-    - Zoom interno e Pan interno (Alt + Trascina, Ctrl + Rotella o tramite slider)
+    - Zoom interno e Pan interno (Alt + Trascina, Alt + Rotella o tramite slider)
     - Angoli arrotondati, bordo interno personalizzabile e rotazione
     - Snap magnetico a bordi/centri della tela, dei frame e delle altre foto
     """
@@ -75,6 +92,7 @@ class PhotoItem(QGraphicsObject):
         self.saved_cell: Optional[dict] = None
         # Regolazioni colore già applicate, una per versione (anteprima e nitida per lo zoom)
         self._adjusted_cache: Dict[bool, Tuple[tuple, QPixmap]] = {}
+        self._auto_lut: Optional[Tuple[int, List[int]]] = None  # Livelli automatici (chiave dell'anteprima)
 
         # Stato interazione maniglie
         self._resizing_handle: Optional[str] = None
@@ -111,14 +129,31 @@ class PhotoItem(QGraphicsObject):
         hires = IMAGE_CACHE.hires(self.image_path) if sharp else None
         sharp = hires is not None
         pm = hires if sharp else self.pixmap
-        if pm.isNull() or not adjustments_active(self.adjust):
+        if pm.isNull() or not adjustments_active(self.adjust) or self._showing_original():
             return pm
-        key = (pm.cacheKey(), tuple(sorted(self.adjust.items())))
+        key = (pm.cacheKey(), tuple((k, self.adjust.get(k)) for k in PIXEL_ADJUST))
         cached = self._adjusted_cache.get(sharp)
         if cached is None or cached[0] != key:
-            out = apply_adjustments(qimage_to_pil(pm.toImage()), self.adjust)
+            out = apply_adjustments(qimage_to_pil(pm.toImage()), self.adjust,
+                                    detail_scale=pm.width() / 1000.0, auto_lut=self.auto_lut())
             cached = self._adjusted_cache[sharp] = (key, QPixmap.fromImage(pil_to_qimage(out)))
         return cached[1]
+
+    def auto_lut(self) -> Optional[List[int]]:
+        """Livelli automatici calcolati una volta sull'anteprima della foto intera (None se non servono)."""
+        if not self.adjust.get("auto"):
+            return None
+        pm = self.pixmap
+        if pm.isNull():
+            return None
+        if self._auto_lut is None or self._auto_lut[0] != pm.cacheKey():
+            self._auto_lut = (pm.cacheKey(), auto_levels_lut(qimage_to_pil(pm.toImage())))
+        return self._auto_lut[1]
+
+    def _showing_original(self) -> bool:
+        """Pulsante Prima/dopo tenuto premuto: si vede la foto senza regolazioni (mai in esportazione)."""
+        scene = self.scene()
+        return bool(scene) and getattr(scene, "show_original", False) and not getattr(scene, "is_exporting", False)
 
     def _needs_sharp(self, painter: QPainter) -> bool:
         """La foto è mostrata più grande dell'anteprima (zoom forte): serve la versione nitida."""
@@ -391,7 +426,9 @@ class PhotoItem(QGraphicsObject):
         painter.save()
         painter.setClipPath(path)
         if is_exporting:
+            painter.save()
             self._paint_full_resolution(painter, cell_rect)
+            painter.restore()
         else:
             sharp = self._needs_sharp(painter)
             if sharp:
@@ -400,10 +437,14 @@ class PhotoItem(QGraphicsObject):
             img_w, img_h = float(pm.width()), float(pm.height())
             if img_w > 0 and img_h > 0:
                 _, dx, dy, draw_w, draw_h = self._cover_geometry(img_w, img_h)
+                painter.save()
                 painter.setTransform(self._image_transform(), True)
                 painter.drawPixmap(QRectF(dx, dy, draw_w, draw_h), pm, QRectF(0, 0, img_w, img_h))
+                painter.restore()
             elif not clean and self.is_missing:
                 self._paint_missing(painter, cell_rect)
+        if not self.is_missing:
+            self._paint_effects(painter, cell_rect)
         painter.restore()
 
         # Bordo interno: non sborda nel gap e non viene tagliato ai margini della tela
@@ -524,8 +565,56 @@ class PhotoItem(QGraphicsObject):
             min(img_h, (visible.bottom() - dy) / scale),
         )
         resized = full.resize((out_w, out_h), Image.Resampling.LANCZOS, box=box)
-        resized = apply_adjustments(resized, self.adjust)
+        # Larghezza che avrebbe la foto intera a questa risoluzione: la nitidezza resta come in anteprima
+        whole_w = out_w * img_w / max(1e-6, box[2] - box[0])
+        resized = apply_adjustments(resized, self.adjust, detail_scale=whole_w / 1000.0, auto_lut=self.auto_lut())
         painter.drawImage(visible, pil_to_qimage(resized))
+
+    # ---------- Vignettatura e grana ----------
+    def _visible_image_rect(self, cell_rect: QRectF) -> QRectF:
+        """Parte del riquadro coperta dalla foto (con «Foto intera» resta fuori lo spazio vuoto)."""
+        pm = self.pixmap
+        if pm.width() <= 0 or pm.height() <= 0:
+            return cell_rect
+        _, dx, dy, dw, dh = self._cover_geometry(float(pm.width()), float(pm.height()))
+        return self._image_transform().mapRect(QRectF(dx, dy, dw, dh)).intersected(cell_rect)
+
+    def _paint_effects(self, painter: QPainter, cell_rect: QRectF):
+        """
+        Vignettatura e grana disegnate sopra la parte visibile della foto, in misure della tela:
+        sono uguali sulla tela, nell'anteprima e nell'esportazione a qualsiasi risoluzione.
+        """
+        vignette = self.adjust.get("vignette", 0)
+        grain = self.adjust.get("grain", 0)
+        if not (vignette or grain) or self._showing_original():
+            return
+        area = self._visible_image_rect(cell_rect)
+        if area.isEmpty():
+            return
+        if vignette:
+            # Ellisse che tocca gli angoli: bordi più scuri (−) o più chiari (+), centro intatto
+            strength = min(1.0, abs(vignette) / 100.0)
+            base = QColor(0, 0, 0) if vignette < 0 else QColor(255, 255, 255)
+            grad = QRadialGradient(QPointF(0, 0), 1.0)
+            for stop, k in ((0.0, 0.0), (0.42, 0.0), (0.72, 0.38), (1.0, 0.9)):
+                c = QColor(base)
+                c.setAlphaF(strength * k)
+                grad.setColorAt(stop, c)
+            painter.save()
+            painter.translate(area.center())
+            painter.scale(area.width() / 2.0 * math.sqrt(2.0), area.height() / 2.0 * math.sqrt(2.0))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(grad))
+            painter.drawRect(QRectF(-1.0, -1.0, 2.0, 2.0))
+            painter.restore()
+        if grain:
+            painter.save()
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Overlay)
+            painter.setOpacity(painter.opacity() * min(1.0, grain / 100.0) * 0.6)
+            brush = QBrush(grain_tile())
+            brush.setTransform(QTransform.fromScale(1.3, 1.3))  # Un granello ≈ 1,3 px della tela
+            painter.fillRect(area, brush)
+            painter.restore()
 
     # ---------- Interazione ----------
     def hoverEnterEvent(self, event):

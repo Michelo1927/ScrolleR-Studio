@@ -3,7 +3,7 @@ import os
 from typing import Dict, Optional
 
 from PyQt6.QtCore import Qt, QRectF, QSize, QKeyCombination, QUrl
-from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QAction, QIcon, QKeySequence, QDesktopServices
+from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QAction, QActionGroup, QIcon, QKeySequence, QDesktopServices
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QSpinBox, QSlider, QFrame,
     QMenu, QSplitter, QToolButton, QScrollArea, QAbstractSpinBox, QSizePolicy, QMessageBox, QStackedWidget
@@ -577,6 +577,19 @@ class UiMixin:
         make("Zoom indietro", lambda: self._zoom_view(1 / 1.25), QKeySequence("Ctrl+-"), m_view)
         make("Dimensioni reali (100%)", self._zoom_actual_size, QKeySequence("Ctrl+1"), m_view)
         make("Adatta alla finestra", self.fit_canvas_in_view, QKeySequence("Ctrl+0"), m_view)
+        m_view.addSeparator()
+        m_wheel = m_view.addMenu("Rotella del mouse")
+        wheel_group = QActionGroup(self)
+        current = self._settings().value("wheel_mode", "auto", type=str)
+        for mode, text in (("auto", "Automatico: rotella zoom, trackpad sposta la vista (consigliato)"),
+                           ("zoom", "Sempre zoom"),
+                           ("pan", "Sempre sposta la vista (zoom con Ctrl + rotella o pizzico)")):
+            act = m_wheel.addAction(kb(text))
+            act.setCheckable(True)
+            act.setChecked(mode == current)
+            act.triggered.connect(lambda _c=False, m=mode: self._set_wheel_mode(m))
+            wheel_group.addAction(act)
+        self.scene.wheel_mode = current if current in ("auto", "zoom", "pan") else "auto"
 
         m_help = menubar.addMenu("&Guida")
         make("Scorciatoie da tastiera e mouse…", self.show_shortcuts, QKeySequence("F1"), m_help)
@@ -599,6 +612,11 @@ class UiMixin:
             make("", lambda _c=False, a=dx, b=dy: self._nudge_selected(a * 10, b * 10),
                  QKeySequence(QKeyCombination(Qt.KeyboardModifier.ShiftModifier, key)), target=[self.view, self.page_grid])
         self._update_undo_actions()
+
+    def _set_wheel_mode(self, mode: str):
+        """Vista → Rotella del mouse: cosa fanno rotella e scorrimento con due dita sulla tela."""
+        self.scene.wheel_mode = mode
+        self._settings().setValue("wheel_mode", mode)
 
     def show_shortcuts(self):
         """Guida → Scorciatoie (F1): tutti i tasti e i gesti del mouse."""

@@ -188,6 +188,14 @@ def icon_pixmap(name: str, color: str, size: int) -> QPixmap:
         else:
             poly((10, 3), (3, 3), (3, 10))
             poly((14, 21), (21, 21), (21, 14))
+    elif name == "compare":
+        # Prima/dopo: riquadro diviso a metà, una metà piena
+        rr(3.5, 5, 17, 14, 2.2)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(tint)
+        p.drawRect(QRectF(12, 5.8, 7.7, 12.4))
+        p.setPen(pen)
+        line(12, 3, 12, 21)
     elif name == "history":
         # Orologio con freccia all'indietro
         arc_arrow(160, -290)

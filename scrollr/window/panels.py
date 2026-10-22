@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 )
 
 from scrollr.icons import icon_pixmap, make_icon, swatch_icon
+from scrollr.imaging import PRESETS
 from scrollr.keys import kb
 from scrollr.shapes import SHAPE_KINDS
 from scrollr.theme import THEME
@@ -478,22 +479,69 @@ class PanelsMixin:
 
     def _build_photo_tab_color(self) -> QWidget:
         page, lay = self._tab_page()
+        # Filtri pronti: miniature della foto selezionata con ogni filtro applicato
+        self._section_header(lay, "Filtri")
+        presets = QGridLayout()
+        presets.setSpacing(4)
+        self.preset_buttons: Dict[str, QToolButton] = {}
+        for i, (key, name, _values) in enumerate(PRESETS):
+            b = QToolButton()
+            b.setObjectName("LayoutTile")
+            b.setText(name)
+            b.setToolTip(f"Filtro «{name}»: poi puoi ritoccare le singole regolazioni" if key != "original"
+                         else "Toglie filtri e regolazioni: la foto torna com'era")
+            b.setIconSize(QSize(54, 54))
+            b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+            b.setCheckable(True)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            b.setFixedHeight(82)
+            b.clicked.connect(lambda _c=False, k=key: self._apply_preset(k))
+            presets.addWidget(b, i // 3, i % 3)
+            self.preset_buttons[key] = b
+        lay.addLayout(presets)
+
         self._section_header(lay, "Regolazioni")
+        self.chk_auto = ToggleSwitch("Miglioramento automatico")
+        self.chk_auto.setToolTip("Sistema da solo contrasto e colori (livelli automatici): un buon punto di partenza")
+        self.chk_auto.toggled.connect(lambda c: self._set_adjust_flag("auto", c))
+        lay.addWidget(self.chk_auto)
         self.adjust_sliders: Dict[str, QSlider] = {}
-        for key, title, tip in (
-            ("brightness", "Luminosità", "Schiarisci (+) o scurisci (−) la foto"),
-            ("contrast", "Contrasto", "Più (+) o meno (−) differenza tra chiari e scuri"),
-            ("saturation", "Saturazione", "Colori più vivi (+) o più spenti (−)"),
-            ("warmth", "Calore", "Toni più caldi, verso l'arancio (+), o più freddi, verso il blu (−)"),
-        ):
-            slider = self._make_slider(lay, title, -100, 100, 0, signed=True, resettable=True)
+
+        def adjust_slider(key, title, tip, lo=-100):
+            slider = self._make_slider(lay, title, lo, 100, 0, signed=lo < 0, resettable=True)
             slider.setToolTip(tip)
             slider.valueChanged.connect(lambda v, k=key: self._on_inspector_slider(k, v))
             self.adjust_sliders[key] = slider
+
+        for key, title, tip in (
+            ("brightness", "Luminosità", "Schiarisci (+) o scurisci (−) la foto"),
+            ("contrast", "Contrasto", "Più (+) o meno (−) differenza tra chiari e scuri"),
+            ("shadows", "Ombre", "Schiarisci (+) le zone scure senza toccare il cielo: utile per le foto in controluce"),
+            ("highlights", "Luci", "Recupera (−) le zone troppo chiare, come un cielo bruciato, o schiariscile (+)"),
+            ("saturation", "Saturazione", "Colori più vivi (+) o più spenti (−)"),
+            ("warmth", "Calore", "Toni più caldi, verso l'arancio (+), o più freddi, verso il blu (−)"),
+            ("tint", "Tinta", "Corregge le dominanti: verso il magenta (+) o verso il verde (−)"),
+        ):
+            adjust_slider(key, title, tip)
         self.chk_bw = ToggleSwitch("Bianco e nero")
         self.chk_bw.setToolTip("Converte la foto in bianco e nero (con Calore ottieni un viraggio seppia o freddo)")
         self.chk_bw.toggled.connect(self._set_bw)
         lay.addWidget(self.chk_bw)
+
+        self._section_header(lay, "Effetti")
+        adjust_slider("sharpness", "Nitidezza", "Rende più definiti i dettagli delle foto un po' morbide", 0)
+        adjust_slider("vignette", "Vignettatura",
+                      "Bordi più scuri (−) per portare l'occhio al centro, o più chiari (+)")
+        adjust_slider("fade", "Sbiadito", "Neri più morbidi e opachi, effetto pellicola", 0)
+        adjust_slider("grain", "Grana", "Leggera grana da pellicola", 0)
+
+        self.btn_before_after = self._icon_button(
+            "compare", "Tieni premuto per vedere le foto senza filtri e regolazioni, poi rilascia",
+            lambda: None, "Prima / dopo (tieni premuto)", "SoftButton")
+        self.btn_before_after.pressed.connect(lambda: self._show_original(True))
+        self.btn_before_after.released.connect(lambda: self._show_original(False))
+        lay.addWidget(self.btn_before_after)
         row = QHBoxLayout()
         row.setSpacing(6)
         row.addWidget(self._icon_button("reset", "Riporta tutte le regolazioni colore a zero", self._reset_colors,

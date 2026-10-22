@@ -4,8 +4,8 @@ import math
 import os
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QMimeData, QRectF
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtCore import Qt, QMimeData, QPointF, QRectF
+from PyQt6.QtGui import QBrush, QColor, QFont, QIcon, QPainter, QPixmap, QRadialGradient
 from PyQt6.QtWidgets import QApplication, QColorDialog, QMenu
 
 from scrollr.canvas.photo_item import PhotoItem
@@ -13,7 +13,9 @@ from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.config import ELEMENTS_MIME
 from scrollr.icons import make_icon, rounded_thumb, swatch_icon
-from scrollr.imaging import IMAGE_CACHE, NEUTRAL_ADJUST
+from scrollr.imaging import (
+    IMAGE_CACHE, NEUTRAL_ADJUST, PRESETS, apply_adjustments, pil_to_qimage, preset_adjust, qimage_to_pil
+)
 from scrollr.keys import kb
 from scrollr.theme import THEME
 
@@ -204,7 +206,7 @@ class InspectorMixin:
             self.insp_stack.setCurrentIndex(0 if item is None else 1)
         if item is None and not texts and not shapes:
             self.lbl_hint.setText(kb("Trascina sul vuoto: sposta la vista.   Shift + trascina: seleziona più elementi.   "
-                                     "Rotella: zoom.   F1: tutte le scorciatoie."))
+                                     "Rotella: zoom · due dita: sposta.   F1: tutte le scorciatoie."))
         elif item is not None:
             self.lbl_selection_thumb.setPixmap(rounded_thumb(item.display_pixmap(), 40, 2))
             if count > 1:
@@ -215,7 +217,7 @@ class InspectorMixin:
                     os.path.basename(item.image_path), Qt.TextElideMode.ElideMiddle, 190))
                 info = f"Riquadro {int(item.cell_w)} × {int(item.cell_h)} px"
                 self.lbl_selection_info.setText(info + ("  ·  bloccata" if item.locked else ""))
-            self.lbl_hint.setText(kb("Alt + trascina: sposta l'inquadratura.   Ctrl + rotella: zoom nella foto.   "
+            self.lbl_hint.setText(kb("Alt + trascina: sposta l'inquadratura.   Alt + rotella: zoom nella foto.   "
                                      "Shift sulle maniglie: mantieni le proporzioni."))
             self.btn_border_color.setIcon(swatch_icon(item.border_color))
             self.btn_fit_cover.setChecked(item.fit_mode != "contain")
@@ -230,6 +232,8 @@ class InspectorMixin:
             for key, slider in self.adjust_sliders.items():
                 slider.setValue(int(item.adjust.get(key, 0)))
             self.chk_bw.setChecked(bool(item.adjust.get("bw")))
+            self.chk_auto.setChecked(bool(item.adjust.get("auto")))
+            self._sync_presets(item)
             self.slider_opacity.setValue(item.photo_opacity)
             self.slider_shadow.setValue(item.shadow)
             self.btn_paste_style.setEnabled(self._style_clipboard is not None)
@@ -295,16 +299,90 @@ class InspectorMixin:
             elif prop == "border":
                 item.border_width = float(value)
                 item.auto_border = False
-            elif prop in ("brightness", "contrast", "saturation", "warmth"):
+            elif prop in NEUTRAL_ADJUST:
                 item.adjust[prop] = int(value)
             elif prop == "opacity":
                 item.set_photo_opacity(value)
             elif prop == "shadow":
                 item.set_shadow(value)
             item.update()
-        if prop in ("brightness", "contrast", "saturation", "warmth"):
+        if prop in NEUTRAL_ADJUST:
             self._refresh_selection_thumb()
+            self._sync_presets(self._get_primary_selected())
         self._schedule_commit()
+
+    # ---------- Filtri pronti, automatico e prima/dopo ----------
+    def _sync_presets(self, item: Optional[PhotoItem]):
+        """Miniature dei filtri con la foto selezionata; si accende il filtro che corrisponde alle regolazioni."""
+        if item is None:
+            return
+        current = dict(NEUTRAL_ADJUST, **item.adjust)
+        for key, button in self.preset_buttons.items():
+            button.setChecked(preset_adjust(key) == current)
+        source = (item.image_path, item.pixmap.cacheKey())
+        if getattr(self, "_preset_thumbs_for", None) == source:
+            return
+        self._preset_thumbs_for = source
+        pm = item.pixmap
+        if pm.isNull():
+            for button in self.preset_buttons.values():
+                button.setIcon(QIcon())
+            return
+        side = min(pm.width(), pm.height())
+        square = pm.copy((pm.width() - side) // 2, (pm.height() - side) // 2, side, side).scaled(
+            108, 108, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        base = qimage_to_pil(square.toImage())
+        for key, button in self.preset_buttons.items():
+            adj = preset_adjust(key)
+            thumb = QPixmap.fromImage(pil_to_qimage(apply_adjustments(base, adj, detail_scale=0.4)))
+            if adj.get("vignette"):
+                self._paint_thumb_vignette(thumb, adj["vignette"])
+            button.setIcon(QIcon(rounded_thumb(thumb, 54, 3)))
+
+    @staticmethod
+    def _paint_thumb_vignette(pm: QPixmap, vignette: int):
+        """Vignettatura sulla miniatura del filtro (sulla tela la disegna la foto stessa)."""
+        painter = QPainter(pm)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        grad = QRadialGradient(QPointF(pm.width() / 2.0, pm.height() / 2.0), pm.width() / 2.0 * math.sqrt(2.0))
+        base = QColor(0, 0, 0) if vignette < 0 else QColor(255, 255, 255)
+        for stop, k in ((0.0, 0.0), (0.42, 0.0), (0.72, 0.38), (1.0, 0.9)):
+            c = QColor(base)
+            c.setAlphaF(min(1.0, abs(vignette) / 100.0) * k)
+            grad.setColorAt(stop, c)
+        painter.fillRect(pm.rect(), QBrush(grad))
+        painter.end()
+
+    def _apply_preset(self, key: str):
+        selected = self._selected_photos()
+        if not selected:
+            return
+        for item in selected:
+            item.adjust = preset_adjust(key)
+            item.update()
+        name = next(n for k, n, _ in PRESETS if k == key)
+        self.statusBar().showMessage(
+            "Foto riportata all'originale" if key == "original" else
+            f"Filtro «{name}» applicato: puoi ritoccarlo con le regolazioni qui sotto "
+            "o usarlo su tutte le foto con «Applica a tutte»", 5000)
+        self._sync_inspector_from_item(self._get_primary_selected())
+        self._schedule_commit()
+
+    def _set_adjust_flag(self, key: str, checked: bool):
+        if self._updating_inspector:
+            return
+        for item in self._selected_photos():
+            item.adjust[key] = bool(checked)
+            item.update()
+        self._refresh_selection_thumb()
+        self._sync_presets(self._get_primary_selected())
+        self._schedule_commit()
+
+    def _show_original(self, on: bool):
+        """Prima/dopo: finché il pulsante è premuto tutte le foto si vedono senza filtri e regolazioni."""
+        self.scene.show_original = bool(on)
+        for p in self.get_canvas_photos():
+            p.update()
 
     def _refresh_selection_thumb(self):
         item = self._get_primary_selected()
@@ -334,13 +412,7 @@ class InspectorMixin:
             self._schedule_commit()
 
     def _set_bw(self, checked: bool):
-        if self._updating_inspector:
-            return
-        for item in self._selected_photos():
-            item.adjust["bw"] = bool(checked)
-            item.update()
-        self._refresh_selection_thumb()
-        self._schedule_commit()
+        self._set_adjust_flag("bw", checked)
 
     def _reset_colors(self):
         for item in self._selected_photos():

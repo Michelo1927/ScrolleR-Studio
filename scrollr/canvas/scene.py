@@ -59,6 +59,8 @@ class CollageScene(QGraphicsScene):
         self.show_guides = True
         self.is_exporting = False
         self.clean_render = False        # Anteprima: niente guide, etichette né selezione
+        self.show_original = False       # Prima/dopo tenuto premuto: foto senza regolazioni
+        self.wheel_mode = "auto"         # Rotella: "auto" (trackpad sposta, mouse zooma), "zoom", "pan"
         self.grid_mode = False           # Pagine a scacchiera: etichette disegnate da ogni vista di pagina
         self.display_scale = 1.0         # Zoom della vista attiva (maniglie a misura costante sullo schermo)
         self.last_click_page: Optional[int] = None  # Pagina dell'ultimo clic sulla tela (dove incollare)
