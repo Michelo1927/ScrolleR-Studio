@@ -99,19 +99,27 @@ class LayoutMixin:
                 if frames != self.scene.num_frames:
                     self._set_frames_silently(frames)
             if self.chk_per_frame.isChecked():
-                start = 0
-                for f, count in enumerate(self._page_photo_counts(len(photos))):
-                    chunk = photos[start:start + count]
+                chunks, start = [], 0
+                for count in self._page_photo_counts(len(photos)):
+                    chunks.append(photos[start:start + count])
                     start += count
-                    if chunk:
-                        frame_rect = QRectF(f * self.scene.frame_w, 0, self.scene.frame_w, self.scene.frame_h)
-                        area = self._safe_rect(frame_rect.adjusted(margin, margin, -margin, -margin))
-                        # Una pagina può avere la sua disposizione (clic destro → Disposizione di questa pagina)
-                        own = self.scene.page_layouts[f] if f < len(self.scene.page_layouts) else None
-                        if own:
-                            self._layout_in_rect(own["mode"], chunk, area, gap, rng, own.get("style"))
-                        else:
-                            self._layout_in_rect(mode, chunk, area, gap, rng)
+                fw = self.scene.frame_w
+                for first, last in self.scene.seam_groups():
+                    chunk = [p for f in range(first, min(last + 1, len(chunks))) for p in chunks[f]]
+                    if not chunk:
+                        continue
+                    frame_rect = QRectF(first * fw, 0, (last - first + 1) * fw, self.scene.frame_h)
+                    area = self._safe_rect(frame_rect.adjusted(margin, margin, -margin, -margin))
+                    if last > first:
+                        # Pagine unite «a cavallo»: righe continue che attraversano solo le loro giunzioni
+                        self._layout_seam(chunk, area, gap, [k * fw for k in range(first + 1, last + 1)])
+                        continue
+                    # Una pagina può avere la sua disposizione (clic destro → Disposizione di questa pagina)
+                    own = self.scene.page_layouts[first] if first < len(self.scene.page_layouts) else None
+                    if own:
+                        self._layout_in_rect(own["mode"], chunk, area, gap, rng, own.get("style"))
+                    else:
+                        self._layout_in_rect(mode, chunk, area, gap, rng)
             else:
                 area = self._safe_rect(self.scene.canvas_rect().adjusted(margin, margin, -margin, -margin))
                 self._layout_in_rect(mode, photos, area, gap, rng)
@@ -345,11 +353,13 @@ class LayoutMixin:
                 p.auto_border = True
                 p.update()
 
-    def _layout_seam(self, photos: List[PhotoItem], area: QRectF, gap: float):
+    def _layout_seam(self, photos: List[PhotoItem], area: QRectF, gap: float,
+                     seams: Optional[List[float]] = None):
         """
-        «A cavallo»: righe giustificate su tutta la tela continua, con le proporzioni vere delle foto.
+        «A cavallo»: righe giustificate su tutta l'area, con le proporzioni vere delle foto.
         Nessuno spazio tra due foto cade vicino a una giunzione: ogni giunzione è attraversata da una
         foto, che resta visibile per almeno SEAM_KEEP della pagina da entrambe le parti.
+        `seams` = x delle giunzioni da attraversare (None = tutte quelle della tela).
         """
         aspects = []
         for p in photos:
@@ -370,7 +380,8 @@ class LayoutMixin:
         scale = (h_avail - gap * (len(rows) - 1)) / sum(heights)
 
         fw = self.scene.frame_w
-        seams = [k * fw for k in range(1, self.scene.num_frames)]
+        if seams is None:
+            seams = [k * fw for k in range(1, self.scene.num_frames)]
         keep = fw * self.SEAM_KEEP
         y = area.y()
         for row, row_h in zip(rows, heights):
@@ -525,10 +536,12 @@ class LayoutMixin:
             return
         dragged = [p for p in self._selected_photos() if not p.free] or ([item] if not item.free else [])
         current = self._photo_pages()
+        group = {f: g for g in self.scene.seam_groups() for f in range(g[0], g[1] + 1)}
         targets = {}
         for p in dragged:
             page = self._page_of(p)
-            if 0 <= page < self.scene.num_frames and page != current.get(p.uid, page):
+            # Dentro lo stesso gruppo «a cavallo» la foto non cambia pagina: attraversa già le giunzioni
+            if 0 <= page < self.scene.num_frames and group[page] != group.get(current.get(p.uid, page)):
                 targets.setdefault(page, []).append(p)
         for page, photos in targets.items():
             self._move_photos_to_page(photos, page)

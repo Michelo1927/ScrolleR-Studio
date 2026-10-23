@@ -1,8 +1,8 @@
 """Pagine a scacchiera: una vista per pagina sulla stessa tela, disposte in griglia scorrevole."""
 import math
-from typing import List
+from typing import List, Optional
 
-from PyQt6.QtCore import Qt, QEvent, QPoint, QPointF, QRectF, pyqtSignal
+from PyQt6.QtCore import Qt, QEvent, QPoint, QPointF, QRectF, QSize, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath
 from PyQt6.QtWidgets import QFrame, QGridLayout, QScrollArea, QWidget
 
@@ -12,7 +12,8 @@ from scrollr.theme import THEME, ui_font
 
 # Margini di ogni pagina sullo schermo, in pixel: in alto c'è l'etichetta "Pagina N"
 SIDE_PX, TOP_PX, BOTTOM_PX = 10, 26, 10
-OUTER_PX = 24  # Spazio libero attorno alla griglia
+OUTER_PX = 24  # Spazio libero minimo attorno alla griglia
+FIT_PX = 70    # Fascia di sfondo attorno alla griglia adattata alla finestra (comoda da afferrare)
 
 
 class PageTileView(CanvasView):
@@ -21,6 +22,8 @@ class PageTileView(CanvasView):
     (le foto «a cavallo» si vedono spezzate tra le due pagine, come nel carosello pubblicato):
     cambia solo il modo di mostrarla. Zoom e scorrimento li gestisce la griglia.
     """
+
+    FREE_PAN = False
 
     def __init__(self, scene: CollageScene, grid: "PageGridView", index: int):
         super().__init__(scene)
@@ -105,6 +108,7 @@ class PageGridView(QScrollArea):
         self.tiles: List[PageTileView] = []
         self._shape = None  # (pagine, larghezza, altezza) delle viste costruite
         self._drag = None   # Trascinamento tra le pagine: (tasto, inizio, ultimo punto, spostato)
+        self._margins = (OUTER_PX, OUTER_PX)  # Spazio attorno alla griglia (mezza finestra per lato)
         self.setObjectName("PageGridArea")
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setWidgetResizable(True)
@@ -156,6 +160,44 @@ class PageGridView(QScrollArea):
             self._layout.addWidget(tile, r, c)
             tile.apply_scale(self.scale)
 
+    # ---------- Spazio attorno alla griglia ----------
+    def _center_in_grid(self, vp_size: Optional[QSize] = None) -> QPointF:
+        """Punto della griglia (senza lo spazio attorno) al centro della finestra, in frazioni della griglia."""
+        vp_size = vp_size or self.viewport().size()
+        mx, my = self._margins
+        gw = max(1, self._container.width() - 2 * mx)
+        gh = max(1, self._container.height() - 2 * my)
+        return QPointF((self.horizontalScrollBar().value() + vp_size.width() / 2 - mx) / gw,
+                       (self.verticalScrollBar().value() + vp_size.height() / 2 - my) / gh)
+
+    def _scroll_to_grid_point(self, f: QPointF):
+        mx, my = self._margins
+        gw = self._container.width() - 2 * mx
+        gh = self._container.height() - 2 * my
+        self.horizontalScrollBar().setValue(round(mx + f.x() * gw - self.viewport().width() / 2))
+        self.verticalScrollBar().setValue(round(my + f.y() * gh - self.viewport().height() / 2))
+
+    def _update_margins(self):
+        """
+        Mezza finestra di spazio per lato: trascinando lo sfondo, qualunque pagina, anche quelle
+        ai bordi della griglia, arriva al centro dello schermo.
+        """
+        vp = self.viewport()
+        self._margins = (max(OUTER_PX, vp.width() // 2), max(OUTER_PX, vp.height() // 2))
+        mx, my = self._margins
+        self._layout.setContentsMargins(mx, my, mx, my)
+
+    def resizeEvent(self, event):
+        f = None
+        if self.tiles and event.oldSize().isValid():
+            # Il centro si legge con la misura di prima: la finestra ha già quella nuova
+            f = self._center_in_grid(self.viewport().size() - (event.size() - event.oldSize()))
+        super().resizeEvent(event)
+        self._update_margins()
+        self._resize_now()
+        if f is not None:
+            self._scroll_to_grid_point(f)
+
     # ---------- Zoom ----------
     def current_scale(self) -> float:
         return self.scale
@@ -165,8 +207,8 @@ class PageGridView(QScrollArea):
         self.sync()
         sc = self._scene
         n = max(1, sc.num_frames)
-        avail_w = max(100, self.viewport().width() - 2 * OUTER_PX)
-        avail_h = max(100, self.viewport().height() - 2 * OUTER_PX)
+        avail_w = max(100, self.viewport().width() - 2 * FIT_PX)
+        avail_h = max(100, self.viewport().height() - 2 * FIT_PX)
         best = None
         for cols in range(1, n + 1):
             rows = math.ceil(n / cols)
@@ -177,26 +219,32 @@ class PageGridView(QScrollArea):
         self.columns = best[1]
         self.scale = max(self.MIN_SCALE, min(self.MAX_SCALE, best[0]))
         self._place()
+        self._update_margins()
         self._resize_now()
+        self._scroll_to_grid_point(QPointF(0.5, 0.5))
         self.zoom_changed.emit(self.scale)
 
     def set_scale(self, s: float):
         s = max(self.MIN_SCALE, min(self.MAX_SCALE, s))
-        h, v = self.horizontalScrollBar(), self.verticalScrollBar()
-        # Mantiene al centro lo stesso punto della griglia
-        fx = (h.value() + self.viewport().width() / 2) / max(1, self._container.width())
-        fy = (v.value() + self.viewport().height() / 2) / max(1, self._container.height())
+        f = self._center_in_grid()  # Mantiene al centro lo stesso punto della griglia
         self.scale = s
         self._place()
         self._resize_now()
-        h.setValue(int(fx * self._container.width() - self.viewport().width() / 2))
-        v.setValue(int(fy * self._container.height() - self.viewport().height() / 2))
+        self._scroll_to_grid_point(f)
         self.zoom_changed.emit(self.scale)
 
     def _resize_now(self):
         """Dimensione nuova della griglia subito (non al prossimo giro), così le barre sono già giuste."""
+        size = QSize(0, 0)
+        if self.tiles:
+            # Calcolata a mano: le pagine appena rimesse nella griglia sono ancora nascoste e il layout le ignora
+            mx, my = self._margins
+            rows = math.ceil(len(self.tiles) / self.columns)
+            t = self.tiles[0]
+            size = QSize(2 * mx + self.columns * t.width(), 2 * my + rows * t.height())
+        self._container.setMinimumSize(size)
+        self._container.resize(size.expandedTo(self.viewport().size()))
         self._layout.activate()
-        self._container.resize(self._container.sizeHint().expandedTo(self.viewport().size()))
 
     def zoom_by(self, factor: float, under_mouse: bool = True):
         self.set_scale(self.scale * factor)

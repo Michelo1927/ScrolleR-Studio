@@ -38,6 +38,8 @@ class CollageScene(QGraphicsScene):
         self.page_counts: List[Optional[int]] = []
         # Disposizione propria di una pagina, es. {"mode": "mosaic", "style": "left"} (None = come le altre)
         self.page_layouts: List[Optional[dict]] = []
+        # True in posizione k: le pagine k e k+1 sono unite «a cavallo» (le foto attraversano la giunzione)
+        self.page_seams: List[Optional[bool]] = []
         self.layout_names: Dict[str, str] = {}   # Nomi delle disposizioni per le etichette delle pagine
         self.bg_color = QColor("#FFFFFF")
         # Sfondo: "solid" = tinta unita, "gradient" = sfumatura tra due colori, "blur" = foto sfocata
@@ -165,11 +167,27 @@ class CollageScene(QGraphicsScene):
             painter.restore()
         self.paint_canvas_background(painter, canvas_rect)
 
+    def joined(self, k: int) -> bool:
+        """La pagina k è unita «a cavallo» alla successiva."""
+        return 0 <= k < self.num_frames - 1 and k < len(self.page_seams) and bool(self.page_seams[k])
+
+    def seam_groups(self) -> List[Tuple[int, int]]:
+        """Pagine in ordine raggruppate: (prima, ultima); una pagina non unita è un gruppo da sola."""
+        groups, start = [], 0
+        for k in range(self.num_frames):
+            if not self.joined(k):
+                groups.append((start, k))
+                start = k + 1
+        return groups
+
     def page_label(self, i: int) -> str:
         """Etichetta sopra la pagina i: numero, disposizione propria e foto fissate."""
         label = f"Pagina {i + 1}" if self.num_frames > 1 else f"{self.frame_w} × {self.frame_h} px"
+        group = next(g for g in self.seam_groups() if g[0] <= i <= g[1])
         own = self.page_layouts[i] if i < len(self.page_layouts) else None
-        if own:
+        if group[0] != group[1]:
+            label += f"  ·  A cavallo {group[0] + 1}–{group[1] + 1}"
+        elif own:
             label += "  ·  " + self.layout_names.get(own["mode"], own["mode"])
         fixed = self.page_counts[i] if i < len(self.page_counts) else None
         if fixed is not None:
@@ -278,8 +296,11 @@ class CollageScene(QGraphicsScene):
             sep_pen = QPen(QColor(THEME["guide"]), 1.0, Qt.PenStyle.SolidLine)
             sep_pen.setCosmetic(True)
             painter.setPen(sep_pen)
+            joined_pen = QPen(QColor(THEME["guide"]), 1.0, Qt.PenStyle.DashLine)  # Pagine unite «a cavallo»
+            joined_pen.setCosmetic(True)
             for i in range(1, self.num_frames):
                 x = i * self.frame_w
+                painter.setPen(joined_pen if self.joined(i - 1) else sep_pen)
                 painter.drawLine(QPointF(x, 0), QPointF(x, self.frame_h))
 
         # Linee di snap attive durante il trascinamento

@@ -780,6 +780,7 @@ class InspectorMixin:
         a = page_menu.addAction("Riordina le pagine…", self.reorder_pages_dialog)
         a.setEnabled(n > 1)
         page_menu.addSeparator()
+        self._fill_page_join_actions(page_menu, k)
         self._fill_page_layout_menu(page_menu.addMenu("Disposizione di questa pagina"), k)
         self._fill_page_count_menu(page_menu.addMenu("Foto in questa pagina"), k)
         page_menu.addSeparator()

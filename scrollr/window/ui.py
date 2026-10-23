@@ -558,6 +558,8 @@ class UiMixin:
         make("Riordina le pagine…", self.reorder_pages_dialog, None, m_pages)
         make("Duplica la pagina corrente", lambda: self._duplicate_page(self._current_page()), None, m_pages)
         m_pages.addSeparator()
+        make("Unisci o separa «a cavallo» con la pagina successiva",
+             lambda: self._toggle_page_joined(self._current_page()), None, m_pages)
         self.menu_page_layout = m_pages.addMenu("Disposizione della pagina corrente")
         self.menu_page_layout.aboutToShow.connect(self._rebuild_current_page_layout_menu)
         self.menu_page_count = m_pages.addMenu("Foto nella pagina corrente")

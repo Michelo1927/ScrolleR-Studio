@@ -1,5 +1,7 @@
 """Vista della tela: zoom, pan e trascinamento file."""
-from PyQt6.QtCore import Qt, QEvent, QRectF, QPointF, pyqtSignal
+from typing import Optional
+
+from PyQt6.QtCore import Qt, QEvent, QPoint, QRectF, QPointF, pyqtSignal
 from PyQt6.QtGui import QPainter
 from PyQt6.QtWidgets import QGraphicsView, QFrame
 
@@ -54,7 +56,7 @@ def wheel_action(event, mode: str):
 class CanvasView(QGraphicsView):
     """
     Vista interattiva: zoom con rotella, Ctrl + rotella o pizzico; spostamento con due dita sul trackpad,
-    trascinando lo spazio vuoto o col tasto centrale; selezione a riquadro con Shift + trascinamento;
+    trascinando lo spazio vuoto, col tasto centrale o con Spazio + trascina; selezione a riquadro con Shift + trascinamento;
     drag-and-drop di file immagine dal PC.
     """
     files_dropped = pyqtSignal(list, QPointF)     # File dal PC, punto della tela dove sono rilasciati
@@ -62,6 +64,7 @@ class CanvasView(QGraphicsView):
     zoom_changed = pyqtSignal(float)
     MIN_SCALE = 0.03
     MAX_SCALE = 16.0
+    FREE_PAN = True  # Area scorribile attorno alla tela adattata allo zoom (le viste a scacchiera hanno la loro)
     DRAG_THRESHOLD = 4  # Pixel oltre i quali un clic sul vuoto diventa uno spostamento della vista
 
     def __init__(self, scene: CollageScene, parent=None):
@@ -85,6 +88,28 @@ class CanvasView(QGraphicsView):
         self._pan_origin = QPointF()
         self._pan_moved = False      # Spostamento vero (non un semplice clic sul vuoto)
         self._pan_button = None
+        self._space_down = False     # Spazio tenuto premuto: si trascina la vista anche sopra le foto
+
+    def update_pan_area(self, center: Optional[QPointF] = None):
+        """
+        Area in cui si può scorrere: la tela più, per lato, metà finestra (allo zoom attuale) e un po' di più.
+        Trascinando lo sfondo, qualunque pagina, anche la prima o l'ultima, arriva al centro dello schermo.
+        """
+        sc = self.scene()
+        if not self.FREE_PAN or not hasattr(sc, "canvas_rect"):
+            return
+        if center is None:
+            center = self.mapToScene(self.viewport().rect().center())
+        s = max(self.current_scale(), 1e-6)
+        pad_x = max(sc.frame_w, 0.6 * self.viewport().width() / s)
+        pad_y = max(sc.frame_h, 0.6 * self.viewport().height() / s)
+        self.setSceneRect(sc.canvas_rect().adjusted(-pad_x, -pad_y, pad_x, pad_y))
+        self.centerOn(center)
+
+    def resizeEvent(self, event):
+        center = self.mapToScene(QPoint(event.oldSize().width() // 2, event.oldSize().height() // 2))             if event.oldSize().isValid() else None
+        super().resizeEvent(event)
+        self.update_pan_area(center)
 
     def _pan_bars(self):
         """Barre mosse dal trascinamento col tasto centrale (la vista a scacchiera usa quelle della griglia)."""
@@ -101,6 +126,7 @@ class CanvasView(QGraphicsView):
             self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
         self.scale(factor, factor)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.update_pan_area()
         self.zoom_changed.emit(self.current_scale())
 
     def zoom_at(self, factor: float, view_pos: QPointF):
@@ -117,10 +143,12 @@ class CanvasView(QGraphicsView):
         h_bar, v_bar = self.horizontalScrollBar(), self.verticalScrollBar()
         h_bar.setValue(h_bar.value() + round(moved.x()))
         v_bar.setValue(v_bar.value() + round(moved.y()))
+        self.update_pan_area()
         self.zoom_changed.emit(self.current_scale())
 
     def fit_to(self, rect: QRectF):
         self.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
+        self.update_pan_area(rect.center())
         self.zoom_changed.emit(self.current_scale())
 
     def _wheel_zoom(self, factor: float, event):
@@ -174,8 +202,33 @@ class CanvasView(QGraphicsView):
         self._pan_origin = event.globalPosition()
         event.accept()
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Space and not event.modifiers():
+            if not event.isAutoRepeat():
+                self._space_down = True
+                if not self._panning:
+                    self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        if event.key() == Qt.Key.Key_Space:
+            if not event.isAutoRepeat():
+                self._space_down = False
+                if not self._panning:
+                    self.viewport().unsetCursor()
+            event.accept()
+            return
+        super().keyReleaseEvent(event)
+
+    def focusOutEvent(self, event):
+        self._space_down = False
+        super().focusOutEvent(event)
+
     def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.MiddleButton:
+        if event.button() == Qt.MouseButton.MiddleButton or (
+                self._space_down and event.button() == Qt.MouseButton.LeftButton):
             self._start_pan(event)
             self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
             return

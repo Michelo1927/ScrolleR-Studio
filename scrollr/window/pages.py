@@ -33,6 +33,7 @@ class PagesMixin:
         if n >= self.spin_frames.maximum():
             self.statusBar().showMessage(f"Massimo {n} pagine", 4000)
             return
+        inside = self.scene.joined(i - 1)  # Pagina nuova in mezzo a un gruppo «a cavallo»: ne fa parte
         fw = self.scene.frame_w
         for it in self._all_elements():
             if self._page_of(it) >= i:
@@ -40,6 +41,10 @@ class PagesMixin:
         for values in self._page_lists():
             if i < len(values):
                 values.insert(i, None)
+        if inside:
+            seams = self.scene.page_seams
+            seams.extend([None] * (i + 1 - len(seams)))
+            seams[i] = True
         if self.get_canvas_photos():
             # La pagina nuova resta vuota (copertina, testo…): il prossimo ridisegno non ci sposta foto
             counts = self.scene.page_counts
@@ -47,8 +52,12 @@ class PagesMixin:
             counts[i] = 0
         self._seam_added_frames = None
         self._set_frames_silently(n + 1)
-        self.statusBar().showMessage(f"Nuova pagina {i + 1} aggiunta, vuota. Per riempirla di foto: clic destro "
-                                     "→ Foto in questa pagina → Automatico", 6000)
+        if inside:
+            self._relayout_keep()
+            self.statusBar().showMessage(f"Nuova pagina {i + 1} aggiunta alle pagine «a cavallo»", 5000)
+        else:
+            self.statusBar().showMessage(f"Nuova pagina {i + 1} aggiunta, vuota. Per riempirla di foto: "
+                                         "clic destro → Foto in questa pagina → Automatico", 6000)
         self._schedule_commit()
 
     def _insert_page_after(self, k: int):
@@ -185,6 +194,10 @@ class PagesMixin:
         for it in self._all_elements():
             if self._page_of(it) > k:
                 it.moveBy(-fw, 0)
+        # La pagina prima resta unita a quella dopo solo se k stava in mezzo a un gruppo «a cavallo»
+        seams = self.scene.page_seams
+        if 0 < k <= len(seams):
+            seams[k - 1] = True if self.scene.joined(k - 1) and self.scene.joined(k) else None
         for values in self._page_lists():
             if k < len(values):
                 del values[k]
@@ -196,14 +209,23 @@ class PagesMixin:
         self._schedule_commit()
 
     def _move_page(self, k: int, direction: int):
-        j = k + direction
-        if not (0 <= k < self.scene.num_frames and 0 <= j < self.scene.num_frames):
+        """Sposta la pagina k di un posto; una pagina «a cavallo» si sposta con tutto il suo gruppo."""
+        groups = self.scene.seam_groups()
+        g = next((i for i, (a, b) in enumerate(groups) if a <= k <= b), None)
+        h = None if g is None else g + direction
+        if h is None or not (0 <= h < len(groups)):
             self.statusBar().showMessage("La pagina è già al bordo del carosello", 3000)
             return
-        order = list(range(self.scene.num_frames))
-        order[k], order[j] = order[j], order[k]
+        groups[g], groups[h] = groups[h], groups[g]
+        order = [p for a, b in groups for p in range(a, b + 1)]
         self._reorder_pages(order)
-        self.statusBar().showMessage(f"Pagina {k + 1} spostata in posizione {j + 1}", 3000)
+        a, b = groups[h]
+        j = order.index(a)
+        if a == b:
+            self.statusBar().showMessage(f"Pagina {k + 1} spostata in posizione {j + 1}", 3000)
+        else:
+            self.statusBar().showMessage(f"Pagine «a cavallo» {a + 1}–{b + 1} spostate nelle posizioni "
+                                         f"{j + 1}–{j + b - a + 1}", 4000)
 
     def _reorder_pages(self, order: List[int]):
         """
@@ -214,6 +236,7 @@ class PagesMixin:
         if sorted(order) != list(range(n)) or order == list(range(n)):
             return
         new_pos = {old: new for new, old in enumerate(order)}
+        joined = [self.scene.joined(k) for k in range(n)]
         fw = self.scene.frame_w
         pages = [(it, self._page_of(it)) for it in self._all_elements()]
         for it, page in pages:
@@ -222,6 +245,9 @@ class PagesMixin:
         for values in self._page_lists():
             padded = values + [None] * (n - len(values))
             values[:] = [padded[old] for old in order]
+        # Due pagine restano «a cavallo» solo se restano vicine e nello stesso ordine
+        self.scene.page_seams[:] = [True if joined[order[j]] and order[j + 1] == order[j] + 1 else None
+                                    for j in range(n - 1)]
         self._trim_page_lists()
         # L'ordine delle foto segue le pagine: un nuovo ridisegno non le rimette dov'erano
         photos = sorted(self.get_canvas_photos(), key=lambda p: (self._page_of(p), p.layout_index, p.uid))
@@ -251,7 +277,7 @@ class PagesMixin:
     # ---------- Impostazioni pagina per pagina (numero di foto, disposizione) ----------
     def _page_lists(self) -> list:
         """Elenchi con un valore per pagina (None = come le altre), da tenere allineati alle pagine."""
-        return [self.scene.page_counts, self.scene.page_layouts]
+        return [self.scene.page_counts, self.scene.page_layouts, self.scene.page_seams]
 
     def _trim_page_lists(self):
         for values in self._page_lists():
@@ -270,6 +296,41 @@ class PagesMixin:
         self.scene.update()
         self._schedule_commit()
 
+    def _set_page_joined(self, k: int, on: bool):
+        """Unisce (o separa) «a cavallo» la pagina k e la successiva, e ridispone."""
+        if not (0 <= k < self.scene.num_frames - 1):
+            return
+        seams = self.scene.page_seams
+        seams.extend([None] * (k + 1 - len(seams)))
+        seams[k] = True if on else None
+        self._trim_page_lists()
+        self._apply_page_setting()
+        if self.current_layout_mode != "scrl_seam":
+            if on:
+                a, b = next(g for g in self.scene.seam_groups() if g[0] <= k <= g[1])
+                self.statusBar().showMessage(f"Pagine {a + 1}–{b + 1} unite «a cavallo»: le foto attraversano "
+                                             "le loro giunzioni", 5000)
+            else:
+                self.statusBar().showMessage(f"Pagine {k + 1} e {k + 2} separate", 4000)
+
+    def _toggle_page_joined(self, k: int):
+        if k >= self.scene.num_frames - 1:
+            self.statusBar().showMessage("È l'ultima pagina: non c'è una pagina dopo da unire", 4000)
+            return
+        self._set_page_joined(k, not self.scene.joined(k))
+
+    def _fill_page_join_actions(self, menu: QMenu, k: int):
+        """Voci "A cavallo con la pagina precedente / successiva" per la pagina k."""
+        n = self.scene.num_frames
+        for j, text in ((k - 1, "A cavallo con la pagina precedente"), (k, "A cavallo con la pagina successiva")):
+            act = menu.addAction(text)
+            act.setCheckable(True)
+            act.setChecked(self.scene.joined(j))
+            act.setEnabled(0 <= j < n - 1)
+            act.setToolTip("Le foto di queste pagine si dispongono a righe continue che attraversano la giunzione")
+            act.triggered.connect(lambda on, jj=j: self._set_page_joined(jj, on))
+        menu.setToolTipsVisible(True)
+
     def _set_page_layout(self, k: int, mode: Optional[str], style: Optional[str] = None):
         """Disposizione propria della pagina k (None = come le altre) e ridispone."""
         layouts = self.scene.page_layouts
@@ -282,6 +343,9 @@ class PagesMixin:
         """Voci "Come le altre / Griglia / Mosaico (con gli stili) / …" per la pagina k."""
         current = self.scene.page_layouts[k] if k < len(self.scene.page_layouts) else None
         names = dict((m, t) for m, t, _ in self.LAYOUTS)
+        if self.scene.joined(k - 1) or self.scene.joined(k):
+            note = menu.addAction("(Pagina «a cavallo»: vale quando la separi)")
+            note.setEnabled(False)
         same = menu.addAction(f"Come le altre ({names.get(self.current_layout_mode, '')})")
         same.setCheckable(True)
         same.setChecked(current is None)

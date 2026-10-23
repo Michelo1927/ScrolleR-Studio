@@ -115,6 +115,7 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self.view.files_dropped.connect(self._on_files_dropped)
         self.view.library_dropped.connect(self._on_library_dropped)
         self.view.zoom_changed.connect(self._on_zoom_changed)
+        self.scene.sceneRectChanged.connect(lambda *_: self.view.update_pan_area())  # Pagine o formato cambiati
         self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.view.customContextMenuRequested.connect(self._show_canvas_context_menu)
         # Pagine a scacchiera: una vista per pagina sulla stessa tela (Vista → Pagine a scacchiera)
@@ -279,8 +280,14 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         if self._grid_mode():
             self.page_grid.fit()
             return
-        # Spazio extra in alto per le etichette delle pagine
-        self.view.fit_to(self.scene.canvas_rect().adjusted(-70, -110, 70, 70))
+        # Fascia di sfondo attorno alla tela, in pixel dello schermo: resta comoda da afferrare per
+        # trascinare la vista anche con tante pagine (più spazio in alto per le etichette delle pagine)
+        side, top, bottom = 70, 90, 70
+        canvas = self.scene.canvas_rect()
+        vp = self.view.viewport()
+        scale = min(max(50, vp.width() - 2 * side) / canvas.width(),
+                    max(50, vp.height() - top - bottom) / canvas.height())
+        self.view.fit_to(canvas.adjusted(-side / scale, -top / scale, side / scale, bottom / scale))
 
     def _zoom_actual_size(self):
         scale = self._current_zoom()

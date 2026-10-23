@@ -34,6 +34,7 @@ class HistoryMixin:
                 "per_page": self.spin_per_page.value(),
                 "page_counts": list(self.scene.page_counts),
                 "page_layouts": [dict(x) if x else None for x in self.scene.page_layouts],
+                "page_seams": list(self.scene.page_seams),
                 "layout_mode": self.current_layout_mode,
                 "mosaic_style": self.mosaic_style,
                 "layout_seed": self._layout_seed,
@@ -87,6 +88,7 @@ class HistoryMixin:
             self.scene.num_frames = c["num_frames"]
             self.scene.page_counts = list(c.get("page_counts", []))
             self.scene.page_layouts = [dict(x) if x else None for x in c.get("page_layouts", [])]
+            self.scene.page_seams = list(c.get("page_seams", []))
             self.scene.bg_color = QColor(c["bg_color"])
             self.scene.bg_mode = c.get("bg_mode", "solid")
             self.scene.bg_color2 = QColor(c.get("bg_color2", "#FF2680EB"))
@@ -264,6 +266,7 @@ class HistoryMixin:
             ({"layout_mode"}, f"Disposizione: {self.scene.layout_names.get(cb['layout_mode'], cb['layout_mode'])}"),
             ({"mosaic_style"}, "Stile mosaico"),
             ({"layout_seed"}, "Foto rimescolate"),
+            ({"page_seams"}, "Pagine a cavallo"),
             ({"page_layouts"}, "Disposizione della pagina"),
             ({"per_frame", "per_page", "page_counts"}, "Foto per pagina"),
             ({"gap"}, "Spaziatura"),

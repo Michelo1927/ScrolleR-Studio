@@ -63,6 +63,7 @@ SHORTCUTS = [
     ]),
     ("Mouse sulla tela", [
         ("Trascina sul vuoto", "Sposta la vista (anche col tasto centrale)"),
+        ("Spazio + trascina", "Sposta la vista anche sopra le foto"),
         ("Shift + trascina sul vuoto", "Seleziona più elementi con un riquadro (con Ctrl si aggiungono)"),
         ("Clic sul vuoto", "Toglie la selezione"),
         ("Ctrl + clic", "Aggiunge o toglie un elemento dalla selezione"),
