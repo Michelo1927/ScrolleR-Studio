@@ -191,7 +191,8 @@ class CanvasView(QGraphicsView):
         self.zoom_at(factor, event.position())
 
     def _element_at(self, pos) -> bool:
-        return self.itemAt(pos) is not None
+        # Gli elementi delle pagine bloccate non ricevono clic: lì si trascina la vista come sul vuoto
+        return any(it.acceptedMouseButtons() != Qt.MouseButton.NoButton for it in self.items(pos))
 
     def _start_pan(self, event):
         self._panning = True

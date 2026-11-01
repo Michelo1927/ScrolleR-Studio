@@ -48,8 +48,8 @@ class LayoutMixin:
             self._schedule_commit()
 
     def _layout_photos(self) -> List[PhotoItem]:
-        """Foto ordinate dalla disposizione automatica: tutte tranne quelle libere."""
-        return [p for p in self.get_canvas_photos() if not p.free]
+        """Foto ordinate dalla disposizione automatica: tutte tranne quelle libere e quelle delle pagine bloccate."""
+        return [p for p in self.get_canvas_photos() if not p.free and not p.page_locked]
 
     def apply_auto_layout(self, mode: str):
         photos = self._layout_photos()
@@ -78,15 +78,19 @@ class LayoutMixin:
                     "Scegliendo un'altra disposizione torni al formato di prima.", 8000)
         elif self._seam_added_frames is not None:
             # Si lascia "A cavallo": ripristina il numero di pagine originale, se non è stato cambiato a mano
+            # (e se non toglie pagine bloccate)
             before, added = self._seam_added_frames
             self._seam_added_frames = None
-            if self.scene.num_frames == added:
+            if self.scene.num_frames == added and not any(self.scene.page_locked(k) for k in range(before, added)):
                 self._set_frames_silently(before)
                 self.statusBar().showMessage(f"Formato ripristinato: {before} pagina" if before == 1
                                              else f"Formato ripristinato: {before} pagine", 5000)
+        fw = self.scene.frame_w
         if mode == "scrl_seam":
-            canvas = self.scene.canvas_rect().adjusted(margin, margin, -margin, -margin)
-            self._layout_seam(photos, self._safe_rect(canvas), gap)
+            # Tutta la tela «a cavallo», saltando le pagine bloccate
+            for (a, b), chunk in self._free_stretches(photos):
+                area = self._safe_rect(self._pages_rect(a, b).adjusted(margin, margin, -margin, -margin))
+                self._layout_seam(chunk, area, gap, [k * fw for k in range(a + 1, b + 1)])
         else:
             per_page = self.spin_per_page.value()
             if self.chk_per_frame.isChecked() and per_page > 0:
@@ -94,16 +98,22 @@ class LayoutMixin:
                 needed = len(self._page_photo_counts(len(photos)))
                 # Restano anche le pagine con testi, forme o foto libere
                 text_pages = [self._page_of(t) + 1 for t in self.get_canvas_texts() + self.get_canvas_shapes()]
-                text_pages += [self._page_of(p) + 1 for p in self.get_canvas_photos() if p.free]
+                text_pages += [self._page_of(p) + 1 for p in self.get_canvas_photos() if p.free or p.page_locked]
+                text_pages += [k + 1 for k in range(self.scene.num_frames) if self.scene.page_locked(k)]
                 frames = max([1, needed] + [p for p in text_pages if p <= self.spin_frames.maximum()])
                 if frames != self.scene.num_frames:
                     self._set_frames_silently(frames)
             if self.chk_per_frame.isChecked():
+                counts = self._page_photo_counts(len(photos))
+                if len(counts) > self.scene.num_frames:
+                    # Tutte le pagine bloccate o piene: le foto in più vanno in una pagina nuova
+                    self._set_frames_silently(len(counts))
+                    self.statusBar().showMessage("Le altre pagine sono bloccate: ho aggiunto una pagina per le foto "
+                                                 "nuove", 6000)
                 chunks, start = [], 0
-                for count in self._page_photo_counts(len(photos)):
+                for count in counts:
                     chunks.append(photos[start:start + count])
                     start += count
-                fw = self.scene.frame_w
                 for first, last in self.scene.seam_groups():
                     chunk = [p for f in range(first, min(last + 1, len(chunks))) for p in chunks[f]]
                     if not chunk:
@@ -121,11 +131,45 @@ class LayoutMixin:
                     else:
                         self._layout_in_rect(mode, chunk, area, gap, rng)
             else:
-                area = self._safe_rect(self.scene.canvas_rect().adjusted(margin, margin, -margin, -margin))
-                self._layout_in_rect(mode, photos, area, gap, rng)
+                # Tela continua, saltando le pagine bloccate
+                for (a, b), chunk in self._free_stretches(photos):
+                    area = self._safe_rect(self._pages_rect(a, b).adjusted(margin, margin, -margin, -margin))
+                    self._layout_in_rect(mode, chunk, area, gap, rng)
 
         self.scene.update()
         self._sync_inspector_from_item(self._get_primary_selected())
+
+    def _pages_rect(self, first: int, last: int) -> QRectF:
+        fw = self.scene.frame_w
+        return QRectF(first * fw, 0, (last - first + 1) * fw, self.scene.frame_h)
+
+    def _free_stretches(self, photos: List[PhotoItem]) -> List[Tuple[Tuple[int, int], List[PhotoItem]]]:
+        """
+        Tela continua con pagine bloccate: tratti di pagine libere consecutive, (prima, ultima), ognuno
+        con la sua parte di foto in proporzione alle pagine. Senza pagine bloccate è tutta la tela.
+        """
+        n = self.scene.num_frames
+        runs, start = [], None
+        for k in range(n + 1):
+            free = k < n and not self.scene.page_locked(k)
+            if free and start is None:
+                start = k
+            elif not free and start is not None:
+                runs.append((start, k - 1))
+                start = None
+        if not runs:
+            self._set_frames_silently(n + 1)
+            self.statusBar().showMessage("Le altre pagine sono bloccate: ho aggiunto una pagina per le foto", 6000)
+            runs = [(n, n)]
+        total = sum(b - a + 1 for a, b in runs)
+        out, first, pages = [], 0, 0
+        for a, b in runs:
+            pages += b - a + 1
+            end = round(len(photos) * pages / total)
+            if end > first:
+                out.append(((a, b), photos[first:end]))
+            first = end
+        return out
 
     def _page_photo_counts(self, n: int) -> List[int]:
         """
@@ -137,7 +181,17 @@ class LayoutMixin:
         per_page = self.spin_per_page.value()
 
         def fixed_at(i: int) -> Optional[int]:
+            if self.scene.page_locked(i):
+                return 0  # Pagina bloccata: le sue foto restano com'erano, non ne riceve altre
             return fixed[i] if i < len(fixed) else None
+
+        def put_extra(counts: List[int], extra: int):
+            # Le foto in più vanno nell'ultima pagina non bloccata, altrimenti in una pagina nuova
+            free = [i for i in range(len(counts)) if not self.scene.page_locked(i)]
+            if free:
+                counts[free[-1]] += extra
+            else:
+                counts.append(extra)
 
         if per_page > 0:
             counts, left = [], n
@@ -147,7 +201,7 @@ class LayoutMixin:
                 counts.append(c)
                 left -= c
             if left and counts:
-                counts[-1] += left  # Raggiunto il massimo di pagine: le foto in più vanno nell'ultima
+                put_extra(counts, left)  # Raggiunto il massimo di pagine
             return counts
 
         frames = self.scene.num_frames
@@ -165,7 +219,7 @@ class LayoutMixin:
             for j, i in enumerate(free):
                 counts[i] = base + (1 if j < extra else 0)
         elif left:
-            counts[-1] += left  # Tutte le pagine sono fissate: le foto in più vanno nell'ultima
+            put_extra(counts, left)  # Tutte le pagine sono fissate
         return counts
 
     def _on_per_page_changed(self, *_):
@@ -487,6 +541,9 @@ class LayoutMixin:
         """
         if not self._pages_split() or not (0 <= target < self.scene.num_frames):
             return False
+        if self.scene.page_locked(target):
+            self.statusBar().showMessage(f"La pagina {target + 1} è bloccata: sbloccala prima", 5000)
+            return False
         ordered = self._layout_photos()
         current = self._photo_pages()
         movers = [p for p in photos if not p.free and current.get(p.uid, target) != target]
@@ -532,9 +589,15 @@ class LayoutMixin:
 
     def _on_photo_dropped(self, item: PhotoItem):
         """Foto trascinata e rilasciata su un'altra pagina: passa a quella pagina e ci resta."""
+        dragged = [p for p in self._selected_photos() if not p.free] or ([item] if not item.free else [])
+        locked = [self._page_of(p) for p in dragged if self.scene.page_locked(self._page_of(p))]
+        if locked:
+            # Su una pagina bloccata non entra niente: la foto torna al suo posto
+            self._relayout_keep()
+            self.statusBar().showMessage(f"La pagina {locked[0] + 1} è bloccata: sbloccala prima", 5000)
+            return
         if not self._pages_split():
             return
-        dragged = [p for p in self._selected_photos() if not p.free] or ([item] if not item.free else [])
         current = self._photo_pages()
         group = {f: g for g in self.scene.seam_groups() for f in range(g[0], g[1] + 1)}
         targets = {}

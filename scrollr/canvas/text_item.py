@@ -41,6 +41,7 @@ class TextItem(QGraphicsObject):
         self.line_height = 100               # Interlinea in % di quella normale del carattere
         self.letter_spacing = 0              # Spazio in più tra le lettere, in % della dimensione
         self.locked = False
+        self.page_locked = False  # Pagina bloccata col lucchetto: l'elemento resta com'è
         self.group = 0                       # Gruppo di elementi che si selezionano insieme (0 = nessuno)
         self._rect = QRectF()
         self._pad = 0.0
@@ -79,6 +80,7 @@ class TextItem(QGraphicsObject):
             "line_height": self.line_height,
             "letter_spacing": self.letter_spacing,
             "locked": self.locked,
+            "page_locked": self.page_locked,
             "group": self.group,
         }
 
@@ -104,11 +106,26 @@ class TextItem(QGraphicsObject):
         self.setZValue(s.get("z", 0.0))
         self.set_text_opacity(s.get("opacity", 100))
         self.set_locked(s.get("locked", False))
+        self.set_page_locked(s.get("page_locked", False))
 
     def set_locked(self, locked: bool):
         self.locked = bool(locked)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not self.locked)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not (self.locked or self.page_locked))
         self.update()
+
+    def set_page_locked(self, on: bool):
+        """
+        Pagina bloccata: l'elemento non si seleziona, non si sposta e non riceve i clic
+        (trascinandoci sopra si sposta la vista, come sul vuoto).
+        """
+        self.page_locked = bool(on)
+        if self.page_locked:
+            self.setSelected(False)
+            self.unsetCursor()
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, not self.page_locked)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not (self.locked or self.page_locked))
+        self.setAcceptedMouseButtons(Qt.MouseButton.NoButton if self.page_locked else Qt.MouseButton.AllButtons)
+        self.setAcceptHoverEvents(not self.page_locked)
 
     def set_text_opacity(self, value: int):
         self.text_opacity = int(value)

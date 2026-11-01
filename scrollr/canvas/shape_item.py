@@ -54,6 +54,7 @@ class ShapeItem(QGraphicsObject):
         self.corner_radius = 0.0      # Solo per il rettangolo
         self.shape_opacity = 100
         self.locked = False
+        self.page_locked = False  # Pagina bloccata col lucchetto: l'elemento resta com'è
         self.group = 0                # Gruppo di elementi che si selezionano insieme (0 = nessuno)
         self.snap_enabled = True
 
@@ -92,6 +93,7 @@ class ShapeItem(QGraphicsObject):
             "radius": self.corner_radius,
             "opacity": self.shape_opacity,
             "locked": self.locked,
+            "page_locked": self.page_locked,
             "group": self.group,
         }
 
@@ -108,12 +110,27 @@ class ShapeItem(QGraphicsObject):
         self.setZValue(s.get("z", 0.0))
         self.set_shape_opacity(s.get("opacity", 100))
         self.set_locked(s.get("locked", False))
+        self.set_page_locked(s.get("page_locked", False))
         self.group = int(s.get("group", 0))
 
     def set_locked(self, locked: bool):
         self.locked = bool(locked)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not self.locked)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not (self.locked or self.page_locked))
         self.update()
+
+    def set_page_locked(self, on: bool):
+        """
+        Pagina bloccata: l'elemento non si seleziona, non si sposta e non riceve i clic
+        (trascinandoci sopra si sposta la vista, come sul vuoto).
+        """
+        self.page_locked = bool(on)
+        if self.page_locked:
+            self.setSelected(False)
+            self.unsetCursor()
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, not self.page_locked)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not (self.locked or self.page_locked))
+        self.setAcceptedMouseButtons(Qt.MouseButton.NoButton if self.page_locked else Qt.MouseButton.AllButtons)
+        self.setAcceptHoverEvents(not self.page_locked)
 
     def set_shape_opacity(self, value: int):
         # L'opacità si applica in paint() alla forma intera, non all'item: vedi _paint_translucent

@@ -173,13 +173,40 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
     def _set_frame_size(self, w: int, h: int):
         if (w, h) == (self.scene.frame_w, self.scene.frame_h):
             return
+        if self._any_page_locked():
+            self._show_current_frame_size()
+            self.statusBar().showMessage("Ci sono pagine bloccate: sbloccale prima di cambiare il formato", 6000)
+            return
         self.scene.frame_w, self.scene.frame_h = w, h
         self.scene.update_canvas_rect()
         self._relayout_keep()
         self.fit_canvas_in_view()
         self._schedule_commit()
 
+    def _show_current_frame_size(self):
+        """Riporta formato e misure del pannello a quelli della tela (dopo un cambio non permesso)."""
+        size = (self.scene.frame_w, self.scene.frame_h)
+        labels = [self.combo_ratio.itemText(i) for i in range(self.combo_ratio.count())]
+        index = next((i for i, t in enumerate(labels) if self.ASPECT_RATIOS.get(t) == size),
+                     next((i for i, t in enumerate(labels) if self.ASPECT_RATIOS.get(t) is None), 0))
+        for w in (self.combo_ratio, self.spin_custom_w, self.spin_custom_h):
+            w.blockSignals(True)
+        self.combo_ratio.setCurrentIndex(index)
+        self.spin_custom_w.setValue(size[0])
+        self.spin_custom_h.setValue(size[1])
+        for w in (self.combo_ratio, self.spin_custom_w, self.spin_custom_h):
+            w.blockSignals(False)
+        self.custom_size_box.setVisible(self.ASPECT_RATIOS.get(self.combo_ratio.currentText()) is None)
+
     def _on_frames_changed(self, value: int):
+        locked = [k for k in range(value, self.scene.num_frames) if self.scene.page_locked(k)]
+        if locked:
+            # Togliere pagine dalla fine eliminerebbe una pagina bloccata
+            self.spin_frames.blockSignals(True)
+            self.spin_frames.setValue(self.scene.num_frames)
+            self.spin_frames.blockSignals(False)
+            self.statusBar().showMessage(f"La pagina {locked[0] + 1} è bloccata: sbloccala prima", 5000)
+            return
         self._seam_added_frames = None  # Scelta manuale dell'utente: da ora vale la sua
         if self.spin_per_page.value() > 0:
             # Con un numero fisso di foto per pagina le pagine si calcolano da sole: torna su Auto

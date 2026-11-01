@@ -182,6 +182,9 @@ class LibraryMixin:
         frames_before = self.scene.num_frames
         page = int(scene_pos.x() // self.scene.frame_w)
         on_canvas = self.scene.canvas_rect().contains(scene_pos)
+        if on_canvas and self.scene.page_locked(page):
+            self.statusBar().showMessage(f"La pagina {page + 1} è bloccata: sbloccala prima di aggiungere foto", 5000)
+            return
         if on_canvas and self._pages_split():
             # Prima la pagina di ogni foto già ordinata, poi le nuove in fondo alla pagina scelta
             current = self._photo_pages()
@@ -282,20 +285,25 @@ class LibraryMixin:
         paths = [p for p in paths if IMAGE_CACHE.has(p)]
         if not paths:
             return
-        self._remove_all_photos()
+        self._remove_all_photos(keep_locked=True)
         for path in paths:
             self._spawn_photo_item(path)
         self._relayout_keep()
         self._schedule_commit()
 
-    def _remove_all_photos(self):
+    def _remove_all_photos(self, keep_locked: bool = False):
         for item in self.get_canvas_photos():
-            self.scene.removeItem(item)
+            if not (keep_locked and item.page_locked):
+                self.scene.removeItem(item)
 
     def clear_canvas_photos(self):
-        self._remove_all_photos()
+        """Svuota la tela; le pagine bloccate restano come sono."""
+        self._remove_all_photos(keep_locked=True)
         for t in self.get_canvas_texts() + self.get_canvas_shapes():
-            self.scene.removeItem(t)
+            if not t.page_locked:
+                self.scene.removeItem(t)
+        if self._any_page_locked():
+            self.statusBar().showMessage("Le pagine bloccate restano come sono", 4000)
         self._update_canvas_count()
         self._schedule_commit()
 

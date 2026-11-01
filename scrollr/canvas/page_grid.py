@@ -86,8 +86,7 @@ class PageTileView(CanvasView):
         # Etichetta della pagina, in pixel dello schermo
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
         painter.setFont(ui_font(11))
-        painter.setPen(QColor(THEME["muted"]))
-        painter.drawText(QPointF(top_left.x() + 1, top_left.y() - 8), sc.page_label(self.index))
+        sc.draw_page_label(painter, QPointF(top_left.x() + 1, top_left.y() - 8), self.index)
         painter.restore()
 
 

@@ -558,6 +558,7 @@ class UiMixin:
         make("Riordina le pagine…", self.reorder_pages_dialog, None, m_pages)
         make("Duplica la pagina corrente", lambda: self._duplicate_page(self._current_page()), None, m_pages)
         m_pages.addSeparator()
+        make("Blocca / sblocca la pagina corrente", lambda: self._toggle_page_lock(self._current_page()), None, m_pages)
         make("Unisci o separa «a cavallo» con la pagina successiva",
              lambda: self._toggle_page_joined(self._current_page()), None, m_pages)
         self.menu_page_layout = m_pages.addMenu("Disposizione della pagina corrente")

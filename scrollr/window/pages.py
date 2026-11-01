@@ -34,6 +34,10 @@ class PagesMixin:
             self.statusBar().showMessage(f"Massimo {n} pagine", 4000)
             return
         inside = self.scene.joined(i - 1)  # Pagina nuova in mezzo a un gruppo «a cavallo»: ne fa parte
+        if inside and self.scene.page_locked(i - 1):
+            self.statusBar().showMessage(f"Le pagine «a cavallo» intorno alla posizione {i + 1} sono bloccate: "
+                                         "sbloccale prima", 5000)
+            return
         fw = self.scene.frame_w
         for it in self._all_elements():
             if self._page_of(it) >= i:
@@ -75,6 +79,9 @@ class PagesMixin:
         if n >= self.spin_frames.maximum():
             self.statusBar().showMessage(f"Massimo {n} pagine", 4000)
             return
+        if self.scene.page_locked(k) and self.scene.joined(k):
+            self.statusBar().showMessage(f"La pagina {k + 1} è «a cavallo» e bloccata: sbloccala prima", 5000)
+            return
         self._flush_pending_commit()
         split = self._pages_split()
         current = self._photo_pages() if split else {}
@@ -87,6 +94,8 @@ class PagesMixin:
         for values in self._page_lists():
             if k < len(values):
                 values.insert(k + 1, dict(values[k]) if isinstance(values[k], dict) else values[k])
+        if k + 1 < len(self.scene.page_locks):
+            self.scene.page_locks[k + 1] = None  # La copia di una pagina bloccata nasce sbloccata
         self._seam_added_frames = None
         self._set_frames_silently(n + 1)
 
@@ -104,7 +113,7 @@ class PagesMixin:
                 state.update(layout_index=dup.layout_index, free=it.free or not split)
             if it.group:
                 state["group"] = groups.setdefault(it.group, first_group + len(groups))
-            state.update(uid=dup.uid, z=self._max_z() + 1.0, x=state["x"] + fw)
+            state.update(uid=dup.uid, z=self._max_z() + 1.0, x=state["x"] + fw, page_locked=False)
             dup.set_state(state)
             copies.append(dup)
 
@@ -180,6 +189,9 @@ class PagesMixin:
         if n <= 1:
             self.statusBar().showMessage("C'è una sola pagina: non si può eliminare", 4000)
             return
+        if self.scene.page_locked(k):
+            self.statusBar().showMessage(f"La pagina {k + 1} è bloccata: sbloccala prima", 5000)
+            return
         inside = [it for it in self._all_elements() if self._page_of(it) == k]
         if inside:
             answer = QMessageBox.question(
@@ -218,7 +230,8 @@ class PagesMixin:
             return
         groups[g], groups[h] = groups[h], groups[g]
         order = [p for a, b in groups for p in range(a, b + 1)]
-        self._reorder_pages(order)
+        if not self._reorder_pages(order):
+            return
         a, b = groups[h]
         j = order.index(a)
         if a == b:
@@ -234,8 +247,14 @@ class PagesMixin:
         """
         n = self.scene.num_frames
         if sorted(order) != list(range(n)) or order == list(range(n)):
-            return
+            return False
         new_pos = {old: new for new, old in enumerate(order)}
+        for k in range(n - 1):
+            if self.scene.page_locked(k) and self.scene.joined(k) and new_pos[k + 1] != new_pos[k] + 1:
+                # Separarle cambierebbe le foto che attraversano la giunzione
+                self.statusBar().showMessage(f"Le pagine {k + 1} e {k + 2} sono «a cavallo» e bloccate: "
+                                             "devono restare vicine", 6000)
+                return False
         joined = [self.scene.joined(k) for k in range(n)]
         fw = self.scene.frame_w
         pages = [(it, self._page_of(it)) for it in self._all_elements()]
@@ -255,6 +274,7 @@ class PagesMixin:
             p.layout_index = i
         self.scene.update()
         self._schedule_commit()
+        return True
 
     def reorder_pages_dialog(self):
         """Pagine → Riordina le pagine: miniature da trascinare nell'ordine voluto."""
@@ -270,14 +290,13 @@ class PagesMixin:
         dialog = PageOrderDialog(thumbs, [self.scene.page_label(i) for i in range(self.scene.num_frames)], self)
         if dialog.exec():
             order = dialog.order()
-            if order != list(range(self.scene.num_frames)):
-                self._reorder_pages(order)
+            if order != list(range(self.scene.num_frames)) and self._reorder_pages(order):
                 self.statusBar().showMessage("Pagine riordinate", 3000)
 
     # ---------- Impostazioni pagina per pagina (numero di foto, disposizione) ----------
     def _page_lists(self) -> list:
         """Elenchi con un valore per pagina (None = come le altre), da tenere allineati alle pagine."""
-        return [self.scene.page_counts, self.scene.page_layouts, self.scene.page_seams]
+        return [self.scene.page_counts, self.scene.page_layouts, self.scene.page_seams, self.scene.page_locks]
 
     def _trim_page_lists(self):
         for values in self._page_lists():
@@ -296,9 +315,55 @@ class PagesMixin:
         self.scene.update()
         self._schedule_commit()
 
+    # ---------- Lucchetto ----------
+    def _set_page_lock(self, k: int, on: bool):
+        """
+        Blocca (o sblocca) la pagina k così com'è: foto, disposizione, modifiche, testi e forme.
+        Una pagina «a cavallo» si blocca e si sblocca con tutto il suo gruppo.
+        """
+        if not (0 <= k < self.scene.num_frames):
+            return
+        a, b = next(g for g in self.scene.seam_groups() if g[0] <= k <= g[1])
+        locks = self.scene.page_locks
+        locks.extend([None] * (b + 1 - len(locks)))
+        inside = [it for it in self._all_elements() if a <= self._page_of(it) <= b]
+        for f in range(a, b + 1):
+            locks[f] = True if on else None
+        for it in inside:
+            it.set_page_locked(on)
+        if not on:
+            # Le foto tornano nella disposizione là dove sono: ogni pagina sbloccata fissa il suo numero di foto
+            photos = sorted(self._layout_photos(), key=lambda p: (self._page_of(p), p.layout_index, p.uid))
+            for i, p in enumerate(photos):
+                p.layout_index = i
+            if self._pages_split():
+                counts = self.scene.page_counts
+                counts.extend([None] * (b + 1 - len(counts)))
+                for f in range(a, b + 1):
+                    counts[f] = sum(1 for p in photos if self._page_of(p) == f)
+        self._trim_page_lists()
+        self.scene.update()
+        pages = f"Pagina {a + 1}" if a == b else f"Pagine {a + 1}–{b + 1}"
+        if on:
+            self.statusBar().showMessage(f"{pages} bloccat{'a' if a == b else 'e'}: niente le cambia finché "
+                                         "non le sblocchi", 5000)
+        else:
+            self.statusBar().showMessage(f"{pages} sbloccat{'a' if a == b else 'e'}", 4000)
+        self._schedule_commit()
+
+    def _toggle_page_lock(self, k: int):
+        self._set_page_lock(k, not self.scene.page_locked(k))
+
+    def _any_page_locked(self) -> bool:
+        return any(self.scene.page_locked(k) for k in range(self.scene.num_frames))
+
     def _set_page_joined(self, k: int, on: bool):
         """Unisce (o separa) «a cavallo» la pagina k e la successiva, e ridispone."""
         if not (0 <= k < self.scene.num_frames - 1):
+            return
+        if self.scene.page_locked(k) or self.scene.page_locked(k + 1):
+            j = k if self.scene.page_locked(k) else k + 1
+            self.statusBar().showMessage(f"La pagina {j + 1} è bloccata: sbloccala prima", 5000)
             return
         seams = self.scene.page_seams
         seams.extend([None] * (k + 1 - len(seams)))
@@ -326,13 +391,16 @@ class PagesMixin:
             act = menu.addAction(text)
             act.setCheckable(True)
             act.setChecked(self.scene.joined(j))
-            act.setEnabled(0 <= j < n - 1)
+            act.setEnabled(0 <= j < n - 1 and not (self.scene.page_locked(j) or self.scene.page_locked(j + 1)))
             act.setToolTip("Le foto di queste pagine si dispongono a righe continue che attraversano la giunzione")
             act.triggered.connect(lambda on, jj=j: self._set_page_joined(jj, on))
         menu.setToolTipsVisible(True)
 
     def _set_page_layout(self, k: int, mode: Optional[str], style: Optional[str] = None):
         """Disposizione propria della pagina k (None = come le altre) e ridispone."""
+        if self.scene.page_locked(k):
+            self.statusBar().showMessage(f"La pagina {k + 1} è bloccata: sbloccala prima", 5000)
+            return
         layouts = self.scene.page_layouts
         layouts.extend([None] * (k + 1 - len(layouts)))
         layouts[k] = {"mode": mode, "style": style} if mode else None
@@ -379,6 +447,9 @@ class PagesMixin:
 
     def _set_page_count(self, k: int, value: Optional[int]):
         """Fissa quante foto vanno nella pagina k (None = automatico) e ridispone."""
+        if self.scene.page_locked(k):
+            self.statusBar().showMessage(f"La pagina {k + 1} è bloccata: sbloccala prima", 5000)
+            return
         counts = self.scene.page_counts
         counts.extend([None] * (k + 1 - len(counts)))
         counts[k] = value

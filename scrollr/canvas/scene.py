@@ -40,6 +40,8 @@ class CollageScene(QGraphicsScene):
         self.page_layouts: List[Optional[dict]] = []
         # True in posizione k: le pagine k e k+1 sono unite «a cavallo» (le foto attraversano la giunzione)
         self.page_seams: List[Optional[bool]] = []
+        # True in posizione k: pagina k bloccata col lucchetto (niente la cambia finché non si sblocca)
+        self.page_locks: List[Optional[bool]] = []
         self.layout_names: Dict[str, str] = {}   # Nomi delle disposizioni per le etichette delle pagine
         self.bg_color = QColor("#FFFFFF")
         # Sfondo: "solid" = tinta unita, "gradient" = sfumatura tra due colori, "blur" = foto sfocata
@@ -70,6 +72,7 @@ class CollageScene(QGraphicsScene):
         self._snap_y: List[float] = []
         self._dot_tile = self._make_dot_tile()
         self._empty_icon_dark = icon_pixmap("image", "#555555", 44)
+        self._lock_icon = None  # Lucchetto accanto all'etichetta delle pagine bloccate (creato al primo uso)
         self._empty_icon_light = icon_pixmap("image", "#C8C8C8", 44)
         self.update_canvas_rect()
 
@@ -171,6 +174,9 @@ class CollageScene(QGraphicsScene):
         """La pagina k è unita «a cavallo» alla successiva."""
         return 0 <= k < self.num_frames - 1 and k < len(self.page_seams) and bool(self.page_seams[k])
 
+    def page_locked(self, k: int) -> bool:
+        return 0 <= k < self.num_frames and k < len(self.page_locks) and bool(self.page_locks[k])
+
     def seam_groups(self) -> List[Tuple[int, int]]:
         """Pagine in ordine raggruppate: (prima, ultima); una pagina non unita è un gruppo da sola."""
         groups, start = [], 0
@@ -185,6 +191,8 @@ class CollageScene(QGraphicsScene):
         label = f"Pagina {i + 1}" if self.num_frames > 1 else f"{self.frame_w} × {self.frame_h} px"
         group = next(g for g in self.seam_groups() if g[0] <= i <= g[1])
         own = self.page_layouts[i] if i < len(self.page_layouts) else None
+        if self.page_locked(i):
+            label += "  ·  Bloccata"
         if group[0] != group[1]:
             label += f"  ·  A cavallo {group[0] + 1}–{group[1] + 1}"
         elif own:
@@ -193,6 +201,16 @@ class CollageScene(QGraphicsScene):
         if fixed is not None:
             label += "  ·  Vuota" if fixed == 0 else (f"  ·  {fixed} foto" if fixed != 1 else "  ·  1 foto")
         return label
+
+    def draw_page_label(self, painter: QPainter, pos: QPointF, i: int):
+        """Etichetta della pagina i in pixel dello schermo; una pagina bloccata ha davanti il lucchetto."""
+        painter.setPen(QColor(THEME["muted"]))
+        if self.page_locked(i):
+            if self._lock_icon is None:
+                self._lock_icon = icon_pixmap("lock", THEME["accent"], 12)
+            painter.drawPixmap(QPointF(pos.x(), pos.y() - 11), self._lock_icon)
+            pos = QPointF(pos.x() + 16, pos.y())
+        painter.drawText(pos, self.page_label(i))
 
     def mousePressEvent(self, event):
         # Ricorda la pagina cliccata (su un elemento o sul vuoto): Incolla mette lì gli elementi copiati
@@ -322,8 +340,7 @@ class CollageScene(QGraphicsScene):
         painter.setFont(ui_font(11))
         for i in range(self.num_frames if not self.grid_mode else 0):
             top_left = t.map(QPointF(i * self.frame_w, 0))
-            painter.setPen(QColor(THEME["muted"]))
-            painter.drawText(QPointF(top_left.x() + 1, top_left.y() - 8), self.page_label(i))
+            self.draw_page_label(painter, QPointF(top_left.x() + 1, top_left.y() - 8), i)
 
         if not has_photos and not self.grid_mode:
             canvas_dev = t.mapRect(canvas_rect)

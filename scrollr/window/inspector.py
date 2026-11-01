@@ -144,6 +144,9 @@ class InspectorMixin:
             page = self.scene.last_click_page
         if page is None or not (0 <= page < self.scene.num_frames):
             page = round(self._page_rect_at(self._visible_center_scene().x()).left() / self.scene.frame_w)
+        if self.scene.page_locked(page):
+            self.statusBar().showMessage(f"La pagina {page + 1} è bloccata: sbloccala prima", 5000)
+            return
         src = int(data.get("page", 0))
         dx = (page - src) * self.scene.frame_w
         dy = 0.0
@@ -170,7 +173,7 @@ class InspectorMixin:
             if state.get("group"):
                 groups.setdefault(state["group"], first_group + len(groups))
             state.update(uid=item.uid, z=self._max_z() + 1.0, x=state["x"] + dx, y=state["y"] + dy,
-                         locked=False, group=groups.get(state.get("group"), 0))
+                         locked=False, page_locked=False, group=groups.get(state.get("group"), 0))
             item.set_state(state)
             pasted.append(item)
         self.scene.clearSelection()
@@ -426,6 +429,8 @@ class InspectorMixin:
         if primary is None:
             return
         for p in self.get_canvas_photos():
+            if p.page_locked:
+                continue  # Pagina bloccata: resta com'è
             p.adjust = dict(primary.adjust)
             p.update()
         self.statusBar().showMessage("Regolazioni colore applicate a tutte le foto", 3000)
@@ -589,6 +594,8 @@ class InspectorMixin:
         primary = self._get_primary_selected()
         border_col = primary.border_color if primary else QColor("#FFFFFF")
         for p in self.get_canvas_photos():
+            if p.page_locked:
+                continue  # Pagina bloccata: resta com'è
             p.border_radius = radius
             p.border_width = border_w
             p.border_color = border_col
@@ -701,7 +708,8 @@ class InspectorMixin:
     def _show_canvas_context_menu(self, pos, view=None):
         view = view or self.view  # Con le pagine a scacchiera arriva la vista della pagina cliccata
         # Il clic destro su un elemento non selezionato lo seleziona (come in ogni editor grafico)
-        clicked = next((it for it in view.items(pos) if isinstance(it, (PhotoItem, TextItem, ShapeItem))), None)
+        clicked = next((it for it in view.items(pos) if isinstance(it, (PhotoItem, TextItem, ShapeItem))
+                        and not it.page_locked), None)
         if clicked is not None and not clicked.isSelected():
             self.scene.clearSelection()
             clicked.setSelected(True)
@@ -763,12 +771,19 @@ class InspectorMixin:
             here = {current.get(p.uid) for p in movable}
             move_menu = menu.addMenu(make_icon("page", THEME["text"], 16), "Sposta nella pagina")
             for f in range(n):
-                act = move_menu.addAction(f"Pagina {f + 1}")
-                act.setEnabled(here != {f})
+                act = move_menu.addAction(f"Pagina {f + 1}" + ("  (bloccata)" if self.scene.page_locked(f) else ""))
+                act.setEnabled(here != {f} and not self.scene.page_locked(f))
                 act.triggered.connect(lambda _c=False, t=f: self._move_photos_to_page(
                     [p for p in self._selected_photos() if not p.free], t))
         menu.addSeparator()
         page_menu = menu.addMenu(make_icon("page", THEME["text"], 16), f"Pagina {k + 1}")
+        page_locked = self.scene.page_locked(k)
+        a = page_menu.addAction(make_icon("lock", THEME["text"], 16),
+                                "Sblocca questa pagina" if page_locked else "Blocca questa pagina",
+                                lambda: self._set_page_lock(k, not page_locked))
+        a.setToolTip("Blocca la pagina così com'è: foto, disposizione e modifiche non cambiano più")
+        page_menu.setToolTipsVisible(True)
+        page_menu.addSeparator()
         page_menu.addAction("Aggiungi una pagina prima di questa", lambda: self._insert_page_at(k))
         page_menu.addAction("Aggiungi una pagina dopo questa", lambda: self._insert_page_after(k))
         page_menu.addAction(make_icon("duplicate", THEME["text"], 16), "Duplica questa pagina",
@@ -781,12 +796,16 @@ class InspectorMixin:
         a.setEnabled(n > 1)
         page_menu.addSeparator()
         self._fill_page_join_actions(page_menu, k)
-        self._fill_page_layout_menu(page_menu.addMenu("Disposizione di questa pagina"), k)
-        self._fill_page_count_menu(page_menu.addMenu("Foto in questa pagina"), k)
+        sub = page_menu.addMenu("Disposizione di questa pagina")
+        self._fill_page_layout_menu(sub, k)
+        sub.setEnabled(not page_locked)
+        sub = page_menu.addMenu("Foto in questa pagina")
+        self._fill_page_count_menu(sub, k)
+        sub.setEnabled(not page_locked)
         page_menu.addSeparator()
         page_menu.addAction(make_icon("export", THEME["text"], 16), "Esporta questa pagina…",
                             lambda: self.export_split_frames([k]))
         page_menu.addSeparator()
         a = page_menu.addAction("Elimina questa pagina…", lambda: self._delete_page(k))
-        a.setEnabled(n > 1)
+        a.setEnabled(n > 1 and not page_locked)
         menu.exec(view.mapToGlobal(pos))
