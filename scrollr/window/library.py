@@ -207,6 +207,7 @@ class LibraryMixin:
         photo_item.geometry_changed.connect(self._on_item_geometry_changed)
         photo_item.edit_finished.connect(self._schedule_commit)
         photo_item.dropped.connect(self._on_photo_dropped)
+        photo_item.crop_requested.connect(self._crop_photo)
         # Z-index e ordine di layout crescenti
         existing = self.get_canvas_photos()
         photo_item.setZValue(max([it.zValue() for it in existing], default=0.0) + 1.0)
@@ -229,8 +230,7 @@ class LibraryMixin:
                 # Foto libera: dimensione proporzionata alla pagina, fuori dalla disposizione automatica
                 new_item.set_free(True)
                 side = min(self.scene.frame_w, self.scene.frame_h) * 0.4
-                pm = new_item.pixmap
-                ratio = pm.width() / pm.height() if pm.width() > 0 and pm.height() > 0 else 1.0
+                ratio = new_item.source_ratio()
                 new_item.set_cell_size(side * min(1.0, ratio), side * min(1.0, 1.0 / ratio))
             new_item.setPos(center - QPointF(new_item.cell_w / 2.0, new_item.cell_h / 2.0) + QPointF(i * 30, i * 30))
             new_item.setSelected(True)

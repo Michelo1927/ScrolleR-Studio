@@ -445,6 +445,9 @@ class PanelsMixin:
         lay.addLayout(fit_row)
 
         self._section_header(lay, "Inquadratura")
+        lay.addWidget(self._icon_button("crop", kb("Ritaglia la foto e scegli le sue proporzioni (Ctrl+Shift+R)\n"
+                                                   "Anche con un doppio clic sulla foto."),
+                                        self._crop_photo, "Ritaglia e proporzioni…", "SoftButton"))
         self.slider_inner_zoom = self._make_slider(lay, "Zoom", 100, 400, 100, "%", resettable=True)
         self.slider_inner_zoom.valueChanged.connect(lambda v: self._on_inspector_slider("zoom", v))
         self.slider_pan_x = self._make_slider(lay, "Orizzontale", -100, 100, 0, signed=True, resettable=True)

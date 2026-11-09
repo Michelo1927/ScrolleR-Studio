@@ -206,6 +206,9 @@ def icon_pixmap(name: str, color: str, size: int) -> QPixmap:
         poly((6.2, 7), (7.2, 20), (16.8, 20), (17.8, 7))
         line(10, 10.5, 10, 16.5)
         line(14, 10.5, 14, 16.5)
+    elif name == "crop":
+        poly((7, 3), (7, 17), (21, 17))
+        poly((3, 7), (17, 7), (17, 21))
     elif name == "ratio":
         rr(4, 6, 16, 12, 1.8)
         poly((7, 11), (7, 9), (9, 9))

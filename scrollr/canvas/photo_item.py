@@ -4,7 +4,7 @@ import os
 import random
 from typing import Dict, List, Optional, Tuple
 
-from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal
+from PyQt6.QtCore import Qt, QLineF, QRectF, QPointF, pyqtSignal
 from PyQt6.QtGui import (
     QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QCursor, QTransform, QImage, QRadialGradient
 )
@@ -32,6 +32,19 @@ def grain_tile() -> QImage:
     return _GRAIN_TILE
 from scrollr.theme import THEME, ui_font
 
+FULL_CROP = (0.0, 0.0, 1.0, 1.0)
+
+
+def clean_crop(c) -> Tuple[float, float, float, float]:
+    """Ritaglio valido (dentro la foto, non vuoto); se non lo è, la foto intera."""
+    try:
+        x0, y0, x1, y1 = (max(0.0, min(1.0, float(v))) for v in c)
+    except (TypeError, ValueError):
+        return FULL_CROP
+    if x1 - x0 < 0.005 or y1 - y0 < 0.005:
+        return FULL_CROP
+    return (x0, y0, x1, y1)
+
 
 class PhotoItem(QGraphicsObject):
     """
@@ -46,6 +59,7 @@ class PhotoItem(QGraphicsObject):
     geometry_changed = pyqtSignal(object)  # Modifica in corso (per aggiornare l'Inspector)
     edit_finished = pyqtSignal()           # Modifica completata (per Annulla/Ripeti)
     dropped = pyqtSignal(object)           # Rilasciata dopo un trascinamento (forse su un'altra pagina)
+    crop_requested = pyqtSignal(object)    # Doppio clic: apre la finestra del ritaglio
     HANDLE_PX = 11.0  # Maniglie di dimensione costante sullo schermo, a qualsiasi zoom
     MIN_CELL = 40.0
 
@@ -71,6 +85,12 @@ class PhotoItem(QGraphicsObject):
         self.pan_x = 0.0            # Offset orizzontale interno (-1.0 a +1.0)
         self.pan_y = 0.0            # Offset verticale interno (-1.0 a +1.0)
         self.inner_rotation = 0.0   # Rotazione del contenuto dentro la cella (gradi), il riquadro resta fermo
+        # Ritaglio della foto: parte dell'originale usata (sinistra, alto, destra, basso in frazioni 0..1,
+        # sulla foto non specchiata). (0, 0, 1, 1) = foto intera.
+        self.crop: Tuple[float, float, float, float] = FULL_CROP
+        # Stiramento orizzontale della foto rispetto alle sue proporzioni vere (1.0 = non deformata):
+        # cambia quando si tirano i quadratini sui lati
+        self.stretch = 1.0
 
         # Stile cornice
         self.border_radius = 0.0
@@ -99,6 +119,7 @@ class PhotoItem(QGraphicsObject):
         self._resizing_handle: Optional[str] = None
         self._resize_anchor_scene = QPointF()
         self._resize_ratio = 1.0
+        self._resize_start = (1.0, 1.0, 1.0)  # Larghezza, altezza e stiramento all'inizio del trascinamento
         self._panning_inner = False
         self._dragging = False
         self._hovered = False
@@ -161,10 +182,12 @@ class PhotoItem(QGraphicsObject):
         pm = self.pixmap
         if pm.width() <= 0 or pm.height() <= 0:
             return False
-        draw_w = self._cover_geometry(float(pm.width()), float(pm.height()))[3]
+        src = self._crop_rect(pm.width(), pm.height())
+        draw_w, draw_h = self._cover_geometry(src.width(), src.height())[3:5]
         device = painter.device()
         ratio = device.devicePixelRatioF() if device is not None else 1.0
-        return draw_w * self._view_scale() * ratio > pm.width() * 1.15
+        enlarge = max(draw_w / max(1e-6, src.width()), draw_h / max(1e-6, src.height()))
+        return enlarge * self._view_scale() * ratio > 1.15
 
     def set_locked(self, locked: bool):
         self.locked = bool(locked)
@@ -214,6 +237,8 @@ class PhotoItem(QGraphicsObject):
             "pan_x": round(self.pan_x, 4),
             "pan_y": round(self.pan_y, 4),
             "inner_rotation": round(self.inner_rotation, 3),
+            "crop": [round(v, 5) for v in self.crop],
+            "stretch": round(self.stretch, 5),
             "border_radius": self.border_radius,
             "border_width": self.border_width,
             "border_color": self.border_color.name(QColor.NameFormat.HexArgb),
@@ -241,6 +266,8 @@ class PhotoItem(QGraphicsObject):
         self.pan_x = s["pan_x"]
         self.pan_y = s["pan_y"]
         self.inner_rotation = s.get("inner_rotation", 0.0)
+        self.crop = clean_crop(s.get("crop", FULL_CROP))
+        self.stretch = min(20.0, max(0.05, float(s.get("stretch", 1.0))))
         self.border_radius = s["border_radius"]
         self.border_width = s["border_width"]
         self.border_color = QColor(s["border_color"])
@@ -298,9 +325,11 @@ class PhotoItem(QGraphicsObject):
         if pm.width() > 0 and pm.height() > 0:
             if self.saved_cell is None:
                 self.saved_cell = {"x": self.pos().x(), "y": self.pos().y(), "w": self.cell_w, "h": self.cell_h,
-                                   "inner_zoom": self.inner_zoom, "pan_x": self.pan_x, "pan_y": self.pan_y}
+                                   "inner_zoom": self.inner_zoom, "pan_x": self.pan_x, "pan_y": self.pan_y,
+                                   "stretch": self.stretch}
+            self.stretch = 1.0
             center = self.mapToScene(QPointF(self.cell_w / 2.0, self.cell_h / 2.0))
-            ratio = pm.width() / pm.height()
+            ratio = self.source_ratio()
             new_w = min(self.cell_w, self.cell_h * ratio)
             new_h = new_w / ratio
             self.set_cell_size(new_w, new_h)
@@ -318,7 +347,48 @@ class PhotoItem(QGraphicsObject):
         self.set_cell_size(sc["w"], sc["h"])
         self.setPos(sc["x"], sc["y"])
         self.inner_zoom, self.pan_x, self.pan_y = sc["inner_zoom"], sc["pan_x"], sc["pan_y"]
+        self.stretch = sc.get("stretch", self.stretch)
         self.saved_cell = None
+        self.update()
+
+    # ---------- Ritaglio ----------
+    def has_crop(self) -> bool:
+        return self.crop != FULL_CROP
+
+    def _crop_rect(self, img_w: float, img_h: float) -> QRectF:
+        """Parte ritagliata, in pixel di un'immagine di img_w × img_h (foto non specchiata)."""
+        x0, y0, x1, y1 = self.crop
+        return QRectF(x0 * img_w, y0 * img_h, (x1 - x0) * img_w, (y1 - y0) * img_h)
+
+    def source_ratio(self) -> float:
+        """Proporzioni (larghezza / altezza) della foto ritagliata: le usano i layout e «Proporzioni foto»."""
+        pm = self.pixmap
+        if pm.width() <= 0 or pm.height() <= 0:
+            return 1.0
+        src = self._crop_rect(pm.width(), pm.height())
+        return src.width() * self.stretch / src.height() if src.height() > 0 else 1.0
+
+    def apply_crop(self, crop, fit_cell: bool = True):
+        """
+        Imposta il ritaglio e riparte da un'inquadratura pulita (zoom 100%, centrata).
+        Con fit_cell il riquadro prende la forma del ritaglio, tenendo fermo il centro: una foto libera
+        mantiene circa la stessa area, una foto nella disposizione resta dentro il suo spazio.
+        """
+        self.crop = clean_crop(crop)
+        self.inner_zoom = 1.0
+        self.pan_x = self.pan_y = 0.0
+        self.saved_cell = None
+        if fit_cell and not self.is_missing:
+            ratio = self.source_ratio()
+            center = self.mapToScene(QPointF(self.cell_w / 2.0, self.cell_h / 2.0))
+            if self.free:
+                area = self.cell_w * self.cell_h
+                new_w, new_h = math.sqrt(area * ratio), math.sqrt(area / ratio)
+            else:
+                new_w = min(self.cell_w, self.cell_h * ratio)
+                new_h = new_w / ratio
+            self.set_cell_size(new_w, new_h)
+            self.setPos(center - QPointF(self.cell_w / 2.0, self.cell_h / 2.0))
         self.update()
 
     def zoom_by(self, step: float):
@@ -347,6 +417,7 @@ class PhotoItem(QGraphicsObject):
         Il rettangolo (dx, dy, draw_w, draw_h) è nel sistema di _image_transform(): la foto ruotata
         copre sempre l'intera cella, così non compaiono mai angoli vuoti.
         """
+        img_w = img_w * self.stretch
         need_w, need_h = self._rotated_cell_extent()
         if self.fit_mode == "contain":
             # Foto intera: l'immagine (ruotata) entra tutta nel riquadro
@@ -368,7 +439,8 @@ class PhotoItem(QGraphicsObject):
         pm = self.pixmap
         if pm.width() <= 0 or pm.height() <= 0:
             return 0.0, 0.0
-        _, _, _, draw_w, draw_h = self._cover_geometry(float(pm.width()), float(pm.height()))
+        src = self._crop_rect(pm.width(), pm.height())
+        _, _, _, draw_w, draw_h = self._cover_geometry(src.width(), src.height())
         need_w, need_h = self._rotated_cell_extent()
         return max(0.0, (draw_w - need_w) / 2.0), max(0.0, (draw_h - need_h) / 2.0)
 
@@ -389,21 +461,27 @@ class PhotoItem(QGraphicsObject):
     def _get_handle_rects(self) -> dict:
         hs = self._handle_size()
         half = hs / 2.0
+        w, h = self.cell_w, self.cell_h
+        # Prima gli angoli (mantengono le proporzioni), poi i lati (cambiano la forma)
         return {
             "tl": QRectF(-half, -half, hs, hs),
-            "tr": QRectF(self.cell_w - half, -half, hs, hs),
-            "bl": QRectF(-half, self.cell_h - half, hs, hs),
-            "br": QRectF(self.cell_w - half, self.cell_h - half, hs, hs),
+            "tr": QRectF(w - half, -half, hs, hs),
+            "bl": QRectF(-half, h - half, hs, hs),
+            "br": QRectF(w - half, h - half, hs, hs),
+            "t": QRectF(w / 2.0 - half, -half, hs, hs),
+            "b": QRectF(w / 2.0 - half, h - half, hs, hs),
+            "l": QRectF(-half, h / 2.0 - half, hs, hs),
+            "r": QRectF(w - half, h / 2.0 - half, hs, hs),
         }
 
     def _handle_at(self, pos: QPointF) -> Optional[str]:
         if not self.isSelected() or self.locked:
             return None
         grow = self._handle_size() * 0.4
-        for name, rect in self._get_handle_rects().items():
-            if rect.adjusted(-grow, -grow, grow, grow).contains(pos):
-                return name
-        return None
+        # Su una foto piccola i quadratini si sovrappongono: vince quello più vicino al puntatore
+        hits = [(QLineF(rect.center(), pos).length(), name) for name, rect in self._get_handle_rects().items()
+                if rect.adjusted(-grow, -grow, grow, grow).contains(pos)]
+        return min(hits)[1] if hits else None
 
     # ---------- Disegno ----------
     def _shadow_extent(self) -> float:
@@ -451,12 +529,12 @@ class PhotoItem(QGraphicsObject):
             if sharp:
                 IMAGE_CACHE.request_hires(self.image_path)  # In sottofondo: per ora si usa l'anteprima
             pm = self.display_pixmap(sharp)
-            img_w, img_h = float(pm.width()), float(pm.height())
-            if img_w > 0 and img_h > 0:
-                _, dx, dy, draw_w, draw_h = self._cover_geometry(img_w, img_h)
+            if pm.width() > 0 and pm.height() > 0:
+                src = self._crop_rect(pm.width(), pm.height())
+                _, dx, dy, draw_w, draw_h = self._cover_geometry(src.width(), src.height())
                 painter.save()
                 painter.setTransform(self._image_transform(), True)
-                painter.drawPixmap(QRectF(dx, dy, draw_w, draw_h), pm, QRectF(0, 0, img_w, img_h))
+                painter.drawPixmap(QRectF(dx, dy, draw_w, draw_h), pm, src)
                 painter.restore()
             elif not clean and self.is_missing:
                 self._paint_missing(painter, cell_rect)
@@ -547,8 +625,15 @@ class PhotoItem(QGraphicsObject):
         pm = self.pixmap
         if pm.width() <= 0 or pm.height() <= 0:
             return None
-        draw_w, draw_h = self._cover_geometry(float(pm.width()), float(pm.height()))[3:5]
-        return max(64, math.ceil(max(draw_w, draw_h) * out_scale * 1.1))
+        src = self._crop_rect(pm.width(), pm.height())
+        draw_w, draw_h = self._cover_geometry(src.width(), src.height())[3:5]
+        # Con un ritaglio serve l'originale più grande: la parte ritagliata deve arrivare a draw_w × draw_h
+        x0, y0, x1, y1 = self.crop
+        whole_w, whole_h = draw_w / max(1e-6, x1 - x0), draw_h / max(1e-6, y1 - y0)
+        # Lato lungo dell'originale che dà almeno whole_w px in larghezza e whole_h px in altezza
+        long_side = max(pm.width(), pm.height())
+        need = max(whole_w * long_side / pm.width(), whole_h * long_side / pm.height())
+        return max(64, math.ceil(need * out_scale * 1.1))
 
     def _paint_full_resolution(self, painter: QPainter, cell_rect: QRectF):
         """In esportazione ricampiona dall'originale solo la porzione visibile, alla risoluzione di uscita."""
@@ -559,12 +644,15 @@ class PhotoItem(QGraphicsObject):
         if full is None:
             pm = self.display_pixmap()
             if pm.width() > 0 and pm.height() > 0:
-                _, dx, dy, dw, dh = self._cover_geometry(float(pm.width()), float(pm.height()))
-                painter.drawPixmap(QRectF(dx, dy, dw, dh), pm, QRectF(0, 0, pm.width(), pm.height()))
+                src = self._crop_rect(pm.width(), pm.height())
+                _, dx, dy, dw, dh = self._cover_geometry(src.width(), src.height())
+                painter.drawPixmap(QRectF(dx, dy, dw, dh), pm, src)
             return
 
-        img_w, img_h = float(full.width), float(full.height)
-        scale, dx, dy, draw_w, draw_h = self._cover_geometry(img_w, img_h)
+        src = self._crop_rect(full.width, full.height)
+        img_w, img_h = src.width(), src.height()
+        _, dx, dy, draw_w, draw_h = self._cover_geometry(img_w, img_h)
+        kx, ky = draw_w / max(1e-6, img_w), draw_h / max(1e-6, img_h)
         cell_in_img = img_t.inverted()[0].mapRect(cell_rect)
         visible = QRectF(dx, dy, draw_w, draw_h).intersected(cell_in_img)
         if visible.isEmpty():
@@ -575,15 +663,16 @@ class PhotoItem(QGraphicsObject):
         out_w = max(1, round(visible.width() * device_scale))
         out_h = max(1, round(visible.height() * device_scale))
 
+        # Porzione dell'originale da leggere (dentro il ritaglio)
         box = (
-            max(0.0, (visible.left() - dx) / scale),
-            max(0.0, (visible.top() - dy) / scale),
-            min(img_w, (visible.right() - dx) / scale),
-            min(img_h, (visible.bottom() - dy) / scale),
+            src.left() + max(0.0, (visible.left() - dx) / kx),
+            src.top() + max(0.0, (visible.top() - dy) / ky),
+            src.left() + min(img_w, (visible.right() - dx) / kx),
+            src.top() + min(img_h, (visible.bottom() - dy) / ky),
         )
         resized = full.resize((out_w, out_h), Image.Resampling.LANCZOS, box=box)
         # Larghezza che avrebbe la foto intera a questa risoluzione: la nitidezza resta come in anteprima
-        whole_w = out_w * img_w / max(1e-6, box[2] - box[0])
+        whole_w = out_h * full.height / max(1e-6, box[3] - box[1]) * full.width / full.height
         resized = apply_adjustments(resized, self.adjust, detail_scale=whole_w / 1000.0, auto_lut=self.auto_lut())
         painter.drawImage(visible, pil_to_qimage(resized))
 
@@ -593,7 +682,8 @@ class PhotoItem(QGraphicsObject):
         pm = self.pixmap
         if pm.width() <= 0 or pm.height() <= 0:
             return cell_rect
-        _, dx, dy, dw, dh = self._cover_geometry(float(pm.width()), float(pm.height()))
+        src = self._crop_rect(pm.width(), pm.height())
+        _, dx, dy, dw, dh = self._cover_geometry(src.width(), src.height())
         return self._image_transform().mapRect(QRectF(dx, dy, dw, dh)).intersected(cell_rect)
 
     def _paint_effects(self, painter: QPainter, cell_rect: QRectF):
@@ -647,8 +737,9 @@ class PhotoItem(QGraphicsObject):
     def hoverMoveEvent(self, event):
         handle = self._handle_at(event.pos())
         if handle:
-            # Il cursore diagonale segue la rotazione della foto
-            angle = (self.rotation() + (45 if handle in ("tl", "br") else -45)) % 180
+            # Il cursore segue la rotazione della foto (diagonale sugli angoli, dritto sui lati)
+            offset = {"tl": 45, "br": 45, "tr": -45, "bl": -45, "l": 0, "r": 0, "t": 90, "b": 90}[handle]
+            angle = (self.rotation() + offset) % 180
             if 22.5 <= angle < 67.5:
                 diag = Qt.CursorShape.SizeFDiagCursor
             elif 67.5 <= angle < 112.5:
@@ -673,6 +764,7 @@ class PhotoItem(QGraphicsObject):
                 )
                 self._resize_anchor_scene = self.mapToScene(anchor_local)
                 self._resize_ratio = self.cell_w / self.cell_h if self.cell_h > 0 else 1.0
+                self._resize_start = (self.cell_w, self.cell_h, self.stretch)
                 event.accept()
                 return
             elif self.locked:
@@ -696,7 +788,8 @@ class PhotoItem(QGraphicsObject):
 
     def mouseMoveEvent(self, event):
         if self._resizing_handle:
-            self._resize_to(event.scenePos(), bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier))
+            # Angoli: proporzioni bloccate. Lati: la foto si stira. Con Shift si cambia solo il riquadro.
+            self._resize_to(event.scenePos(), not (event.modifiers() & Qt.KeyboardModifier.ShiftModifier))
             event.accept()
             return
 
@@ -722,6 +815,13 @@ class PhotoItem(QGraphicsObject):
             self._apply_snap()
             self.geometry_changed.emit(self)
 
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and not self.is_missing:
+            self.crop_requested.emit(self)
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
     def _resize_to(self, scene_pos: QPointF, keep_ratio: bool):
         handle = self._resizing_handle
         sx = 1.0 if "r" in handle else -1.0
@@ -730,7 +830,19 @@ class PhotoItem(QGraphicsObject):
         new_w = max(self.MIN_CELL, sx * local.x())
         new_h = max(self.MIN_CELL, sy * local.y())
 
-        if keep_ratio:
+        if handle in ("l", "r", "t", "b"):
+            # Lato: cambia una sola misura, l'altra resta com'era. Senza Shift la foto si stira insieme
+            # al riquadro (stesso contenuto visibile, deformato); con Shift riempie la nuova forma.
+            start_w, start_h, start_stretch = self._resize_start
+            if handle in ("l", "r"):
+                new_h = start_h
+            else:
+                new_w = start_w
+            if keep_ratio:
+                self.stretch = start_stretch * (new_w / start_w) * (start_h / new_h)
+            else:
+                self.stretch = start_stretch
+        elif keep_ratio:
             ratio = self._resize_ratio
             if new_w / ratio >= new_h:
                 new_h = new_w / ratio

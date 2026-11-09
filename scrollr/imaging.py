@@ -44,6 +44,18 @@ def _to_srgb(img: Image.Image, icc: bytes, out_mode: str) -> Image.Image:
         return img  # Profilo non valido o non compatibile: si usa l'immagine così com'è
 
 
+def original_size(path: str) -> Optional[tuple]:
+    """Dimensioni in pixel dell'originale come appare (rotazione EXIF inclusa), senza decodificarlo."""
+    try:
+        with Image.open(path) as src:
+            w, h = src.size
+            if src.getexif().get(0x0112, 1) in (5, 6, 7, 8):
+                w, h = h, w
+            return w, h
+    except Exception:
+        return None
+
+
 def load_pil_srgb(path: str, max_side: Optional[int] = None, exact: bool = True) -> Image.Image:
     """
     Apre un'immagine applicando rotazione EXIF e conversione del profilo colore ICC in sRGB

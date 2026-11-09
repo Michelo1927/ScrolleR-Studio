@@ -6,12 +6,13 @@ from typing import Optional
 
 from PyQt6.QtCore import Qt, QMimeData, QPointF, QRectF
 from PyQt6.QtGui import QBrush, QColor, QFont, QIcon, QPainter, QPixmap, QRadialGradient
-from PyQt6.QtWidgets import QApplication, QColorDialog, QMenu
+from PyQt6.QtWidgets import QApplication, QColorDialog, QDialog, QMenu
 
 from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.config import ELEMENTS_MIME
+from scrollr.crop_dialog import CropDialog
 from scrollr.icons import make_icon, rounded_thumb, swatch_icon
 from scrollr.imaging import (
     IMAGE_CACHE, NEUTRAL_ADJUST, PRESETS, apply_adjustments, pil_to_qimage, preset_adjust, qimage_to_pil
@@ -221,7 +222,7 @@ class InspectorMixin:
                 info = f"Riquadro {int(item.cell_w)} × {int(item.cell_h)} px"
                 self.lbl_selection_info.setText(info + ("  ·  bloccata" if item.locked else ""))
             self.lbl_hint.setText(kb("Alt + trascina: sposta l'inquadratura.   Alt + rotella: zoom nella foto.   "
-                                     "Shift sulle maniglie: mantieni le proporzioni."))
+                                     "Lati: stira la foto (Shift: solo il riquadro)."))
             self.btn_border_color.setIcon(swatch_icon(item.border_color))
             self.btn_fit_cover.setChecked(item.fit_mode != "contain")
             self.btn_fit_contain.setChecked(item.fit_mode == "contain")
@@ -624,6 +625,26 @@ class InspectorMixin:
             "Usa le proporzioni della foto:\nadatta il riquadro alla forma originale dello scatto,\n"
             "restando dentro lo spazio attuale. Puoi sempre tornare indietro.")
 
+    def _crop_photo(self, item=None):
+        """Apre la finestra «Ritaglia foto» per la foto indicata (o la prima selezionata)."""
+        if not isinstance(item, PhotoItem):
+            item = self._get_primary_selected()
+        if item is None:
+            self.statusBar().showMessage("Seleziona prima la foto da ritagliare", 4000)
+            return
+        if item.is_missing or item.page_locked:
+            self.statusBar().showMessage("Questa foto non si può ritagliare: "
+                                         + ("è mancante" if item.is_missing else "la pagina è bloccata"), 4000)
+            return
+        dlg = CropDialog(item.pixmap, item.crop, item.flip_h, item.flip_v,
+                         item.cell_w / item.cell_h / item.stretch if item.cell_h > 0 else 1.0, item.image_path, self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        item.apply_crop(dlg.crop(), dlg.fit_cell())
+        self._sync_inspector_from_item(self._get_primary_selected())
+        self._schedule_commit()
+        self.statusBar().showMessage("Ritaglio applicato" if item.has_crop() else "Ritaglio tolto: foto intera", 3000)
+
     def _restore_selected_original_ratio(self):
         """Interruttore: proporzioni originali della foto ⇄ riquadro com'era prima."""
         selected = self._selected_photos()
@@ -744,6 +765,7 @@ class InspectorMixin:
             ("scatter", "Rimetti nella disposizione" if has_photo and all(p.free for p in self._selected_photos())
              else "Rendi foto libera (fuori dalla disposizione)", self._toggle_free_selected, has_photo),
             ("swap", "Scambia le 2 foto selezionate", self.swap_two_selected_photos, n_photos == 2),
+            ("crop", "Ritaglia foto…", self._crop_photo, has_photo),
             ("reset", "Reimposta zoom e posizione", self._reset_selected_framing, has_photo),
             ("ratio", self._ratio_button_text(long=True), self._restore_selected_original_ratio, has_photo),
             ("flip_h", "Specchia orizzontalmente", lambda: self._flip_selected("h"), has_photo),

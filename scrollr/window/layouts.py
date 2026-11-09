@@ -355,9 +355,7 @@ class LayoutMixin:
         columns: List[List[Tuple[PhotoItem, float]]] = [[] for _ in range(cols)]
         heights = [0.0] * cols
         for p in photos:
-            pm = p.pixmap
-            ratio = pm.height() / pm.width() if pm.width() > 0 and pm.height() > 0 else 1.0
-            ratio = min(1.8, max(0.55, ratio))
+            ratio = min(1.8, max(0.55, 1.0 / p.source_ratio()))
             c = heights.index(min(heights))
             columns[c].append((p, ratio))
             heights[c] += ratio
@@ -417,9 +415,7 @@ class LayoutMixin:
         """
         aspects = []
         for p in photos:
-            pm = p.pixmap
-            a = pm.width() / pm.height() if pm.width() > 0 and pm.height() > 0 else 1.0
-            aspects.append(min(2.2, max(0.5, a)))
+            aspects.append(min(2.2, max(0.5, p.source_ratio())))
         w_avail, h_avail = area.width(), area.height()
 
         # Numero di righe: quello che, a proporzioni intatte, riempie meglio l'altezza della tela

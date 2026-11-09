@@ -527,6 +527,7 @@ class UiMixin:
         make("Incolla", self._paste_elements, QKeySequence.StandardKey.Paste, m_edit, target=canvas_views)
         make("Duplica", self._duplicate_selected, QKeySequence("Ctrl+D"), m_edit)
         make("Reimposta zoom e posizione", self._reset_selected_framing, QKeySequence("Ctrl+R"), m_edit)
+        make("Ritaglia foto…", self._crop_photo, QKeySequence("Ctrl+Shift+R"), m_edit)
         make("Seleziona tutte", self._select_all, QKeySequence.StandardKey.SelectAll, m_edit)
         m_edit.addSeparator()
         make("Copia stile", self._copy_style, QKeySequence("Ctrl+Shift+C"), m_edit)
