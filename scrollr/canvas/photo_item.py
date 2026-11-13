@@ -61,6 +61,8 @@ class PhotoItem(QGraphicsObject):
     dropped = pyqtSignal(object)           # Rilasciata dopo un trascinamento (forse su un'altra pagina)
     crop_requested = pyqtSignal(object)    # Doppio clic: apre la finestra del ritaglio
     HANDLE_PX = 11.0  # Maniglie di dimensione costante sullo schermo, a qualsiasi zoom
+    EXPORT_RESAMPLE = Image.Resampling.LANCZOS  # Ricampionamento in esportazione
+    MISSING_LABEL = "Foto mancante"
     MIN_CELL = 40.0
 
     _next_uid = 1
@@ -614,7 +616,7 @@ class PhotoItem(QGraphicsObject):
         text_rect = QRectF(cell_rect.left() + 8, c.y() + icon * 0.1, cell_rect.width() - 16, px * 3.2)
         name = os.path.basename(self.image_path)
         painter.drawText(text_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-                         "Foto mancante\n" + painter.fontMetrics().elidedText(
+                         self.MISSING_LABEL + "\n" + painter.fontMetrics().elidedText(
                              name, Qt.TextElideMode.ElideMiddle, int(text_rect.width())))
 
     def export_side(self, out_scale: float) -> Optional[int]:
@@ -635,10 +637,14 @@ class PhotoItem(QGraphicsObject):
         need = max(whole_w * long_side / pm.width(), whole_h * long_side / pm.height())
         return max(64, math.ceil(need * out_scale * 1.1))
 
+    def _export_source(self, side: Optional[int]) -> Optional[Image.Image]:
+        """Immagine da cui ricampionare in esportazione: l'originale letto almeno a `side` px."""
+        return IMAGE_CACHE.full(self.image_path, side)
+
     def _paint_full_resolution(self, painter: QPainter, cell_rect: QRectF):
         """In esportazione ricampiona dall'originale solo la porzione visibile, alla risoluzione di uscita."""
         t0 = painter.worldTransform()
-        full = IMAGE_CACHE.full(self.image_path, self.export_side(math.hypot(t0.m11(), t0.m12()) or 1.0))
+        full = self._export_source(self.export_side(math.hypot(t0.m11(), t0.m12()) or 1.0))
         img_t = self._image_transform()
         painter.setTransform(img_t, True)
         if full is None:
@@ -670,7 +676,7 @@ class PhotoItem(QGraphicsObject):
             src.left() + min(img_w, (visible.right() - dx) / kx),
             src.top() + min(img_h, (visible.bottom() - dy) / ky),
         )
-        resized = full.resize((out_w, out_h), Image.Resampling.LANCZOS, box=box)
+        resized = full.resize((out_w, out_h), self.EXPORT_RESAMPLE, box=box)
         # Larghezza che avrebbe la foto intera a questa risoluzione: la nitidezza resta come in anteprima
         whole_w = out_h * full.height / max(1e-6, box[3] - box[1]) * full.width / full.height
         resized = apply_adjustments(resized, self.adjust, detail_scale=whole_w / 1000.0, auto_lut=self.auto_lut())

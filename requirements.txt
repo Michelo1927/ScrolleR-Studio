@@ -1,4 +1,6 @@
 PyQt6>=6.11
 Pillow>=11.0
+# Video: lettura e esportazione in MP4 (include FFmpeg)
+av>=14
 # Opzionale, per aprire le foto HEIC/HEIF dell'iPhone
 # pillow-heif

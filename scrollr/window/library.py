@@ -10,7 +10,8 @@ from PyQt6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QMessage
 from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
-from scrollr.config import IMAGE_EXTS
+from scrollr.canvas.video_item import VideoItem
+from scrollr.config import IMAGE_EXTS, VIDEO_EXTS, is_video
 from scrollr.icons import make_icon, rounded_thumb
 from scrollr.imaging import IMAGE_CACHE, ImageCache, normalize_path
 from scrollr.theme import THEME
@@ -21,13 +22,12 @@ class LibraryMixin:
 
     # ================= CARICAMENTO E LIBRERIA FOTO =================
     def open_file_dialog(self):
-        patterns = " ".join(f"*{ext}" for ext in IMAGE_EXTS)
-        paths, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Scegli le foto",
-            "",
-            f"Immagini ({patterns})"
-        )
+        images = " ".join(f"*{ext}" for ext in IMAGE_EXTS)
+        filters = [f"Foto ({images})"]
+        if VIDEO_EXTS:
+            videos = " ".join(f"*{ext}" for ext in VIDEO_EXTS)
+            filters = [f"Foto e video ({images} {videos})"] + filters + [f"Video ({videos})"]
+        paths, _ = QFileDialog.getOpenFileNames(self, "Scegli foto e video", "", ";;".join(filters))
         if paths:
             self.load_images_from_paths(paths)
 
@@ -85,7 +85,7 @@ class LibraryMixin:
             shown = "\n".join(errors[:15])
             more = f"\n… e altri {len(errors) - 15}" if len(errors) > 15 else ""
             QMessageBox.warning(self, "Alcune foto non sono state caricate",
-                                "Questi file non sono immagini leggibili:\n\n" + shown + more)
+                                "Questi file non sono foto o video leggibili:\n\n" + shown + more)
 
     def _update_library_ui(self):
         n = len(self.loaded_library)
@@ -202,7 +202,9 @@ class LibraryMixin:
         self._schedule_commit()
 
     def _spawn_photo_item(self, path: str, uid: Optional[int] = None) -> PhotoItem:
-        photo_item = PhotoItem(path, 400, 500, uid=uid)
+        photo_item = (VideoItem if is_video(path) else PhotoItem)(path, 400, 500, uid=uid)
+        if isinstance(photo_item, VideoItem):
+            photo_item.playing_changed.connect(self._on_video_playing_changed)
         photo_item.snap_enabled = self.chk_snap.isChecked()
         photo_item.geometry_changed.connect(self._on_item_geometry_changed)
         photo_item.edit_finished.connect(self._schedule_commit)

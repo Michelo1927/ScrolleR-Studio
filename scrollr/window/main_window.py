@@ -27,10 +27,12 @@ from scrollr.window.shapes import ShapesMixin
 from scrollr.window.text import TextMixin
 from scrollr.window.ui import UiMixin
 from scrollr.window.updates import UpdatesMixin
+from scrollr.window.video import VideoMixin
 
 
 class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin, TextMixin, ShapesMixin,
-                 PagesMixin, HistoryMixin, ProjectMixin, MissingMixin, ExportMixin, UpdatesMixin, QMainWindow):
+                 PagesMixin, HistoryMixin, ProjectMixin, MissingMixin, ExportMixin, UpdatesMixin, VideoMixin,
+                 QMainWindow):
     """Finestra principale. Le funzioni sono divise nei mixin del pacchetto window."""
 
     ASPECT_RATIOS = {

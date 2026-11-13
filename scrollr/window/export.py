@@ -2,14 +2,19 @@
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from PyQt6.QtCore import QRectF, QStandardPaths, Qt, QUrl
 from PyQt6.QtGui import QDesktopServices, QImage, QPainter
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox, QProgressDialog
 
+from scrollr.canvas.video_item import VideoItem
+from scrollr.crashlog import log_handled
 from scrollr.dialogs import PageExportDialog
 from scrollr.imaging import IMAGE_CACHE, ImageCache
+from scrollr.video import (
+    VIDEO_FPS, VIDEO_MAX_SECONDS, FrameReader, Mp4Writer, loop_audio, mix_audio, output_size, read_audio
+)
 
 
 class ExportMixin:
@@ -40,8 +45,123 @@ class ExportMixin:
         painter.end()
         return img
 
+    def _render_layer(self, source: QRectF, out_w: int, out_h: int, show: Callable,
+                      background: bool, overlays: bool) -> Optional[QImage]:
+        """
+        Solo gli elementi per cui show(elemento) è vero, su fondo trasparente (con background=True
+        anche lo sfondo della tela, con overlays=True anche numeri di pagina e «scorri»).
+        Gli altri si rendono invisibili per un attimo con l'opacità, che non tocca la selezione.
+        """
+        hidden = []
+        for it in self._all_elements():
+            if not show(it) and it.opacity() > 0:
+                hidden.append((it, it.opacity()))
+                it.setOpacity(0.0)
+        self.scene.skip_background = not background
+        self.scene.skip_overlays = not overlays
+        try:
+            img = QImage(out_w, out_h, QImage.Format.Format_ARGB32_Premultiplied)
+            if img.isNull():
+                return None
+            img.fill(self.scene.bg_color if background else Qt.GlobalColor.transparent)
+            painter = QPainter(img)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+            self.scene.render(painter, QRectF(0, 0, out_w, out_h), source)
+            painter.end()
+            return img
+        finally:
+            for it, opacity in hidden:
+                it.setOpacity(opacity)
+            self.scene.skip_background = self.scene.skip_overlays = False
+
+    def _video_page_frames(self, k: int) -> int:
+        """Fotogrammi dell'MP4 della pagina k: dura quanto il video più lungo (al massimo 60 s)."""
+        longest = max((v.clip_length() for v in self._page_videos(k)), default=0.0)
+        return max(1, round(min(longest, VIDEO_MAX_SECONDS) * VIDEO_FPS))
+
+    def _export_video_page(self, k: int, path: str, progress: QProgressDialog, step: int) -> Optional[bool]:
+        """
+        Pagina k come MP4. Ciò che sta sotto e sopra i video si disegna una volta sola; a ogni fotogramma
+        si ridisegnano solo i video (e gli elementi tra un video e l'altro). I video più corti ripartono
+        da capo; l'audio dei video non muti si sovrappone. None = annullata dall'utente.
+        """
+        fw, fh = self.scene.frame_w, self.scene.frame_h
+        out_w, out_h = output_size(fw, fh)
+        source = QRectF(k * fw, 0, fw, fh)
+        videos = self._page_videos(k)
+        n = self._video_page_frames(k)
+        seconds = n / VIDEO_FPS
+        z_lo = min(v.zValue() for v in videos)
+        z_hi = max(v.zValue() for v in videos)
+        below = self._render_layer(source, out_w, out_h, lambda it: it.zValue() < z_lo, True, False)
+        above = self._render_layer(source, out_w, out_h, lambda it: it.zValue() > z_hi, False, True)
+        if below is None or above is None:
+            return False
+
+        tracks = []
+        for v in videos:
+            if v.has_audio and not v.muted:
+                try:
+                    pcm = read_audio(v.image_path, v.trim_start, v.clip_end())
+                except Exception:
+                    pcm = None
+                if pcm:
+                    tracks.append(loop_audio(pcm, seconds))
+        audio = mix_audio(tracks) if tracks else None
+
+        px = out_w / fw  # Pixel dell'MP4 per unità della tela
+        readers = {}
+        writer = None
+        ok = False
+        try:
+            for v in videos:
+                readers[v] = FrameReader(v.image_path, v.export_side(px))
+            writer = Mp4Writer(path, out_w, out_h, VIDEO_FPS, audio)
+            for i in range(n):
+                t = i / VIDEO_FPS
+                for v in videos:
+                    v.set_export_frame(readers[v].frame_at(v.trim_start + t % v.clip_length()))
+                middle = self._render_layer(source, out_w, out_h, lambda it: z_lo <= it.zValue() <= z_hi, False, False)
+                if middle is None:
+                    return False
+                frame = QImage(below)
+                painter = QPainter(frame)
+                painter.drawImage(0, 0, middle)
+                painter.drawImage(0, 0, above)
+                painter.end()
+                rgba = frame.convertToFormat(QImage.Format.Format_RGBA8888)
+                ptr = rgba.constBits()
+                ptr.setsize(rgba.sizeInBytes())
+                writer.add_frame(bytes(ptr))
+                progress.setValue(step + i)
+                if i % 3 == 0:
+                    QApplication.processEvents()
+                    if progress.wasCanceled():
+                        return None
+            writer.close()
+            writer = None
+            ok = True
+            return True
+        except Exception:
+            log_handled(f"Esportazione MP4 della pagina {k + 1}")
+            return False
+        finally:
+            for v in videos:
+                v.set_export_frame(None)
+            for r in readers.values():
+                r.close()
+            if writer is not None:
+                writer.abort()
+            if not ok and os.path.exists(path):
+                try:
+                    os.remove(path)  # Niente MP4 a metà
+                except OSError:
+                    pass
+
     def _begin_export(self):
         self._flush_pending_commit()
+        self._stop_all_videos()
         self.scene.is_exporting = True
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
@@ -119,7 +239,7 @@ class ExportMixin:
         return progress
 
     def _export_photo_count(self) -> int:
-        return len({p.image_path for p in self.get_canvas_photos() if not p.is_missing})
+        return len({p.image_path for p in self.get_canvas_photos() if not p.is_missing and not isinstance(p, VideoItem)})
 
     def _prefetch_originals(self, scale: float, progress: QProgressDialog) -> bool:
         """
@@ -128,6 +248,8 @@ class ExportMixin:
         """
         sides = {}
         for p in self.get_canvas_photos():
+            if isinstance(p, VideoItem):
+                continue  # Il fotogramma si legge al momento del disegno
             side = p.export_side(scale * 1.001)  # Un filo più grande: il disegno lo trova già pronto
             if side is not None:
                 sides[p.image_path] = max(side, sides.get(p.image_path, 0))
@@ -246,7 +368,10 @@ class ExportMixin:
 
         num_frames = len(pages)
         ext = self._export_ext()
-        file_paths = [os.path.join(folder, self._page_file_name(k, ext)) for k in pages]
+        # Le pagine con un video diventano MP4 (un passo della barra per fotogramma)
+        video_frames = {k: self._video_page_frames(k) for k in pages if self._page_videos(k)}
+        file_paths = [os.path.join(folder, self._page_file_name(k, ".mp4" if k in video_frames else ext))
+                      for k in pages]
         existing = [p for p in file_paths if os.path.exists(p)]
         if existing:
             answer = QMessageBox.question(
@@ -266,7 +391,8 @@ class ExportMixin:
         out_h = int(fh * scale)
 
         n_photos = self._export_photo_count()
-        progress = self._export_progress(n_photos + num_frames)
+        total = n_photos + sum(video_frames.get(k, 1) for k in pages)
+        progress = self._export_progress(total)
         saved_files: List[str] = []
         failed: List[str] = []
         canceled = False
@@ -275,20 +401,34 @@ class ExportMixin:
             if not self._prefetch_originals(scale, progress):
                 canceled = True
             else:
+                step = n_photos
                 for i, (k, file_path) in enumerate(zip(pages, file_paths)):
-                    progress.setValue(n_photos + i)
-                    progress.setLabelText(f"Pagina {k + 1} ({i + 1} di {num_frames})…")
+                    progress.setValue(step)
+                    progress.setLabelText(f"Pagina {k + 1} ({i + 1} di {num_frames})"
+                                          + ("  ·  video MP4…" if k in video_frames else "…"))
                     QApplication.processEvents()
                     if progress.wasCanceled():
                         canceled = True
                         break
+                    if k in video_frames:
+                        result = self._export_video_page(k, file_path, progress, step)
+                        step += video_frames[k]
+                        if result is None:
+                            canceled = True
+                            break
+                        if result:
+                            saved_files.append(file_path)
+                        else:
+                            failed.append(os.path.basename(file_path))
+                        continue
+                    step += 1
                     img = self._render_region(QRectF(k * fw, 0, fw, fh), out_w, out_h)
                     if img is not None and self._save_image(img, file_path):
                         saved_files.append(file_path)
                     else:
                         failed.append(os.path.basename(file_path))
         finally:
-            progress.setValue(n_photos + num_frames)
+            progress.setValue(total)
             self._end_export()
 
         if canceled and not saved_files:
@@ -298,6 +438,11 @@ class ExportMixin:
             msg = f"Pagina esportata ({out_w}×{out_h} px):\n{saved_files[0]}"
         else:
             msg = f"{len(saved_files)} pagine esportate ({out_w}×{out_h} px ciascuna) in:\n{folder}"
+        n_mp4 = sum(1 for p in saved_files if p.endswith(".mp4"))
+        if n_mp4:
+            vw, vh = output_size(fw, fh)
+            msg += ("\n\nLa pagina con video è un MP4" if n_mp4 == 1 else f"\n\nLe {n_mp4} pagine con video sono MP4") \
+                + f" ({vw}×{vh} px, {VIDEO_FPS} fps)."
         if canceled:
             msg += "\n\nEsportazione interrotta: le pagine successive non sono state salvate."
         if failed:

@@ -59,3 +59,16 @@ def _on_exception(exc_type, exc, tb):
     box.setInformativeText(f"I dettagli sono nel registro degli errori:\n{log_path()}")
     box.setDetailedText(text)
     box.exec()
+
+
+def log_handled(context: str):
+    """Errore già gestito (l'app avvisa a modo suo): solo la traccia nel registro, per capire cosa è successo."""
+    text = traceback.format_exc()
+    if _log_file is not None:
+        try:
+            _log_file.write(f"\n--- {context} {datetime.datetime.now():%H:%M:%S} ---\n{text}")
+            _log_file.flush()
+        except OSError:
+            pass
+    if sys.__stderr__ is not None:
+        sys.__stderr__.write(text)

@@ -2,6 +2,11 @@
 
 Desktop editor for building photo collages and carousels for social media (side-by-side pages that scroll).
 
+Videos can go on the canvas too: a page that contains a video is exported as an MP4
+(H.264 + AAC, 30 fps, up to 60 s), with the rest of the page around it. Each video can be trimmed,
+muted and given a cover frame; shorter videos on the same page loop until the longest one ends.
+A video always stays inside one page (it cannot straddle two).
+
 ## Download
 
 Open the [latest release](https://github.com/Michelo1927/ScrolleR-Studio/releases/latest) and, under **Assets**, download:
@@ -68,11 +73,13 @@ scrollr/
   icons.py              code-drawn icons, thumbnails, badges
   shapes.py             graphic shapes: list and geometry (used by the canvas and the icons)
   imaging.py            photo loading (EXIF, ICC → sRGB), color adjustments, cache
+  video.py              videos with PyAV: info, frames, audio, MP4 writing
   widgets.py            ToggleSwitch, DropZone, library delegate
   dialogs.py            carousel preview, page order, pages to export, background dialog
   crop_dialog.py        "Crop photo" window: crop area with handles and ready-made aspect ratios
   canvas/
     photo_item.py       photos on the canvas (crop, inner zoom, borders, snapping)
+    video_item.py       videos on the canvas: a photo item with trim, cover frame, mute and playback
     text_item.py        text boxes
     shape_item.py       shapes, lines and arrows (resize handles, rotate handle, endpoints)
     snap.py             magnetic snapping shared by photos and shapes
@@ -90,7 +97,8 @@ scrollr/
     history.py          undo / redo
     project.py          save / open, recent files, autosave
     missing.py          missing photos: placeholders, relinking, collect project into a folder
-    export.py           high-resolution export
+    export.py           high-resolution export; pages with a video become MP4 files
+    video.py            video section of the inspector, playback, keeping videos inside one page
     updates.py          new-version notice (checks the latest GitHub release)
 ```
 

@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QAbstractScrollArea
 )
 
-from scrollr.config import LIBRARY_MIME
+from scrollr.config import LIBRARY_MIME, is_video
 
 from scrollr.icons import color_wheel_icon, icon_pixmap, no_color_icon, swatch_icon
 from scrollr.theme import SWATCHES, THEME, ui_font
@@ -119,6 +119,19 @@ class LibraryCheckDelegate(QStyledItemDelegate):
     def paint(self, painter: QPainter, option, index):
         super().paint(painter, option, index)
         path = index.data(Qt.ItemDataRole.UserRole)
+        if path and is_video(path):
+            # Video: pallino scuro con il triangolo «play» in alto a sinistra
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            r = QRectF(option.rect)
+            dot = QRectF(r.left() + 6, r.top() + 6, 18, 18)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(0, 0, 0, 175))
+            painter.drawEllipse(dot)
+            painter.setBrush(QColor("#FFFFFF"))
+            x, y = dot.x(), dot.y()
+            painter.drawPolygon(QPolygonF([QPointF(x + 7, y + 5), QPointF(x + 13.5, y + 9), QPointF(x + 7, y + 13)]))
+            painter.restore()
         if self._on_canvas is not None and path and self._on_canvas(path):
             # Etichetta "sulla tela" per le foto già usate nel collage
             painter.save()

@@ -165,6 +165,7 @@ class HistoryMixin:
 
     def _commit_history(self):
         self._commit_timer.stop()
+        self._keep_videos_in_pages()
         snap = self._snapshot()
         if self._history and self._history[self._history_index] == snap:
             return
@@ -313,6 +314,12 @@ class HistoryMixin:
             return "Testo modificato"
         if diff & {"adjust"}:
             return "Colori della foto"
+        if diff & {"trim_start", "trim_end"}:
+            return "Taglio del video"
+        if diff & {"poster"}:
+            return "Copertina del video"
+        if diff & {"muted"}:
+            return "Audio del video"
         if diff <= {"inner_zoom", "pan_x", "pan_y", "inner_rotation"}:
             return "Inquadratura della foto"
         if diff & {"free"}:

@@ -212,6 +212,7 @@ class InspectorMixin:
             self.lbl_hint.setText(kb("Trascina sul vuoto: sposta la vista.   Shift + trascina: seleziona più elementi.   "
                                      "Rotella: zoom · due dita: sposta.   F1: tutte le scorciatoie."))
         elif item is not None:
+            self._sync_video_inspector(item)
             self.lbl_selection_thumb.setPixmap(rounded_thumb(item.display_pixmap(), 40, 2))
             if count > 1:
                 self.lbl_selection_name.setText(f"{count} foto selezionate")

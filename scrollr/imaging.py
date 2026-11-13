@@ -11,7 +11,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtGui import QPixmap, QImage
 from PIL import Image, ImageOps, ImageCms, ImageEnhance, ImageFilter
 
-from scrollr.config import IMAGE_EXTS
+from scrollr.config import MEDIA_EXTS, is_video
 
 
 # ================= CARICAMENTO IMMAGINI & CACHE =================
@@ -46,6 +46,13 @@ def _to_srgb(img: Image.Image, icc: bytes, out_mode: str) -> Image.Image:
 
 def original_size(path: str) -> Optional[tuple]:
     """Dimensioni in pixel dell'originale come appare (rotazione EXIF inclusa), senza decodificarlo."""
+    if is_video(path):
+        try:
+            from scrollr.video import video_info
+            info = video_info(path)
+            return info["width"], info["height"]
+        except Exception:
+            return None
     try:
         with Image.open(path) as src:
             w, h = src.size
@@ -64,7 +71,11 @@ def load_pil_srgb(path: str, max_side: Optional[int] = None, exact: bool = True)
 
     Per le anteprime la riduzione viene prima di tutto: il JPEG si decodifica già ridotto e
     rotazione e colori si calcolano sulla foto piccola (molto più veloce, risultato uguale).
+    Per un video è il primo fotogramma (anteprima, miniatura, proporzioni).
     """
+    if is_video(path):
+        from scrollr.video import grab_frame
+        return grab_frame(path, 0.0, max_side)
     with Image.open(path) as src:
         w, h = src.size
         if max_side and max(w, h) > max_side:
@@ -370,6 +381,6 @@ def image_paths_from_mime(mime) -> List[str]:
     if mime.hasUrls():
         for url in mime.urls():
             local_path = url.toLocalFile()
-            if os.path.isfile(local_path) and local_path.lower().endswith(IMAGE_EXTS):
+            if os.path.isfile(local_path) and local_path.lower().endswith(MEDIA_EXTS):
                 paths.append(local_path)
     return paths

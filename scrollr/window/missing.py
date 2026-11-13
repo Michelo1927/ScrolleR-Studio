@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox, QProgressDialog
 
-from scrollr.config import IMAGE_EXTS, PROJECT_EXT
+from scrollr.config import MEDIA_EXTS, PROJECT_EXT
 from scrollr.imaging import IMAGE_CACHE, normalize_path
 
 MAX_SCAN_FILES = 50_000  # Limite di sicurezza nella ricerca dentro una cartella (es. un disco intero)
@@ -70,9 +70,9 @@ class MissingMixin:
         if photo is None:
             return
         old = photo.image_path
-        exts = " ".join("*" + e for e in IMAGE_EXTS)
+        exts = " ".join("*" + e for e in MEDIA_EXTS)
         path, _ = QFileDialog.getOpenFileName(
-            self, f"Dov'è ora «{os.path.basename(old)}»?", self._project_dir(), f"Immagini ({exts})")
+            self, f"Dov'è ora «{os.path.basename(old)}»?", self._project_dir(), f"Foto e video ({exts})")
         if not path:
             return
         mapping = {old: normalize_path(path)}

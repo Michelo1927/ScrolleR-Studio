@@ -403,12 +403,14 @@ class PanelsMixin:
         lay.addLayout(head)
 
         self.photo_tabs = QStackedWidget()
-        lay.addWidget(self._seg_tabs([
+        lay.addWidget(self._video_inspector_box())
+        self.photo_tab_bar = self._seg_tabs([
             ("Foto", "Riempimento, inquadratura, rotazione e specchio"),
             ("Colore", "Luminosità, contrasto, saturazione, calore, bianco e nero"),
             ("Stile", "Angoli, bordo, opacità, ombra, copia e incolla stile"),
             ("Disponi", "Allinea, distribuisci, blocca"),
-        ], self.photo_tabs))
+        ], self.photo_tabs)
+        lay.addWidget(self.photo_tab_bar)
         lay.addWidget(self.photo_tabs)
         self.photo_tabs.addWidget(self._build_photo_tab_frame())
         self.photo_tabs.addWidget(self._build_photo_tab_color())

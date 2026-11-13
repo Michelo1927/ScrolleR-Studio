@@ -114,6 +114,16 @@ def icon_pixmap(name: str, color: str, size: int) -> QPixmap:
         rr(3.5, 5, 17, 14, 2.2)
         poly((4, 17.5), (9, 12), (13, 15.5), (15.5, 13.5), (20, 17.5))
         p.drawEllipse(QPointF(15.8, 9.4), 1.6, 1.6)
+    elif name == "play":
+        p.setBrush(tint)
+        p.drawPolygon(QPolygonF([QPointF(8, 5.5), QPointF(18.5, 12), QPointF(8, 18.5)]))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+    elif name == "pause":
+        rr(7, 5.5, 3.5, 13, 1.0, brush=tint)
+        rr(13.5, 5.5, 3.5, 13, 1.0, brush=tint)
+    elif name == "video":
+        rr(3.5, 6, 12, 12, 2.2)
+        poly((15.5, 10.5), (20.5, 7.5), (20.5, 16.5), (15.5, 13.5))
     elif name == "export":
         poly((4.5, 13.5), (4.5, 19.5), (19.5, 19.5), (19.5, 13.5))
         line(12, 4, 12, 15)

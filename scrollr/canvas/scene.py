@@ -62,6 +62,9 @@ class CollageScene(QGraphicsScene):
         self._blur_cache: Optional[Tuple[tuple, QPixmap]] = None
         self.show_guides = True
         self.is_exporting = False
+        # Esportazione a strati (pagine video): sfondo e numeri di pagina si disegnano solo dove servono
+        self.skip_background = False
+        self.skip_overlays = False
         self.clean_render = False        # Anteprima: niente guide, etichette né selezione
         self.show_original = False       # Prima/dopo tenuto premuto: foto senza regolazioni
         self.wheel_mode = "auto"         # Rotella: "auto" (trackpad sposta, mouse zooma), "zoom", "pan"
@@ -147,6 +150,8 @@ class CollageScene(QGraphicsScene):
         painter.fillRect(rect, self.bg_color)
 
     def drawBackground(self, painter: QPainter, rect: QRectF):
+        if self.is_exporting and self.skip_background:
+            return
         canvas_rect = self.canvas_rect()
         if not (self.is_exporting or self.clean_render):
             t = painter.worldTransform()
@@ -279,7 +284,8 @@ class CollageScene(QGraphicsScene):
         painter.restore()
 
     def drawForeground(self, painter: QPainter, rect: QRectF):
-        self.paint_page_overlays(painter)
+        if not (self.is_exporting and self.skip_overlays):
+            self.paint_page_overlays(painter)
         if self.is_exporting or self.clean_render:
             return
 

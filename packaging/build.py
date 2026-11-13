@@ -96,6 +96,7 @@ def run_pyinstaller(icon: str, extra: list):
         "--distpath", DIST,
         "--collect-submodules", "scrollr",
         "--hidden-import", "pillow_heif",
+        "--collect-all", "av",  # PyAV: moduli compilati e librerie di FFmpeg per i video
         *extra,
         os.path.join(ROOT, "main.py"),
     ]

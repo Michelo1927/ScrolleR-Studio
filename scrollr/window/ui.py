@@ -446,9 +446,10 @@ class UiMixin:
         sb.addPermanentWidget(self._icon_button("fit", kb("Adatta la tela alla finestra (Ctrl+0)"), self.fit_canvas_in_view, "Adatta"))
 
     def _make_slider(self, layout, title: str, lo: int, hi: int, value: int, suffix: str = "",
-                     signed: bool = False, resettable: bool = False) -> QSlider:
+                     signed: bool = False, resettable: bool = False, fmt=None) -> QSlider:
         """Riga con titolo e valore corrente (a destra), seguita dallo slider.
-        Con resettable=True compare un'icona che riporta lo slider al valore iniziale."""
+        Con resettable=True compare un'icona che riporta lo slider al valore iniziale.
+        `fmt` (facoltativo) trasforma il valore nel testo mostrato (es. secondi «0:12»)."""
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(4)
@@ -470,6 +471,9 @@ class UiMixin:
             slider.setObjectName("Signed")
 
         def refresh(v):
+            if fmt is not None:
+                chip.setText(fmt(v))
+                return
             chip.setText(f"{v:+d}{suffix}" if signed and v != 0 else f"{v}{suffix}")
 
         refresh(value)
