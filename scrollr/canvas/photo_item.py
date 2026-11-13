@@ -637,6 +637,10 @@ class PhotoItem(QGraphicsObject):
         need = max(whole_w * long_side / pm.width(), whole_h * long_side / pm.height())
         return max(64, math.ceil(need * out_scale * 1.1))
 
+    def _resample(self, full: Image.Image, size: Tuple[int, int], box: tuple) -> Image.Image:
+        """La porzione `box` dell'originale portata a `size` pixel (esportazione)."""
+        return full.resize(size, self.EXPORT_RESAMPLE, box=box)
+
     def _export_source(self, side: Optional[int]) -> Optional[Image.Image]:
         """Immagine da cui ricampionare in esportazione: l'originale letto almeno a `side` px."""
         return IMAGE_CACHE.full(self.image_path, side)
@@ -676,7 +680,7 @@ class PhotoItem(QGraphicsObject):
             src.left() + min(img_w, (visible.right() - dx) / kx),
             src.top() + min(img_h, (visible.bottom() - dy) / ky),
         )
-        resized = full.resize((out_w, out_h), self.EXPORT_RESAMPLE, box=box)
+        resized = self._resample(full, (out_w, out_h), box)
         # Larghezza che avrebbe la foto intera a questa risoluzione: la nitidezza resta come in anteprima
         whole_w = out_h * full.height / max(1e-6, box[3] - box[1]) * full.width / full.height
         resized = apply_adjustments(resized, self.adjust, detail_scale=whole_w / 1000.0, auto_lut=self.auto_lut())

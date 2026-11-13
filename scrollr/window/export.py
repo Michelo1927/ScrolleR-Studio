@@ -116,7 +116,8 @@ class ExportMixin:
         ok = False
         try:
             for v in videos:
-                readers[v] = FrameReader(v.image_path, v.export_side(px))
+                size = v.export_frame_size(px)
+                readers[v] = FrameReader(v.image_path, None if size else v.export_side(px), size)
             writer = Mp4Writer(path, out_w, out_h, VIDEO_FPS, audio)
             for i in range(n):
                 t = i / VIDEO_FPS

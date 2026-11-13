@@ -2,12 +2,13 @@
 Video: informazioni, fotogrammi e audio letti con PyAV (che include FFmpeg), scrittura delle pagine in MP4.
 Niente Qt qui: i fotogrammi escono come immagini Pillow, l'audio come PCM a 16 bit stereo.
 """
+import queue
 import threading
 from array import array
 from fractions import Fraction
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
-from PIL import Image
+from PIL import Image, ImageMath
 
 try:
     import av
@@ -32,12 +33,22 @@ def _stream_start(stream) -> float:
     return float(stream.start_time * stream.time_base) if stream.start_time is not None else 0.0
 
 
-def _frame_to_pil(frame, max_side: Optional[int]) -> Image.Image:
-    """Fotogramma → immagine RGB, ridotta a max_side sul lato lungo e girata come va mostrata (telefoni)."""
-    w, h = frame.width, frame.height
-    k = min(1.0, max_side / max(w, h)) if max_side else 1.0
-    img = frame.to_image(width=max(2, round(w * k)), height=max(2, round(h * k)), interpolation="BILINEAR")
+def _frame_to_pil(frame, max_side: Optional[int], size: Optional[Tuple[int, int]] = None) -> Image.Image:
+    """
+    Fotogramma -> immagine RGB girata come va mostrata (telefoni). Con `size` (larghezza, altezza come
+    appare) FFmpeg la porta direttamente a quella misura, anche deformandola; altrimenti la riduce a
+    max_side sul lato lungo.
+    """
     rot = _ROTATE.get(round(frame.rotation or 0))
+    if size is not None:
+        w, h = size
+        if round(frame.rotation or 0) in (90, -90):
+            w, h = h, w  # Si ridimensiona prima di girarla
+    else:
+        w, h = frame.width, frame.height
+        k = min(1.0, max_side / max(w, h)) if max_side else 1.0
+        w, h = round(w * k), round(h * k)
+    img = frame.to_image(width=max(2, w), height=max(2, h), interpolation="BILINEAR")
     return img.transpose(rot) if rot is not None else img
 
 
@@ -85,11 +96,13 @@ class FrameReader:
     """
     Lettura in sequenza, per la riproduzione e l'esportazione: frame_at(t) va avanti decodificando
     e torna indietro (o salta lontano) con una ricerca. Restituisce l'ultimo fotogramma con tempo ≤ t.
+    Con `size` i fotogrammi escono esattamente a quella misura (esportazione: niente secondo ricampionamento).
     """
 
-    def __init__(self, path: str, max_side: Optional[int] = None):
+    def __init__(self, path: str, max_side: Optional[int] = None, size: Optional[Tuple[int, int]] = None):
         self.path = path
         self.max_side = max_side
+        self.size = size
         self.container = av.open(path)
         self.stream = self.container.streams.video[0]
         self.stream.thread_type = "AUTO"
@@ -137,7 +150,7 @@ class FrameReader:
         if self._cur is None:
             return None
         if self._image is None:
-            self._image = _frame_to_pil(self._cur[1], self.max_side)
+            self._image = _frame_to_pil(self._cur[1], self.max_side, self.size)
         return self._image
 
     def close(self):
@@ -192,10 +205,40 @@ def loop_audio(pcm: bytes, seconds: float) -> bytes:
     return (pcm * (need // len(pcm) + 1))[:need]
 
 
+_FLIP_SIGN = bytes(v ^ 0x80 for v in range(256))
+
+
+def _flip_sign(pcm: bytes) -> bytes:
+    """s16 <-> u16 (campione + 32768): basta invertire il bit alto del byte alto di ogni campione."""
+    buf = bytearray(pcm)
+    buf[1::2] = buf[1::2].translate(_FLIP_SIGN)
+    return bytes(buf)
+
+
+def _mix_pillow(tracks: List[bytes]) -> bytes:
+    """
+    Stessa somma di mix_audio fatta in C: i campioni diventano pixel a 32 bit di un'immagine Pillow
+    (Pillow non scrive interi a 16 bit con segno, quindi passano spostati di +32768).
+    """
+    width = 1 << 14
+    size = len(tracks[0])
+    rows = -(-(size // 2) // width)
+    pad = bytes(rows * width * 2 - size)
+    imgs = {f"t{i}": Image.frombytes("I", (width, rows), _flip_sign(t) + pad, "raw", "I;16")
+            for i, t in enumerate(tracks)}
+    offset = (len(tracks) - 1) * 32768
+    total = ImageMath.lambda_eval(lambda e: e["min"](e["max"](sum(e[k] for k in imgs) - offset, 0), 65535), **imgs)
+    return _flip_sign(total.convert("I;16").tobytes())[:size]
+
+
 def mix_audio(tracks: List[bytes]) -> bytes:
     """Somma più tracce della stessa lunghezza (s16), tagliando i picchi che sforano."""
     if len(tracks) == 1:
         return tracks[0]
+    try:
+        return _mix_pillow(tracks)
+    except Exception:
+        pass  # Riserva: stesso risultato in Python puro, più lento
     arrays = [array("h", t) for t in tracks]
     return array("h", (max(-32768, min(32767, sum(v))) for v in zip(*arrays))).tobytes()
 
@@ -219,14 +262,36 @@ def _video_codec() -> str:
 
 
 class Mp4Writer:
-    """MP4 H.264 + AAC: si aggiungono i fotogrammi (RGBA) uno alla volta, l'audio segue in parallelo."""
+    """
+    MP4 H.264 + AAC: si aggiungono i fotogrammi (RGBA) uno alla volta, l'audio segue in parallelo.
+
+    La codifica gira in un thread a parte: mentre x264 comprime un fotogramma, il thread principale
+    disegna già il successivo (PyAV lascia libero il GIL mentre codifica). Un solo thread scrive,
+    nell'ordine di arrivo, quindi il file è identico a quello scritto senza thread. La coda è corta:
+    se la codifica è più lenta del disegno, add_frame aspetta invece di accumulare memoria.
+    """
+    QUEUE_FRAMES = 4
 
     def __init__(self, path: str, width: int, height: int, fps: int = VIDEO_FPS, audio: Optional[bytes] = None):
         self.width, self.height, self.fps = width, height, fps
         self.container = av.open(path, "w", format="mp4", options={"movflags": "+faststart"})
+        try:
+            self._setup_streams(width, height, fps, audio)
+        except Exception:
+            self.container.close()  # Altrimenti su Windows il file resta bloccato e non si cancella
+            raise
+        self._n = 0
+        self._queue: "queue.Queue[Optional[bytes]]" = queue.Queue(maxsize=self.QUEUE_FRAMES)
+        self._error: Optional[BaseException] = None
+        self._stop = threading.Event()  # abort(): il thread smette senza scrivere altro
+        self._thread = threading.Thread(target=self._run, name="codifica-mp4", daemon=True)
+        self._thread.start()
+
+    def _setup_streams(self, width: int, height: int, fps: int, audio: Optional[bytes]):
         codec = _video_codec()
-        # «fast»: circa metà tempo di «medium»; a CRF 18 la differenza non si vede (e i social ricomprimono)
-        options = {"crf": "18", "preset": "fast"} if codec == "libx264" else {}
+        # «veryfast»: molto più rapido di «medium»; a CRF 18 la differenza non si vede
+        # (e i social ricomprimono comunque)
+        options = {"crf": "18", "preset": "veryfast"} if codec == "libx264" else {}
         self.video = self.container.add_stream(codec, rate=fps, options=options)
         self.video.width, self.video.height = width, height
         self.video.pix_fmt = "yuv420p"
@@ -239,9 +304,75 @@ class Mp4Writer:
             self.audio = self.container.add_stream("aac", rate=AUDIO_RATE)
             self.audio.layout = "stereo"
             self.audio.bit_rate = 192_000
-        self._n = 0
 
+    # ---------- Thread principale ----------
     def add_frame(self, rgba: bytes):
+        """Mette in coda un fotogramma; aspetta se la coda è piena. Rilancia l'errore della codifica."""
+        while True:
+            self._raise_error()
+            try:
+                self._queue.put(rgba, timeout=0.2)
+                return
+            except queue.Full:
+                continue  # Codifica in corso: si riprova (controllando che non sia fallita)
+
+    def close(self):
+        """Finisce di codificare quello che c'è in coda, svuota gli encoder e chiude il file."""
+        self._finish()
+        self._raise_error()
+        for packet in self.video.encode(None):
+            self.container.mux(packet)
+        if self.audio is not None:
+            self._write_audio_until(0, final=True)
+            for packet in self.audio.encode(None):
+                self.container.mux(packet)
+        self.container.close()
+
+    def abort(self):
+        """Interrompe (Annulla o errore): ferma il thread e chiude il file, che poi si cancella."""
+        self._stop.set()
+        self._finish()
+        try:
+            self.container.close()
+        except Exception:
+            pass
+
+    def _finish(self):
+        """Segnale di fine al thread e attesa che abbia finito (anche se la coda è piena o è fallito)."""
+        while self._thread.is_alive():
+            try:
+                self._queue.put(None, timeout=0.2)
+                break
+            except queue.Full:
+                if self._stop.is_set() or self._error is not None:
+                    self._drain()
+        self._thread.join()
+
+    def _drain(self):
+        try:
+            while True:
+                self._queue.get_nowait()
+        except queue.Empty:
+            pass
+
+    def _raise_error(self):
+        if self._error is not None:
+            raise RuntimeError("Codifica del video non riuscita") from self._error
+
+    # ---------- Thread di codifica ----------
+    def _run(self):
+        while True:
+            rgba = self._queue.get()
+            if rgba is None or self._stop.is_set():
+                return
+            if self._error is not None:
+                continue  # Già fallito: si scarta, il thread principale se ne accorge
+            try:
+                self._encode(rgba)
+            except Exception as e:  # Si riporta al thread principale (add_frame / close)
+                self._error = e
+
+    def _encode(self, rgba: bytes):
         frame = av.VideoFrame.from_bytes(rgba, self.width, self.height, format="rgba")
         frame.pts = self._n
         frame.time_base = Fraction(1, self.fps)
@@ -269,18 +400,3 @@ class Mp4Writer:
             for packet in self.audio.encode(af):
                 self.container.mux(packet)
             self._pcm_pos += n
-
-    def close(self):
-        for packet in self.video.encode(None):
-            self.container.mux(packet)
-        if self.audio is not None:
-            self._write_audio_until(0, final=True)
-            for packet in self.audio.encode(None):
-                self.container.mux(packet)
-        self.container.close()
-
-    def abort(self):
-        try:
-            self.container.close()
-        except Exception:
-            pass

@@ -141,6 +141,35 @@ class VideoItem(PhotoItem):
                 return None
         return self._export_poster[1]
 
+    def export_frame_size(self, px: float) -> Optional[Tuple[int, int]]:
+        """
+        Misura (larghezza, altezza come appare) a cui leggere i fotogrammi perché, esportando a `px` pixel
+        per unità della tela, la parte visibile vada 1:1 sui pixel dell'MP4: così basta ritagliarla.
+        None se servirebbe un'immagine enorme (zoom forte): allora si legge a export_side() e si ricampiona.
+        """
+        pm = self.pixmap
+        if pm.width() <= 0 or pm.height() <= 0:
+            return None
+        src = self._crop_rect(pm.width(), pm.height())
+        draw_w, draw_h = self._cover_geometry(src.width(), src.height())[3:5]
+        x0, y0, x1, y1 = self.crop
+        # Il fotogramma tiene le proporzioni vere: lo stiramento lo applica il disegno (con un video
+        # stirato il ritaglio 1:1 non è possibile e _resample ricampiona, come per le foto)
+        w = round(draw_w / max(1e-6, self.stretch) / max(1e-6, x1 - x0) * px)
+        h = round(draw_h / max(1e-6, y1 - y0) * px)
+        if w < 2 or h < 2 or w * h > 24_000_000:
+            return None
+        return w, h
+
+    def _resample(self, full: Image.Image, size: Tuple[int, int], box: tuple) -> Image.Image:
+        """Fotogramma letto già alla misura giusta: la porzione si ritaglia, senza ricampionare."""
+        out_w, out_h = size
+        x, y = round(box[0]), round(box[1])
+        if (abs(box[2] - box[0] - out_w) < 1.0 and abs(box[3] - box[1] - out_h) < 1.0
+                and x >= 0 and y >= 0 and x + out_w <= full.width and y + out_h <= full.height):
+            return full.crop((x, y, x + out_w, y + out_h))
+        return super()._resample(full, size, box)
+
     def set_export_frame(self, img: Optional[Image.Image]):
         self._export_frame = img
         if img is None:
