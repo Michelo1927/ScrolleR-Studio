@@ -3,7 +3,7 @@ import math
 from typing import List, Optional
 
 from PyQt6.QtCore import Qt, QEvent, QPoint, QPointF, QRectF, QSize, pyqtSignal
-from PyQt6.QtGui import QColor, QPainter, QPainterPath
+from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QFrame, QGridLayout, QScrollArea, QWidget
 
 from scrollr.canvas.scene import CollageScene
@@ -78,16 +78,35 @@ class PageTileView(CanvasView):
         painter.save()
         painter.resetTransform()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-        outer = QPainterPath()
-        outer.addRect(QRectF(self.viewport().rect()).adjusted(-2, -2, 2, 2))
-        inner = QPainterPath()
-        inner.addRect(page_px)
-        painter.fillPath(outer.subtracted(inner), QColor(THEME["backdrop"]))
+        # Quattro fasce attorno alla pagina (più veloce di un percorso «vista meno pagina»)
+        vp = QRectF(self.viewport().rect()).adjusted(-2, -2, 2, 2)
+        back = QColor(THEME["backdrop"])
+        painter.fillRect(QRectF(vp.left(), vp.top(), vp.width(), page_px.top() - vp.top()), back)
+        painter.fillRect(QRectF(vp.left(), page_px.bottom(), vp.width(), vp.bottom() - page_px.bottom()), back)
+        painter.fillRect(QRectF(vp.left(), page_px.top(), page_px.left() - vp.left(), page_px.height()), back)
+        painter.fillRect(QRectF(page_px.right(), page_px.top(), vp.right() - page_px.right(), page_px.height()), back)
         # Etichetta della pagina, in pixel dello schermo
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
         painter.setFont(ui_font(11))
         sc.draw_page_label(painter, QPointF(top_left.x() + 1, top_left.y() - 8), self.index)
         painter.restore()
+
+
+class _GridContainer(QWidget):
+    """
+    Contenitore delle pagine. È opaco (dipinge da sé il fondo): così, scorrendo, Qt sposta i pixel già
+    disegnati e ridisegna solo la striscia che entra; con lo sfondo dal foglio di stile ridisegnerebbe
+    ogni volta tutte le pagine visibili.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.fillRect(event.rect(), QColor(THEME["backdrop"]))
+        p.end()
 
 
 class PageGridView(QScrollArea):
@@ -113,9 +132,8 @@ class PageGridView(QScrollArea):
         self.setWidgetResizable(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self._container = QWidget()
+        self._container = _GridContainer()
         self._container.setObjectName("PageGrid")
-        self._container.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._layout = QGridLayout(self._container)
         self._layout.setContentsMargins(OUTER_PX, OUTER_PX, OUTER_PX, OUTER_PX)
         self._layout.setSpacing(0)
@@ -157,6 +175,11 @@ class PageGridView(QScrollArea):
         for tile in self.tiles:
             r, c = divmod(tile.index, self.columns)
             self._layout.addWidget(tile, r, c)
+            tile.apply_scale(self.scale)
+
+    def _rescale(self):
+        """Zoom: stesse colonne, cambia solo la misura delle pagine (senza toglierle e rimetterle)."""
+        for tile in self.tiles:
             tile.apply_scale(self.scale)
 
     # ---------- Spazio attorno alla griglia ----------
@@ -227,7 +250,7 @@ class PageGridView(QScrollArea):
         s = max(self.MIN_SCALE, min(self.MAX_SCALE, s))
         f = self._center_in_grid()  # Mantiene al centro lo stesso punto della griglia
         self.scale = s
-        self._place()
+        self._rescale()
         self._resize_now()
         self._scroll_to_grid_point(f)
         self.zoom_changed.emit(self.scale)
@@ -264,7 +287,7 @@ class PageGridView(QScrollArea):
         fx = in_grid.x() / max(1, self._container.width())
         fy = in_grid.y() / max(1, self._container.height())
         self.scale = s
-        self._place()
+        self._rescale()
         self._resize_now()
         if tile is not None:
             target = tile.viewport().mapTo(self._container, tile.mapFromScene(scene_pt))

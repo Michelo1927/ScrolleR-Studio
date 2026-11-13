@@ -115,6 +115,7 @@ class PhotoItem(QGraphicsObject):
         self.saved_cell: Optional[dict] = None
         # Regolazioni colore già applicate, una per versione (anteprima e nitida per lo zoom)
         self._adjusted_cache: Dict[bool, Tuple[tuple, QPixmap]] = {}
+        self._lod_cache: Dict[int, Tuple[int, QPixmap]] = {}  # Copie ridotte per la foto vista piccola
         self._auto_lut: Optional[Tuple[int, List[int]]] = None  # Livelli automatici (chiave dell'anteprima)
 
         # Stato interazione maniglie
@@ -178,6 +179,31 @@ class PhotoItem(QGraphicsObject):
         """Pulsante Prima/dopo tenuto premuto: si vede la foto senza regolazioni (mai in esportazione)."""
         scene = self.scene()
         return bool(scene) and getattr(scene, "show_original", False) and not getattr(scene, "is_exporting", False)
+
+    LOD_STEPS = 3  # Copie ridotte a 1/2, 1/4, 1/8 dell'anteprima
+
+    def _lod_pixmap(self, pm: QPixmap, painter: QPainter, src_w: float, draw_w: float) -> QPixmap:
+        """
+        Foto piccola sullo schermo (molte pagine, zoom indietro): disegnarla dall'anteprima intera costa
+        molto ed è inutile. Si usa la copia ridotta più piccola che ha ancora almeno un pixel per pixel
+        dello schermo, calcolata una volta e tenuta finché l'anteprima non cambia.
+        """
+        t = painter.worldTransform()
+        device = painter.device()
+        ratio = device.devicePixelRatioF() if device is not None else 1.0
+        on_screen = math.hypot(t.m11(), t.m12()) * draw_w * ratio  # Larghezza disegnata, in pixel dello schermo
+        density = on_screen / max(1e-6, src_w)                    # Pixel dello schermo per pixel dell'anteprima
+        k = 0
+        while k < self.LOD_STEPS and density * (2 ** (k + 1)) <= 1.0 and min(pm.width(), pm.height()) >> (k + 1) >= 16:
+            k += 1
+        if k == 0:
+            return pm
+        cached = self._lod_cache.get(k)
+        if cached is None or cached[0] != pm.cacheKey():
+            small = pm.scaled(max(1, pm.width() >> k), max(1, pm.height() >> k),
+                              Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            cached = self._lod_cache[k] = (pm.cacheKey(), small)
+        return cached[1]
 
     def _needs_sharp(self, painter: QPainter) -> bool:
         """La foto è mostrata più grande dell'anteprima (zoom forte): serve la versione nitida."""
@@ -521,7 +547,10 @@ class PhotoItem(QGraphicsObject):
             self._paint_shadow(painter, radius)
 
         painter.save()
-        painter.setClipPath(path)
+        if radius > 0:
+            painter.setClipPath(path)
+        else:
+            painter.setClipRect(cell_rect)  # Angoli vivi: il ritaglio rettangolare è molto più veloce
         if is_exporting:
             painter.save()
             self._paint_full_resolution(painter, cell_rect)
@@ -536,6 +565,10 @@ class PhotoItem(QGraphicsObject):
                 _, dx, dy, draw_w, draw_h = self._cover_geometry(src.width(), src.height())
                 painter.save()
                 painter.setTransform(self._image_transform(), True)
+                if not sharp:
+                    small = self._lod_pixmap(pm, painter, src.width(), draw_w)
+                    if small is not pm:
+                        pm, src = small, self._crop_rect(small.width(), small.height())
                 painter.drawPixmap(QRectF(dx, dy, draw_w, draw_h), pm, src)
                 painter.restore()
             elif not clean and self.is_missing:

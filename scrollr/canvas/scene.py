@@ -153,7 +153,8 @@ class CollageScene(QGraphicsScene):
         if self.is_exporting and self.skip_background:
             return
         canvas_rect = self.canvas_rect()
-        if not (self.is_exporting or self.clean_render):
+        # A scacchiera la vista della pagina copre tutto ciò che sta fuori dalla pagina: puntini e ombra non servono
+        if not (self.is_exporting or self.clean_render or self.grid_mode):
             t = painter.worldTransform()
             painter.save()
             painter.resetTransform()
@@ -291,14 +292,16 @@ class CollageScene(QGraphicsScene):
 
         canvas_rect = self.canvas_rect()
 
-        # Le foto che escono dalla tela restano visibili ma attenuate
-        outer_path = QPainterPath()
-        outer_path.addRect(rect)
-        inner_path = QPainterPath()
-        inner_path.addRect(canvas_rect)
-        veil = QColor(THEME["backdrop"])
-        veil.setAlpha(175)
-        painter.fillPath(outer_path.subtracted(inner_path), veil)
+        # Le foto che escono dalla tela restano visibili ma attenuate (a scacchiera fuori dalla pagina
+        # la copre già la vista della pagina)
+        if not self.grid_mode:
+            outer_path = QPainterPath()
+            outer_path.addRect(rect)
+            inner_path = QPainterPath()
+            inner_path.addRect(canvas_rect)
+            veil = QColor(THEME["backdrop"])
+            veil.setAlpha(175)
+            painter.fillPath(outer_path.subtracted(inner_path), veil)
 
         light_bg = is_light(self.bg_color)
         has_photos = any(isinstance(it, (PhotoItem, TextItem, ShapeItem)) for it in self.items())
