@@ -1,0 +1,153 @@
+# ScrolleR Studio Mobile (Flutter, cartella mobile/). Separato dal workflow desktop (build.yml), che non va toccato.
+# - Push o pull request che toccano mobile/: analisi statica e prove (motore e app).
+# - Push di un tag "mobile-v*" (es. mobile-v1.0.0): prove, APK firmato e release GitHub con l'APK allegato,
+#   pubblicata SENZA segnarla come "latest": il desktop cerca gli aggiornamenti su releases/latest.
+# - "Run workflow" dalla scheda Actions: prove e APK, scaricabile dalla pagina della run.
+#
+# Segreti per la firma (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64   file .jks codificato in base64
+#   ANDROID_KEYSTORE_PASSWORD password del keystore
+#   ANDROID_KEY_ALIAS         alias della chiave
+#   ANDROID_KEY_PASSWORD      password della chiave
+# Senza la stessa chiave gli aggiornamenti non si installano sopra la versione precedente: conservarla.
+name: Mobile
+
+on:
+  push:
+    branches: [main]
+    tags: ["mobile-v*"]
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+  pull_request:
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  verifica:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Motore (scrl_engine)
+        working-directory: mobile/packages/scrl_engine
+        run: |
+          dart pub get
+          dart format --output=none --set-exit-if-changed lib test
+          dart analyze --fatal-infos
+          dart test
+
+      - name: App
+        working-directory: mobile/app
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze --fatal-infos
+          flutter test
+
+  apk:
+    if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
+    needs: verifica
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Versione
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/mobile-v* ]]; then
+            echo "version=${GITHUB_REF_NAME#mobile-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(grep '^version:' mobile/app/pubspec.yaml | sed 's/version: *//; s/+.*//')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Chiave di firma
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            if [[ "$GITHUB_REF" == refs/tags/mobile-v* ]]; then
+              echo "::error::Mancano i segreti di firma: una release non può avere un APK firmato con la chiave di debug"
+              exit 1
+            fi
+            echo "::warning::Segreti di firma assenti: APK firmato con la chiave di debug (solo per prova)"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/scrl-release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/scrl-release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > mobile/app/android/key.properties
+
+      - name: Build APK
+        working-directory: mobile/app
+        run: |
+          flutter pub get
+          flutter build apk --release --build-name "${{ steps.ver.outputs.version }}" --build-number "${{ github.run_number }}"
+          mkdir -p ../../out
+          cp build/app/outputs/flutter-apk/app-release.apk "../../out/ScrolleR-Studio-Mobile-${{ steps.ver.outputs.version }}.apk"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ScrolleR-Studio-Mobile-APK
+          path: out/*.apk
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/mobile-v')
+    needs: apk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # Titolo "ScrolleR Studio Mobile 1.0.0" e descrizione da release-notes/mobile-v1.0.0.md
+      - name: Titolo e novità
+        id: notes
+        run: |
+          echo "version=${GITHUB_REF_NAME#mobile-v}" >> "$GITHUB_OUTPUT"
+          if [ -f "release-notes/${GITHUB_REF_NAME}.md" ]; then
+            cp "release-notes/${GITHUB_REF_NAME}.md" notes.md
+          else
+            echo "::warning::Manca release-notes/${GITHUB_REF_NAME}.md: release senza descrizione"
+            echo "ScrolleR Studio Mobile ${GITHUB_REF_NAME#mobile-v}" > notes.md
+          fi
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: out
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          name: ScrolleR Studio Mobile ${{ steps.notes.outputs.version }}
+          body_path: notes.md
+          files: out/*.apk
+          # Mai "latest": la release più recente deve restare quella del desktop (aggiornamenti e README)
+          make_latest: "false"

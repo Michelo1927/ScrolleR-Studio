@@ -1,0 +1,7 @@
+# Testi dell'interfaccia: italiano principale, inglese. Generati da `flutter pub get` / `flutter gen-l10n`.
+arb-dir: lib/l10n
+template-arb-file: app_it.arb
+output-localization-file: app_localizations.dart
+output-class: Testi
+nullable-getter: false
+required-resource-attributes: true

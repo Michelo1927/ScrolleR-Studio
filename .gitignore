@@ -23,3 +23,5 @@ desktop.ini
 
 # Progetti di prova salvati nella cartella (contengono percorsi di foto personali)
 *.scrlproj
+# …tranne i progetti di riferimento delle prove del motore mobile (generati dal desktop, senza percorsi personali)
+!mobile/packages/scrl_engine/test/riferimenti/progetti/*.scrlproj

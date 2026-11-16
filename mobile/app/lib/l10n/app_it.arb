@@ -1,0 +1,13 @@
+{
+  "@@locale": "it",
+  "appTitolo": "ScrolleR Studio",
+  "@appTitolo": {"description": "Nome dell'app"},
+  "homeVuotaTitolo": "Nessun progetto",
+  "@homeVuotaTitolo": {"description": "Home senza progetti"},
+  "homeVuotaAiuto": "Crea il tuo primo carosello",
+  "@homeVuotaAiuto": {"description": "Riga di aiuto sotto la Home vuota"},
+  "nuovoProgetto": "Nuovo",
+  "@nuovoProgetto": {"description": "Pulsante principale della Home"},
+  "inArrivo": "In arrivo nelle prossime versioni",
+  "@inArrivo": {"description": "Messaggio breve per le funzioni non ancora pronte"}
+}

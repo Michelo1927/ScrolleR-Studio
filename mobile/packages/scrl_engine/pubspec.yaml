@@ -1,0 +1,11 @@
+name: scrl_engine
+description: Motore di ScrolleR Studio Mobile in Dart puro (modello, progetti .scrlproj, disposizioni, pagine, cronologia). Non dipende da Flutter.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ^3.14.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0
