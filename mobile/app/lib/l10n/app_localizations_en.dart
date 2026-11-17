@@ -603,4 +603,217 @@ class TestiEn extends Testi {
 
   @override
   String get noticeSwapNeedsTwo => 'Swapping needs exactly 2 photos';
+
+  @override
+  String get strRitaglia => 'Crop';
+
+  @override
+  String get strInquadra => 'Frame';
+
+  @override
+  String get strFiltri => 'Filters';
+
+  @override
+  String get strRegola => 'Adjust';
+
+  @override
+  String get strEffetti => 'Effects';
+
+  @override
+  String get strCornice => 'Frame style';
+
+  @override
+  String get strOmbra => 'Shadow';
+
+  @override
+  String get strRuota => 'Rotate';
+
+  @override
+  String get strCopiaStile => 'Copy style';
+
+  @override
+  String get strIncollaStile => 'Paste style';
+
+  @override
+  String get parZoom => 'Zoom';
+
+  @override
+  String get parOrizzontale => 'Horizontal';
+
+  @override
+  String get parVerticale => 'Vertical';
+
+  @override
+  String get parRuotaContenuto => 'Rotate content';
+
+  @override
+  String get parLuminosita => 'Brightness';
+
+  @override
+  String get parContrasto => 'Contrast';
+
+  @override
+  String get parOmbre => 'Shadows';
+
+  @override
+  String get parLuci => 'Highlights';
+
+  @override
+  String get parSaturazione => 'Saturation';
+
+  @override
+  String get parCalore => 'Warmth';
+
+  @override
+  String get parTinta => 'Tint';
+
+  @override
+  String get parNitidezza => 'Sharpness';
+
+  @override
+  String get parVignettatura => 'Vignette';
+
+  @override
+  String get parSbiadito => 'Fade';
+
+  @override
+  String get parGrana => 'Grain';
+
+  @override
+  String get parAngoli => 'Corners';
+
+  @override
+  String get parBordo => 'Border';
+
+  @override
+  String get parColore => 'Color';
+
+  @override
+  String get parOpacita => 'Opacity';
+
+  @override
+  String get parAngolo => 'Angle';
+
+  @override
+  String get azBiancoNero => 'B&W';
+
+  @override
+  String get azReimpostaColori => 'Reset colors';
+
+  @override
+  String get azApplicaATutte => 'Apply to all';
+
+  @override
+  String get azRiempi => 'Fill';
+
+  @override
+  String get azFotoIntera => 'Whole photo';
+
+  @override
+  String get azDeforma => 'Stretch';
+
+  @override
+  String get azReimposta => 'Reset';
+
+  @override
+  String get azProporzioniFoto => 'Photo ratio';
+
+  @override
+  String get azRiquadroDiPrima => 'Previous frame';
+
+  @override
+  String get azSinistra90 => '90° left';
+
+  @override
+  String get azDestra90 => '90° right';
+
+  @override
+  String get azDritta => 'Straighten';
+
+  @override
+  String get azSpecchiaOrizz => 'Flip horizontally';
+
+  @override
+  String get azSpecchiaVert => 'Flip vertically';
+
+  @override
+  String get confronta => 'Hold to compare with the original';
+
+  @override
+  String get filtroOriginale => 'Original';
+
+  @override
+  String get filtroVivace => 'Vivid';
+
+  @override
+  String get filtroEstate => 'Summer';
+
+  @override
+  String get filtroPellicola => 'Film';
+
+  @override
+  String get filtroVintage => 'Vintage';
+
+  @override
+  String get filtroBnContrastato => 'High-contrast B&W';
+
+  @override
+  String get filtroFreddo => 'Cool';
+
+  @override
+  String get filtroMorbido => 'Soft';
+
+  @override
+  String get filtroDrammatico => 'Dramatic';
+
+  @override
+  String get ritTitolo => 'Crop';
+
+  @override
+  String get ritLibera => 'Free';
+
+  @override
+  String get ritOriginale => 'Original';
+
+  @override
+  String get ritRiquadro => 'Frame';
+
+  @override
+  String get ritScambia => 'Swap portrait and landscape';
+
+  @override
+  String get ritAdatta => 'Fit the frame to the crop';
+
+  @override
+  String get ritNonLeggibile => 'This photo cannot be read';
+
+  @override
+  String get ritAnnulla => 'Close without cropping';
+
+  @override
+  String get ritApplica => 'Apply the crop';
+
+  @override
+  String get avvisoStileCopiato =>
+      'Style copied: pick another photo and use “Paste style”';
+
+  @override
+  String get avvisoStileIncollato => 'Style pasted';
+
+  @override
+  String get avvisoRitaglioApplicato => 'Crop applied';
+
+  @override
+  String get avvisoRitaglioTolto => 'Crop removed: whole photo';
+
+  @override
+  String get avvisoModificaScartata => 'Change discarded';
+
+  @override
+  String get ripristina => 'Restore';
+
+  @override
+  String ritMisura(int w, int h) {
+    return 'Crop: $w × $h px';
+  }
 }

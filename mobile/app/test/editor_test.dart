@@ -136,6 +136,15 @@ class _Banco {
   PhotoItem foto(int uid) => snapshot.items.firstWhere((p) => p.uid == uid);
 }
 
+/// La striscia di strumenti scorre in orizzontale: porta in vista la voce [testo] (ormai sono più di quante ne stanno).
+Future<void> _vediVoce(WidgetTester tester, String testo) async {
+  final lista = find
+      .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+      .first;
+  await tester.scrollUntilVisible(find.text(testo), 120, scrollable: lista);
+  await tester.pump();
+}
+
 /// Aspetta che il salvataggio finisca: i file si scrivono davvero (tempo reale), mentre le continuazioni
 /// dei Future vivono nel tempo finto del test e avanzano a ogni `pump`.
 Future<void> _attendiDisco(WidgetTester tester) async {
@@ -158,8 +167,10 @@ void main() {
     await tester.pump();
     expect(b.stato.selezione, {(tipo: ElementKind.photo, uid: 1)});
     // Con un elemento selezionato la barra diventa la striscia di strumenti
-    expect(find.text('Elimina'), findsOneWidget);
+    await _vediVoce(tester, 'Duplica');
     expect(find.text('Duplica'), findsOneWidget);
+    await _vediVoce(tester, 'Elimina');
+    expect(find.text('Elimina'), findsOneWidget);
     // Sul fondo, tra il bordo dello schermo e la pagina
     await tester.tapAt(
       tester.getTopLeft(find.byType(TelaEditor)) + const Offset(8, 700),
@@ -447,10 +458,12 @@ void main() {
     await b.apri(foto: 4);
     await tester.tapAt(b.centroFoto(2));
     await tester.pump();
+    await _vediVoce(tester, 'Duplica');
     await tester.tap(find.text('Duplica'));
     await tester.pump();
     expect(b.snapshot.items.length, 5);
     expect(b.stato.selezione.length, 1);
+    await _vediVoce(tester, 'Libera');
     await tester.tap(find.text('Libera'));
     await tester.pump();
     expect(
@@ -458,6 +471,7 @@ void main() {
       isTrue,
     );
     expect(find.text('In disposizione'), findsOneWidget);
+    await _vediVoce(tester, 'Elimina');
     await tester.tap(find.text('Elimina'));
     await tester.pump();
     expect(b.snapshot.items.length, 4);
@@ -500,6 +514,7 @@ void main() {
     await b.apri(foto: 4);
     await tester.tapAt(b.centroFoto(3));
     await tester.pump();
+    await _vediVoce(tester, 'Elimina');
     await tester.tap(find.text('Elimina'));
     await tester.pump();
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);

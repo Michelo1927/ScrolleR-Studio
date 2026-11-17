@@ -30,6 +30,9 @@ class _Risorse implements RisorseDisegno {
 
   @override
   ui.Image? get grana => null;
+
+  @override
+  bool get mostraOriginale => false;
 }
 
 /// Le foto sintetiche di `crea_foto`: sfumatura diversa per ogni foto.

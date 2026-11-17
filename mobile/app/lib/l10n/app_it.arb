@@ -815,5 +815,295 @@
   "noticeSwapNeedsTwo": "Per scambiare servono esattamente 2 foto",
   "@noticeSwapNeedsTwo": {
     "description": "Avviso del motore"
+  },
+  "strRitaglia": "Ritaglia",
+  "@strRitaglia": {
+    "description": "Strumento Foto: ritaglio a schermo intero"
+  },
+  "strInquadra": "Inquadra",
+  "@strInquadra": {
+    "description": "Strumento Foto: zoom e spostamento dentro il riquadro"
+  },
+  "strFiltri": "Filtri",
+  "@strFiltri": {
+    "description": "Strumento Foto: filtri pronti"
+  },
+  "strRegola": "Regola",
+  "@strRegola": {
+    "description": "Strumento Foto: regolazioni colore"
+  },
+  "strEffetti": "Effetti",
+  "@strEffetti": {
+    "description": "Strumento Foto: nitidezza, vignettatura, sbiadito, grana"
+  },
+  "strCornice": "Cornice",
+  "@strCornice": {
+    "description": "Strumento Foto: angoli e bordo"
+  },
+  "strOmbra": "Ombra",
+  "@strOmbra": {
+    "description": "Strumento Foto: ombra (e parametro dell'ombra)"
+  },
+  "strRuota": "Ruota",
+  "@strRuota": {
+    "description": "Strumento Foto: rotazione e specchio"
+  },
+  "strCopiaStile": "Copia stile",
+  "@strCopiaStile": {
+    "description": "Strumento Foto a comando singolo"
+  },
+  "strIncollaStile": "Incolla stile",
+  "@strIncollaStile": {
+    "description": "Strumento Foto a comando singolo"
+  },
+  "parZoom": "Zoom",
+  "@parZoom": {
+    "description": "Parametro di Inquadra"
+  },
+  "parOrizzontale": "Orizzontale",
+  "@parOrizzontale": {
+    "description": "Parametro di Inquadra: spostamento orizzontale"
+  },
+  "parVerticale": "Verticale",
+  "@parVerticale": {
+    "description": "Parametro di Inquadra: spostamento verticale"
+  },
+  "parRuotaContenuto": "Ruota contenuto",
+  "@parRuotaContenuto": {
+    "description": "Parametro di Inquadra"
+  },
+  "parLuminosita": "Luminosità",
+  "@parLuminosita": {
+    "description": "Parametro di Regola"
+  },
+  "parContrasto": "Contrasto",
+  "@parContrasto": {
+    "description": "Parametro di Regola"
+  },
+  "parOmbre": "Ombre",
+  "@parOmbre": {
+    "description": "Parametro di Regola: zone scure"
+  },
+  "parLuci": "Luci",
+  "@parLuci": {
+    "description": "Parametro di Regola: zone chiare"
+  },
+  "parSaturazione": "Saturazione",
+  "@parSaturazione": {
+    "description": "Parametro di Regola"
+  },
+  "parCalore": "Calore",
+  "@parCalore": {
+    "description": "Parametro di Regola"
+  },
+  "parTinta": "Tinta",
+  "@parTinta": {
+    "description": "Parametro di Regola"
+  },
+  "parNitidezza": "Nitidezza",
+  "@parNitidezza": {
+    "description": "Parametro di Effetti"
+  },
+  "parVignettatura": "Vignettatura",
+  "@parVignettatura": {
+    "description": "Parametro di Effetti"
+  },
+  "parSbiadito": "Sbiadito",
+  "@parSbiadito": {
+    "description": "Parametro di Effetti"
+  },
+  "parGrana": "Grana",
+  "@parGrana": {
+    "description": "Parametro di Effetti"
+  },
+  "parAngoli": "Angoli",
+  "@parAngoli": {
+    "description": "Parametro di Cornice"
+  },
+  "parBordo": "Bordo",
+  "@parBordo": {
+    "description": "Parametro di Cornice: spessore"
+  },
+  "parColore": "Colore",
+  "@parColore": {
+    "description": "Parametro di Cornice: colore del bordo"
+  },
+  "parOpacita": "Opacità",
+  "@parOpacita": {
+    "description": "Parametro di Ombra"
+  },
+  "parAngolo": "Angolo",
+  "@parAngolo": {
+    "description": "Parametro di Ruota"
+  },
+  "azBiancoNero": "B/N",
+  "@azBiancoNero": {
+    "description": "Interruttore di Regola: bianco e nero"
+  },
+  "azReimpostaColori": "Reimposta colori",
+  "@azReimpostaColori": {
+    "description": "Azione di Regola"
+  },
+  "azApplicaATutte": "Applica a tutte",
+  "@azApplicaATutte": {
+    "description": "Azione che copia le impostazioni su tutte le foto"
+  },
+  "azRiempi": "Riempi",
+  "@azRiempi": {
+    "description": "Inquadra: la foto riempie il riquadro"
+  },
+  "azFotoIntera": "Foto intera",
+  "@azFotoIntera": {
+    "description": "Inquadra e Ritaglio: tutta la foto, senza tagli"
+  },
+  "azDeforma": "Deforma",
+  "@azDeforma": {
+    "description": "Inquadra: i lati stirano la foto"
+  },
+  "azReimposta": "Reimposta",
+  "@azReimposta": {
+    "description": "Inquadra: zoom e posizione al valore iniziale"
+  },
+  "azProporzioniFoto": "Proporzioni foto",
+  "@azProporzioniFoto": {
+    "description": "Inquadra: il riquadro prende la forma della foto"
+  },
+  "azRiquadroDiPrima": "Riquadro di prima",
+  "@azRiquadroDiPrima": {
+    "description": "Inquadra: torna al riquadro di prima"
+  },
+  "azSinistra90": "90° sx",
+  "@azSinistra90": {
+    "description": "Ruota di 90° a sinistra"
+  },
+  "azDestra90": "90° dx",
+  "@azDestra90": {
+    "description": "Ruota di 90° a destra"
+  },
+  "azDritta": "Dritta",
+  "@azDritta": {
+    "description": "Ruota: angolo a zero"
+  },
+  "azSpecchiaOrizz": "Specchia orizz.",
+  "@azSpecchiaOrizz": {
+    "description": "Specchia da sinistra a destra"
+  },
+  "azSpecchiaVert": "Specchia vert.",
+  "@azSpecchiaVert": {
+    "description": "Capovolge dall'alto in basso"
+  },
+  "confronta": "Tieni premuto per confrontare con l'originale",
+  "@confronta": {
+    "description": "Etichetta del pulsante prima/dopo"
+  },
+  "filtroOriginale": "Originale",
+  "@filtroOriginale": {
+    "description": "Filtro pronto"
+  },
+  "filtroVivace": "Vivace",
+  "@filtroVivace": {
+    "description": "Filtro pronto"
+  },
+  "filtroEstate": "Estate",
+  "@filtroEstate": {
+    "description": "Filtro pronto"
+  },
+  "filtroPellicola": "Pellicola",
+  "@filtroPellicola": {
+    "description": "Filtro pronto"
+  },
+  "filtroVintage": "Vintage",
+  "@filtroVintage": {
+    "description": "Filtro pronto"
+  },
+  "filtroBnContrastato": "B/N contrastato",
+  "@filtroBnContrastato": {
+    "description": "Filtro pronto"
+  },
+  "filtroFreddo": "Freddo",
+  "@filtroFreddo": {
+    "description": "Filtro pronto"
+  },
+  "filtroMorbido": "Morbido",
+  "@filtroMorbido": {
+    "description": "Filtro pronto"
+  },
+  "filtroDrammatico": "Drammatico",
+  "@filtroDrammatico": {
+    "description": "Filtro pronto"
+  },
+  "ritTitolo": "Ritaglia",
+  "@ritTitolo": {
+    "description": "Titolo della pagina del ritaglio"
+  },
+  "ritLibera": "Libera",
+  "@ritLibera": {
+    "description": "Ritaglio: proporzioni libere"
+  },
+  "ritOriginale": "Originale",
+  "@ritOriginale": {
+    "description": "Ritaglio: stessa forma della foto intera"
+  },
+  "ritRiquadro": "Riquadro",
+  "@ritRiquadro": {
+    "description": "Ritaglio: stessa forma del riquadro sulla tela"
+  },
+  "ritScambia": "Scambia verticale e orizzontale",
+  "@ritScambia": {
+    "description": "Ritaglio: tasto ⇄"
+  },
+  "ritAdatta": "Adatta il riquadro al ritaglio",
+  "@ritAdatta": {
+    "description": "Ritaglio: interruttore"
+  },
+  "ritNonLeggibile": "Non riesco a leggere questa foto",
+  "@ritNonLeggibile": {
+    "description": "Ritaglio: errore"
+  },
+  "ritAnnulla": "Chiudi senza ritagliare",
+  "@ritAnnulla": {
+    "description": "Ritaglio: ✕"
+  },
+  "ritApplica": "Applica il ritaglio",
+  "@ritApplica": {
+    "description": "Ritaglio: ✓"
+  },
+  "avvisoStileCopiato": "Stile copiato: scegli un'altra foto e usa «Incolla stile»",
+  "@avvisoStileCopiato": {
+    "description": "Messaggio breve"
+  },
+  "avvisoStileIncollato": "Stile incollato",
+  "@avvisoStileIncollato": {
+    "description": "Messaggio breve"
+  },
+  "avvisoRitaglioApplicato": "Ritaglio applicato",
+  "@avvisoRitaglioApplicato": {
+    "description": "Messaggio breve"
+  },
+  "avvisoRitaglioTolto": "Ritaglio tolto: foto intera",
+  "@avvisoRitaglioTolto": {
+    "description": "Messaggio breve"
+  },
+  "avvisoModificaScartata": "Modifica scartata",
+  "@avvisoModificaScartata": {
+    "description": "Messaggio breve dopo il gesto indietro"
+  },
+  "ripristina": "Ripristina",
+  "@ripristina": {
+    "description": "Azione del messaggio dopo aver scartato una modifica"
+  },
+  "ritMisura": "Ritaglio: {w} × {h} px",
+  "@ritMisura": {
+    "description": "Misura del ritaglio in pixel",
+    "placeholders": {
+      "w": {
+        "type": "int",
+        "example": "3000"
+      },
+      "h": {
+        "type": "int",
+        "example": "4000"
+      }
+    }
   }
 }

@@ -306,4 +306,41 @@ void main() {
     ).snapshot.items.single;
     expect((libero.x, libero.w), (1080.0, 400.0));
   });
+
+  group('Foto per pagina dopo «Pagina nuova»', () {
+    List<int> pagine(Snapshot s, EngineContext ctx) => [
+      for (final p in s.items) pageOf(s, p, ctx),
+    ];
+
+    test(
+      'come sul desktop la pagina nuova resta vuota anche con Foto per pagina',
+      () {
+        final ctx = _ctx();
+        var s = _tela(1, 4, ctx);
+        s = insertPageAfter(s, 0, ctx).snapshot;
+        s = setPerPage(s, 4, ctx).snapshot;
+        expect(pagine(s, ctx), [0, 0, 0, 0]);
+      },
+    );
+
+    test('con liberaPagineVuote la pagina nuova riceve le sue foto', () {
+      final ctx = _ctx();
+      var s = _tela(1, 8, ctx);
+      s = insertPageAfter(s, 0, ctx).snapshot;
+      expect(s.canvas.pageCounts, [null, 0]);
+      s = setPerPage(s, 4, ctx, liberaPagineVuote: true).snapshot;
+      expect(s.canvas.numFrames, 2);
+      expect(pagine(s, ctx).where((k) => k == 0).length, 4);
+      expect(pagine(s, ctx).where((k) => k == 1).length, 4);
+    });
+
+    test('le pagine con un numero deciso a mano restano come prima', () {
+      final ctx = _ctx();
+      var s = _tela(1, 8, ctx);
+      s = insertPageAfter(s, 0, ctx).snapshot;
+      s = setPageCount(s, 1, 3, ctx).snapshot;
+      s = setPerPage(s, 4, ctx, liberaPagineVuote: true).snapshot;
+      expect(s.canvas.pageCounts[1], 3);
+    });
+  });
 }

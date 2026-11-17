@@ -263,6 +263,7 @@ def colore() -> dict:
             "brightness_mean": int(ImageStat.Stat(chiara.convert("L")).mean[0] + 0.5),
             "brightness_px": list(chiara.tobytes()[:30]),
             "grain_head": list(grana[:16]), "grain_crc": zlib.crc32(grana),
+            "presets": [{"key": k, "adj": dict(NEUTRAL_ADJUST, **v)} for k, _n, v in PRESETS],
             "regolate": regolate()}
 
 
@@ -278,8 +279,10 @@ def regolate() -> dict:
         for x in range(w):
             px[x, y] = ((r0 + x * 255 // w) % 256, (g0 + y * 255 // h) % 256, b0)
     casi = [{"brightness": 25}, {"contrast": 40}, {"saturation": -60}, {"bw": True, "contrast": 20},
-            {"shadows": 50, "warmth": -30}, {"auto": True}, {"sharpness": 60}]
-    casi += [dict(v) for k, _, v in PRESETS if k in ("vintage", "dramatic", "film")]
+            {"shadows": 50, "warmth": -30}, {"auto": True}, {"sharpness": 60},
+            {"highlights": -45}, {"tint": 35}, {"fade": 50}, {"auto": True, "brightness": -20, "contrast": 25}]
+    # Tutti i filtri pronti dell'app (anche «Originale», che deve restare invariata)
+    casi += [dict(v) for _k, _, v in PRESETS]
     lut = auto_levels_lut(img)
     out = []
     for c in casi:
@@ -287,6 +290,126 @@ def regolate() -> dict:
         res = apply_adjustments(img, adj, detail_scale=w / 1000.0, auto_lut=lut)
         out.append({"adj": adj, "rgb": list(res.convert("RGB").tobytes())})
     return {"w": w, "h": h, "foto": i, "casi": out}
+
+
+def ritaglio() -> dict:
+    """Ritaglio a schermo intero (`scrollr/crop_dialog.py`): trascinamenti sul `CropCanvas` e scelte nel `CropDialog`."""
+    from PyQt6.QtCore import QEvent, QPointF, QRectF, Qt
+    from PyQt6.QtGui import QMouseEvent, QPixmap
+    from scrollr.crop_dialog import CropCanvas, CropDialog
+
+    def evento(tipo, p):
+        b = Qt.MouseButton.LeftButton
+        return QMouseEvent(tipo, QPointF(p[0], p[1]), b, b, Qt.KeyboardModifier.NoModifier)
+
+    trascinamenti = []
+    immagini = [(400, 300), (300, 500), (1000, 1000)]
+    forme = [None, 4 / 5, 1.0, 16 / 9, 9 / 16]
+    for (iw, ih) in immagini:
+        c = CropCanvas(QPixmap(iw, ih))
+        c.resize(800, 600)
+        s, o = c._scale(), c._origin()
+        riquadri = [(0, 0, iw, ih), (iw * 0.2, ih * 0.15, iw * 0.5, ih * 0.6)]
+        for r in riquadri:
+            for ratio in forme:
+                rr = c._to_widget(QRectF(*r))
+                prese = {"tl": (rr.left(), rr.top()), "tr": (rr.right(), rr.top()), "bl": (rr.left(), rr.bottom()),
+                         "br": (rr.right(), rr.bottom()), "l": (rr.left(), rr.center().y()),
+                         "r": (rr.right(), rr.center().y()), "t": (rr.center().x(), rr.top()),
+                         "b": (rr.center().x(), rr.bottom()), "sposta": (rr.center().x(), rr.center().y()),
+                         "nuovo": (o.x() + 12, o.y() + 12)}
+                for nome, w0 in prese.items():
+                    for (dx, dy) in ((-0.31, -0.22), (0.27, 0.19), (0.8, 0.9), (-2.0, 1.5)):
+                        c.rect_img = QRectF(*r)
+                        c.ratio = ratio
+                        premi = (w0[0] + 3.0, w0[1] + 2.0) if nome != "sposta" else w0
+                        c.mousePressEvent(evento(QEvent.Type.MouseButtonPress, premi))
+                        presa = c._drag
+                        p_img = c._to_image(QPointF(*premi))
+                        muovi = (premi[0] + dx * iw * s, premi[1] + dy * ih * s)
+                        c.mouseMoveEvent(evento(QEvent.Type.MouseMove, muovi))
+                        c.mouseReleaseEvent(evento(QEvent.Type.MouseButtonRelease, muovi))
+                        m_img = c._to_image(QPointF(*muovi))
+                        q = c.rect_img
+                        trascinamenti.append({
+                            "img": [iw, ih], "rect": list(r), "ratio": ratio, "scala": s, "presa": presa,
+                            "premi": [p_img.x(), p_img.y()], "muovi": [m_img.x(), m_img.y()],
+                            "schermo": abs(muovi[0] - premi[0]) + abs(muovi[1] - premi[1]),
+                            "risultato": [q.x(), q.y(), q.width(), q.height()]})
+
+    scelte = []
+    copioni = [[], [("ratio", "4:5")], [("ratio", "4:5"), ("swap",)], [("ratio", "original")], [("ratio", "cell")],
+               [("ratio", "1:1"), ("whole",)], [("ratio", "9:16"), ("swap",), ("whole",)]]
+    avvii = [((0.0, 0.0, 1.0, 1.0), False, False, 1.0), ((0.1, 0.2, 0.7, 0.9), True, False, 0.8),
+             ((0.25, 0.0, 0.75, 1.0), False, True, 1.5), ((0.0, 0.1, 0.8, 0.9), True, True, 1.0)]
+    for (iw, ih) in immagini[:2]:
+        for crop, fh, fv, cella in avvii:
+            for copione in copioni:
+                dlg = CropDialog(QPixmap(iw, ih), crop, fh, fv, cella, "")
+                inizio = {"chiave": dlg._current_key(), "scambiata": dlg._swapped, "crop": list(dlg.crop())}
+                passi = []
+                for op in copione:
+                    if op[0] == "ratio":
+                        dlg._set_ratio_key(op[1])
+                    elif op[0] == "swap":
+                        dlg._swap()
+                    else:
+                        dlg._whole()
+                    passi.append({"chiave": dlg._current_key(), "scambiata": dlg._swapped, "crop": list(dlg.crop()),
+                                  "etichetta_4_5": dlg.ratio_buttons["4:5"].text(), "scambia": dlg.btn_swap.isEnabled()})
+                scelte.append({"img": [iw, ih], "crop": list(crop), "flip_h": fh, "flip_v": fv, "cella": cella,
+                               "copione": [list(x) for x in copione], "inizio": inizio, "passi": passi})
+                dlg.deleteLater()
+    return {"trascinamenti": trascinamenti, "scelte": scelte}
+
+
+def strumenti_foto() -> list:
+    """`reset_aspect_to_original`, `restore_saved_cell` e `apply_crop` di `PhotoItem` su foto con la misura dell'anteprima."""
+    from PyQt6.QtGui import QPixmap
+    from scrollr.canvas.photo_item import PhotoItem
+    from scrollr.imaging import IMAGE_CACHE
+    out = []
+    base = [dict(x=100.0, y=50.0, w=400.0, h=500.0), dict(x=-20.0, y=30.0, w=300.0, h=300.0, rotation=25.0),
+            dict(x=10.0, y=10.0, w=520.0, h=260.0, free=True, inner_zoom=1.7, pan_x=0.4, pan_y=-0.2, stretch=1.3),
+            dict(x=0.0, y=0.0, w=350.0, h=420.0, crop=(0.1, 0.2, 0.7, 0.9), stretch=0.8)]
+    crops = [(0.0, 0.0, 1.0, 1.0), (0.1, 0.2, 0.7, 0.9), (0.25, 0.0, 0.75, 1.0), (0.0, 0.3, 1.0, 0.7)]
+    for i, c in enumerate(base):
+        for img_w, img_h in ((1600, 1200), (900, 1600)):
+            path = f"prova_{i}_{img_w}.jpg"
+            IMAGE_CACHE._previews[path] = QPixmap(img_w, img_h)
+
+            def nuova():
+                p = PhotoItem(path, c["w"], c["h"])
+                p.setPos(c["x"], c["y"])
+                p.setRotation(c.get("rotation", 0.0))
+                p.free = c.get("free", False)
+                for k in ("inner_zoom", "pan_x", "pan_y", "stretch"):
+                    if k in c:
+                        setattr(p, k, c[k])
+                if "crop" in c:
+                    p.crop = c["crop"]
+                return p
+
+            def stato(p):
+                return {"x": p.pos().x(), "y": p.pos().y(), "w": p.cell_w, "h": p.cell_h, "inner_zoom": p.inner_zoom,
+                        "pan_x": p.pan_x, "pan_y": p.pan_y, "stretch": p.stretch, "crop": list(p.crop),
+                        "saved": dict(p.saved_cell) if p.saved_cell else None}
+            caso = {"foto": c, "img": [img_w, img_h]}
+            p = nuova()
+            p.reset_aspect_to_original()
+            caso["proporzioni"] = stato(p)
+            p.reset_aspect_to_original()  # Il riquadro di prima si ricorda una volta sola
+            caso["proporzioni_due_volte"] = stato(p)
+            p.restore_saved_cell()
+            caso["ripristino"] = stato(p)
+            caso["ritagli"] = []
+            for crop in crops:
+                for fit in (True, False):
+                    q = nuova()
+                    q.apply_crop(crop, fit)
+                    caso["ritagli"].append({"crop": list(crop), "fit": fit, "dopo": stato(q)})
+            out.append(caso)
+    return out
 
 
 def geometria() -> list:
@@ -789,6 +912,10 @@ def main():
             json.dump(colore(), f)
         with open(os.path.join(args.uscita, "geometria.json"), "w", encoding="utf-8", newline="\n") as f:
             json.dump(geometria(), f, indent=1)
+        with open(os.path.join(args.uscita, "ritaglio.json"), "w", encoding="utf-8", newline="\n") as f:
+            json.dump(ritaglio(), f)
+        with open(os.path.join(args.uscita, "strumenti_foto.json"), "w", encoding="utf-8", newline="\n") as f:
+            json.dump(strumenti_foto(), f)
         immagini = []
         if not args.senza_immagini:
             immagini = esporta_immagini(win, foto, os.path.join(args.uscita, "immagini"))

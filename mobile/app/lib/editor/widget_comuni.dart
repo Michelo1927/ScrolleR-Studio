@@ -224,7 +224,8 @@ class ChipParametro extends StatelessWidget {
 }
 
 /// Un solo cursore grande con il valore accanto; doppio tocco = valore iniziale (piano §4.4).
-class CursoreGrande extends StatelessWidget {
+/// Se [daCentro] la barra colorata parte dal punto zero (Luminosità, Calore, Angolo…) e il valore ha il segno.
+class CursoreGrande extends StatefulWidget {
   const CursoreGrande({
     super.key,
     required this.valore,
@@ -234,6 +235,8 @@ class CursoreGrande extends StatelessWidget {
     required this.onCambia,
     required this.onFine,
     required this.etichetta,
+    this.daCentro = false,
+    this.unita = '',
   });
 
   final double valore;
@@ -243,13 +246,30 @@ class CursoreGrande extends StatelessWidget {
   final ValueChanged<int> onCambia;
   final VoidCallback onFine;
   final String etichetta;
+  final bool daCentro;
+
+  /// Simbolo dopo il valore («%», «°»).
+  final String unita;
+
+  @override
+  State<CursoreGrande> createState() => _CursoreGrandeState();
+}
+
+class _CursoreGrandeState extends State<CursoreGrande> {
+  /// Valore sotto il dito mentre si trascina: il pollice lo segue subito, senza aspettare che il documento
+  /// (e la pagina) si aggiornino, così non resta mai indietro rispetto al dito.
+  double? _locale;
 
   @override
   Widget build(BuildContext context) {
+    final w = widget;
+    final valore = _locale ?? w.valore;
+    final daCentro = w.daCentro;
     return GestureDetector(
       onDoubleTap: () {
-        onCambia(iniziale.round());
-        onFine();
+        setState(() => _locale = null);
+        w.onCambia(w.iniziale.round());
+        w.onFine();
       },
       child: Row(
         children: [
@@ -257,6 +277,7 @@ class CursoreGrande extends StatelessWidget {
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 4,
+                trackShape: daCentro ? const _TracciaDaCentro() : null,
                 activeTrackColor: ColoriScrl.accento,
                 inactiveTrackColor: ColoriScrl.rilievo,
                 thumbColor: ColoriScrl.suAccento,
@@ -265,22 +286,28 @@ class CursoreGrande extends StatelessWidget {
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
               ),
               child: Semantics(
-                label: etichetta,
+                label: w.etichetta,
                 child: Slider(
-                  value: valore.clamp(minimo, massimo),
-                  min: minimo,
-                  max: massimo,
-                  divisions: (massimo - minimo).round(),
-                  onChanged: (v) => onCambia(v.round()),
-                  onChangeEnd: (_) => onFine(),
+                  value: valore.clamp(w.minimo, w.massimo),
+                  min: w.minimo,
+                  max: w.massimo,
+                  divisions: (w.massimo - w.minimo).round(),
+                  onChanged: (v) {
+                    setState(() => _locale = v);
+                    w.onCambia(v.round());
+                  },
+                  onChangeEnd: (_) {
+                    setState(() => _locale = null);
+                    w.onFine();
+                  },
                 ),
               ),
             ),
           ),
           SizedBox(
-            width: 48,
+            width: 64,
             child: Text(
-              '${valore.round()}',
+              '${daCentro && valore.round() > 0 ? '+' : ''}${valore.round()}${w.unita}',
               textAlign: TextAlign.end,
               style: const TextStyle(
                 fontSize: TestoScrl.grande,
@@ -291,6 +318,46 @@ class CursoreGrande extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Traccia del cursore che parte dal centro: la parte colorata va dal punto zero fino al pollice.
+class _TracciaDaCentro extends SliderTrackShape with BaseSliderTrackShape {
+  const _TracciaDaCentro();
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset offset, {
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required Animation<double> enableAnimation,
+    required Offset thumbCenter,
+    Offset? secondaryOffset,
+    bool isEnabled = false,
+    bool isDiscrete = false,
+    required TextDirection textDirection,
+  }) {
+    final r = getPreferredRect(
+      parentBox: parentBox,
+      offset: offset,
+      sliderTheme: sliderTheme,
+      isEnabled: isEnabled,
+      isDiscrete: isDiscrete,
+    );
+    final raggio = Radius.circular(r.height / 2);
+    final canvas = context.canvas;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(r, raggio),
+      Paint()..color = sliderTheme.inactiveTrackColor ?? ColoriScrl.rilievo,
+    );
+    final centro = r.center.dx;
+    final da = math.min(centro, thumbCenter.dx);
+    final a = math.max(centro, thumbCenter.dx);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTRB(da, r.top, a, r.bottom), raggio),
+      Paint()..color = sliderTheme.activeTrackColor ?? ColoriScrl.accento,
     );
   }
 }
@@ -392,6 +459,7 @@ class PiedeStrumento extends StatelessWidget {
     required this.onConferma,
     required this.etichettaAnnulla,
     required this.etichettaConferma,
+    this.confronto,
   });
 
   final String nome;
@@ -399,6 +467,9 @@ class PiedeStrumento extends StatelessWidget {
   final VoidCallback onConferma;
   final String etichettaAnnulla;
   final String etichettaConferma;
+
+  /// Pulsante `◐` prima/dopo, tra il nome e ✓ (solo per gli strumenti che cambiano i colori).
+  final Widget? confronto;
 
   @override
   Widget build(BuildContext context) {
@@ -418,6 +489,7 @@ class PiedeStrumento extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
+          ?confronto,
           PulsanteIcona(
             icona: Icons.check_rounded,
             etichetta: etichettaConferma,

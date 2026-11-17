@@ -71,9 +71,24 @@ EngineResult setPerFrame(Snapshot s, bool on, EngineContext ctx) {
 }
 
 /// «Foto per pagina» (0 = Auto, massimo 20): `_on_per_page_changed`.
-EngineResult setPerPage(Snapshot s, int perPage, EngineContext ctx) {
+///
+/// Con [liberaPagineVuote] (scelta dell'app mobile, il desktop non lo fa) le pagine tenute vuote di proposito
+/// (quelle nate da «Pagina nuova», con 0 foto fissate) tornano a ricevere foto: chi sceglie quante foto per pagina
+/// si aspetta che anche la pagina appena aggiunta si riempia.
+EngineResult setPerPage(
+  Snapshot s,
+  int perPage,
+  EngineContext ctx, {
+  bool liberaPagineVuote = false,
+}) {
   final sc = Scene(s, ctx);
   sc.perPage = perPage.clamp(0, 20);
+  if (liberaPagineVuote) {
+    for (var i = 0; i < sc.pageCounts.length; i++) {
+      if (sc.pageCounts[i] == 0) sc.pageCounts[i] = null;
+    }
+    sc.trimPageLists();
+  }
   relayoutKeep(sc);
   return EngineResult.done(sc);
 }

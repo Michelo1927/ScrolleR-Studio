@@ -1044,6 +1044,426 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Per scambiare servono esattamente 2 foto'**
   String get noticeSwapNeedsTwo;
+
+  /// Strumento Foto: ritaglio a schermo intero
+  ///
+  /// In it, this message translates to:
+  /// **'Ritaglia'**
+  String get strRitaglia;
+
+  /// Strumento Foto: zoom e spostamento dentro il riquadro
+  ///
+  /// In it, this message translates to:
+  /// **'Inquadra'**
+  String get strInquadra;
+
+  /// Strumento Foto: filtri pronti
+  ///
+  /// In it, this message translates to:
+  /// **'Filtri'**
+  String get strFiltri;
+
+  /// Strumento Foto: regolazioni colore
+  ///
+  /// In it, this message translates to:
+  /// **'Regola'**
+  String get strRegola;
+
+  /// Strumento Foto: nitidezza, vignettatura, sbiadito, grana
+  ///
+  /// In it, this message translates to:
+  /// **'Effetti'**
+  String get strEffetti;
+
+  /// Strumento Foto: angoli e bordo
+  ///
+  /// In it, this message translates to:
+  /// **'Cornice'**
+  String get strCornice;
+
+  /// Strumento Foto: ombra (e parametro dell'ombra)
+  ///
+  /// In it, this message translates to:
+  /// **'Ombra'**
+  String get strOmbra;
+
+  /// Strumento Foto: rotazione e specchio
+  ///
+  /// In it, this message translates to:
+  /// **'Ruota'**
+  String get strRuota;
+
+  /// Strumento Foto a comando singolo
+  ///
+  /// In it, this message translates to:
+  /// **'Copia stile'**
+  String get strCopiaStile;
+
+  /// Strumento Foto a comando singolo
+  ///
+  /// In it, this message translates to:
+  /// **'Incolla stile'**
+  String get strIncollaStile;
+
+  /// Parametro di Inquadra
+  ///
+  /// In it, this message translates to:
+  /// **'Zoom'**
+  String get parZoom;
+
+  /// Parametro di Inquadra: spostamento orizzontale
+  ///
+  /// In it, this message translates to:
+  /// **'Orizzontale'**
+  String get parOrizzontale;
+
+  /// Parametro di Inquadra: spostamento verticale
+  ///
+  /// In it, this message translates to:
+  /// **'Verticale'**
+  String get parVerticale;
+
+  /// Parametro di Inquadra
+  ///
+  /// In it, this message translates to:
+  /// **'Ruota contenuto'**
+  String get parRuotaContenuto;
+
+  /// Parametro di Regola
+  ///
+  /// In it, this message translates to:
+  /// **'Luminosità'**
+  String get parLuminosita;
+
+  /// Parametro di Regola
+  ///
+  /// In it, this message translates to:
+  /// **'Contrasto'**
+  String get parContrasto;
+
+  /// Parametro di Regola: zone scure
+  ///
+  /// In it, this message translates to:
+  /// **'Ombre'**
+  String get parOmbre;
+
+  /// Parametro di Regola: zone chiare
+  ///
+  /// In it, this message translates to:
+  /// **'Luci'**
+  String get parLuci;
+
+  /// Parametro di Regola
+  ///
+  /// In it, this message translates to:
+  /// **'Saturazione'**
+  String get parSaturazione;
+
+  /// Parametro di Regola
+  ///
+  /// In it, this message translates to:
+  /// **'Calore'**
+  String get parCalore;
+
+  /// Parametro di Regola
+  ///
+  /// In it, this message translates to:
+  /// **'Tinta'**
+  String get parTinta;
+
+  /// Parametro di Effetti
+  ///
+  /// In it, this message translates to:
+  /// **'Nitidezza'**
+  String get parNitidezza;
+
+  /// Parametro di Effetti
+  ///
+  /// In it, this message translates to:
+  /// **'Vignettatura'**
+  String get parVignettatura;
+
+  /// Parametro di Effetti
+  ///
+  /// In it, this message translates to:
+  /// **'Sbiadito'**
+  String get parSbiadito;
+
+  /// Parametro di Effetti
+  ///
+  /// In it, this message translates to:
+  /// **'Grana'**
+  String get parGrana;
+
+  /// Parametro di Cornice
+  ///
+  /// In it, this message translates to:
+  /// **'Angoli'**
+  String get parAngoli;
+
+  /// Parametro di Cornice: spessore
+  ///
+  /// In it, this message translates to:
+  /// **'Bordo'**
+  String get parBordo;
+
+  /// Parametro di Cornice: colore del bordo
+  ///
+  /// In it, this message translates to:
+  /// **'Colore'**
+  String get parColore;
+
+  /// Parametro di Ombra
+  ///
+  /// In it, this message translates to:
+  /// **'Opacità'**
+  String get parOpacita;
+
+  /// Parametro di Ruota
+  ///
+  /// In it, this message translates to:
+  /// **'Angolo'**
+  String get parAngolo;
+
+  /// Interruttore di Regola: bianco e nero
+  ///
+  /// In it, this message translates to:
+  /// **'B/N'**
+  String get azBiancoNero;
+
+  /// Azione di Regola
+  ///
+  /// In it, this message translates to:
+  /// **'Reimposta colori'**
+  String get azReimpostaColori;
+
+  /// Azione che copia le impostazioni su tutte le foto
+  ///
+  /// In it, this message translates to:
+  /// **'Applica a tutte'**
+  String get azApplicaATutte;
+
+  /// Inquadra: la foto riempie il riquadro
+  ///
+  /// In it, this message translates to:
+  /// **'Riempi'**
+  String get azRiempi;
+
+  /// Inquadra e Ritaglio: tutta la foto, senza tagli
+  ///
+  /// In it, this message translates to:
+  /// **'Foto intera'**
+  String get azFotoIntera;
+
+  /// Inquadra: i lati stirano la foto
+  ///
+  /// In it, this message translates to:
+  /// **'Deforma'**
+  String get azDeforma;
+
+  /// Inquadra: zoom e posizione al valore iniziale
+  ///
+  /// In it, this message translates to:
+  /// **'Reimposta'**
+  String get azReimposta;
+
+  /// Inquadra: il riquadro prende la forma della foto
+  ///
+  /// In it, this message translates to:
+  /// **'Proporzioni foto'**
+  String get azProporzioniFoto;
+
+  /// Inquadra: torna al riquadro di prima
+  ///
+  /// In it, this message translates to:
+  /// **'Riquadro di prima'**
+  String get azRiquadroDiPrima;
+
+  /// Ruota di 90° a sinistra
+  ///
+  /// In it, this message translates to:
+  /// **'90° sx'**
+  String get azSinistra90;
+
+  /// Ruota di 90° a destra
+  ///
+  /// In it, this message translates to:
+  /// **'90° dx'**
+  String get azDestra90;
+
+  /// Ruota: angolo a zero
+  ///
+  /// In it, this message translates to:
+  /// **'Dritta'**
+  String get azDritta;
+
+  /// Specchia da sinistra a destra
+  ///
+  /// In it, this message translates to:
+  /// **'Specchia orizz.'**
+  String get azSpecchiaOrizz;
+
+  /// Capovolge dall'alto in basso
+  ///
+  /// In it, this message translates to:
+  /// **'Specchia vert.'**
+  String get azSpecchiaVert;
+
+  /// Etichetta del pulsante prima/dopo
+  ///
+  /// In it, this message translates to:
+  /// **'Tieni premuto per confrontare con l\'originale'**
+  String get confronta;
+
+  /// Filtro pronto
+  ///
+  /// In it, this message translates to:
+  /// **'Originale'**
+  String get filtroOriginale;
+
+  /// Filtro pronto
+  ///
+  /// In it, this message translates to:
+  /// **'Vivace'**
+  String get filtroVivace;
+
+  /// Filtro pronto
+  ///
+  /// In it, this message translates to:
+  /// **'Estate'**
+  String get filtroEstate;
+
+  /// Filtro pronto
+  ///
+  /// In it, this message translates to:
+  /// **'Pellicola'**
+  String get filtroPellicola;
+
+  /// Filtro pronto
+  ///
+  /// In it, this message translates to:
+  /// **'Vintage'**
+  String get filtroVintage;
+
+  /// Filtro pronto
+  ///
+  /// In it, this message translates to:
+  /// **'B/N contrastato'**
+  String get filtroBnContrastato;
+
+  /// Filtro pronto
+  ///
+  /// In it, this message translates to:
+  /// **'Freddo'**
+  String get filtroFreddo;
+
+  /// Filtro pronto
+  ///
+  /// In it, this message translates to:
+  /// **'Morbido'**
+  String get filtroMorbido;
+
+  /// Filtro pronto
+  ///
+  /// In it, this message translates to:
+  /// **'Drammatico'**
+  String get filtroDrammatico;
+
+  /// Titolo della pagina del ritaglio
+  ///
+  /// In it, this message translates to:
+  /// **'Ritaglia'**
+  String get ritTitolo;
+
+  /// Ritaglio: proporzioni libere
+  ///
+  /// In it, this message translates to:
+  /// **'Libera'**
+  String get ritLibera;
+
+  /// Ritaglio: stessa forma della foto intera
+  ///
+  /// In it, this message translates to:
+  /// **'Originale'**
+  String get ritOriginale;
+
+  /// Ritaglio: stessa forma del riquadro sulla tela
+  ///
+  /// In it, this message translates to:
+  /// **'Riquadro'**
+  String get ritRiquadro;
+
+  /// Ritaglio: tasto ⇄
+  ///
+  /// In it, this message translates to:
+  /// **'Scambia verticale e orizzontale'**
+  String get ritScambia;
+
+  /// Ritaglio: interruttore
+  ///
+  /// In it, this message translates to:
+  /// **'Adatta il riquadro al ritaglio'**
+  String get ritAdatta;
+
+  /// Ritaglio: errore
+  ///
+  /// In it, this message translates to:
+  /// **'Non riesco a leggere questa foto'**
+  String get ritNonLeggibile;
+
+  /// Ritaglio: ✕
+  ///
+  /// In it, this message translates to:
+  /// **'Chiudi senza ritagliare'**
+  String get ritAnnulla;
+
+  /// Ritaglio: ✓
+  ///
+  /// In it, this message translates to:
+  /// **'Applica il ritaglio'**
+  String get ritApplica;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Stile copiato: scegli un\'altra foto e usa «Incolla stile»'**
+  String get avvisoStileCopiato;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Stile incollato'**
+  String get avvisoStileIncollato;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Ritaglio applicato'**
+  String get avvisoRitaglioApplicato;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Ritaglio tolto: foto intera'**
+  String get avvisoRitaglioTolto;
+
+  /// Messaggio breve dopo il gesto indietro
+  ///
+  /// In it, this message translates to:
+  /// **'Modifica scartata'**
+  String get avvisoModificaScartata;
+
+  /// Azione del messaggio dopo aver scartato una modifica
+  ///
+  /// In it, this message translates to:
+  /// **'Ripristina'**
+  String get ripristina;
+
+  /// Misura del ritaglio in pixel
+  ///
+  /// In it, this message translates to:
+  /// **'Ritaglio: {w} × {h} px'**
+  String ritMisura(int w, int h);
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

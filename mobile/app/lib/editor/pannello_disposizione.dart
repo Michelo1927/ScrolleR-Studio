@@ -89,7 +89,7 @@ class _PannelloDisposizioneState extends ConsumerState<PannelloDisposizione> {
     final stato = ref.watch(editorProvider);
     final c = stato.snapshot.canvas;
     return PannelloBasso(
-      onScarta: _ctrl.chiudiStrumento,
+      onScarta: _ctrl.chiudiStrumentoDaGesto,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -241,12 +241,22 @@ class _PannelloDisposizioneState extends ConsumerState<PannelloDisposizione> {
             etichettaPiu: t.piuFoto,
             onMeno: c.perPage > 0
                 ? () => _modifica(
-                    (s, ctx) => setPerPage(s, s.canvas.perPage - 1, ctx),
+                    (s, ctx) => setPerPage(
+                      s,
+                      s.canvas.perPage - 1,
+                      ctx,
+                      liberaPagineVuote: true,
+                    ),
                   )
                 : null,
             onPiu: c.perPage < 20
                 ? () => _modifica(
-                    (s, ctx) => setPerPage(s, s.canvas.perPage + 1, ctx),
+                    (s, ctx) => setPerPage(
+                      s,
+                      s.canvas.perPage + 1,
+                      ctx,
+                      liberaPagineVuote: true,
+                    ),
                   )
                 : null,
           ),

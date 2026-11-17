@@ -14,8 +14,30 @@ import 'package:scrl_engine/scrl_engine.dart';
 
 import 'sessione.dart';
 
-/// Pannello aperto dal basso.
-enum Strumento { nessuno, libreria, disposizione, aggiungi }
+/// Pannello aperto dal basso. Dal terzo in poi sono gli strumenti Foto della foto selezionata (piano §4.3);
+/// il Ritaglio non è un pannello ma una pagina a schermo intero.
+enum Strumento {
+  nessuno,
+  libreria,
+  disposizione,
+  aggiungi,
+  inquadra,
+  filtri,
+  regola,
+  effetti,
+  cornice,
+  ombra,
+  ruota;
+
+  /// Strumento Foto che lavora sulla foto selezionata.
+  bool get eFoto => index >= Strumento.inquadra.index;
+
+  /// Strumento che cambia i colori: ha il confronto prima/dopo `◐`.
+  bool get eColore =>
+      this == Strumento.filtri ||
+      this == Strumento.regola ||
+      this == Strumento.effetti;
+}
 
 /// Messaggi brevi dell'editor (il testo sta nei file `.arb`).
 enum MessaggioEditor {
@@ -28,6 +50,11 @@ enum MessaggioEditor {
   fotoInDisposizione,
   paginaAggiunta,
   salvataggioNonRiuscito,
+  stileCopiato,
+  stileIncollato,
+  ritaglioApplicato,
+  ritaglioTolto,
+  modificaScartata,
 }
 
 /// Un messaggio da mostrare: [id] cresce a ogni messaggio nuovo, così l'interfaccia riconosce i nuovi.
@@ -45,7 +72,13 @@ class Avviso {
       messaggio == MessaggioEditor.elementoEliminato ||
       messaggio == MessaggioEditor.elementiEliminati ||
       messaggio == MessaggioEditor.elementoDuplicato ||
-      messaggio == MessaggioEditor.telaSvuotata;
+      messaggio == MessaggioEditor.telaSvuotata ||
+      messaggio == MessaggioEditor.stileIncollato ||
+      messaggio == MessaggioEditor.ritaglioApplicato ||
+      messaggio == MessaggioEditor.ritaglioTolto;
+
+  /// Dopo l'avviso si può rimettere la modifica appena scartata con «Ripristina».
+  bool get ripristinabile => messaggio == MessaggioEditor.modificaScartata;
 }
 
 class StatoEditor {
@@ -57,6 +90,8 @@ class StatoEditor {
     this.pagina = 0,
     this.strumento = Strumento.nessuno,
     this.avviso,
+    this.deforma = false,
+    this.stileCopiato,
   });
 
   final History cronologia;
@@ -68,6 +103,12 @@ class StatoEditor {
   final int pagina;
   final Strumento strumento;
   final Avviso? avviso;
+
+  /// Interruttore «Deforma» di Inquadra: le maniglie sui lati stirano la foto invece di cambiare il riquadro.
+  final bool deforma;
+
+  /// Stile copiato con «Copia stile» (non entra in Annulla né nel progetto, come sul desktop).
+  final StileFoto? stileCopiato;
 
   /// Ciò che si vede: la bozza se c'è, altrimenti l'ultimo passo.
   Snapshot get snapshot => bozza ?? cronologia.current;
@@ -87,6 +128,8 @@ class StatoEditor {
     int? pagina,
     Strumento? strumento,
     Avviso? avviso,
+    bool? deforma,
+    StileFoto? stileCopiato,
   }) => StatoEditor(
     cronologia: cronologia ?? this.cronologia,
     bozza: bozza != null ? bozza() : this.bozza,
@@ -95,6 +138,8 @@ class StatoEditor {
     pagina: pagina ?? this.pagina,
     strumento: strumento ?? this.strumento,
     avviso: avviso ?? this.avviso,
+    deforma: deforma ?? this.deforma,
+    stileCopiato: stileCopiato ?? this.stileCopiato,
   );
 }
 
@@ -154,9 +199,47 @@ class ControlloEditor extends Notifier<StatoEditor> {
     state = state.copia(strumento: s, bozza: () => null);
   }
 
-  /// ✕ o gesto «indietro»: scarta la bozza e chiude il pannello.
-  void chiudiStrumento() =>
-      state = state.copia(strumento: Strumento.nessuno, bozza: () => null);
+  /// ✕: scarta la bozza e chiude il pannello.
+  void chiudiStrumento() => state = state.copia(
+    strumento: Strumento.nessuno,
+    bozza: () => null,
+    deforma: false,
+  );
+
+  Snapshot? _scartata;
+  Snapshot? _baseScartata;
+
+  /// Gesto «indietro» di sistema o pannello trascinato verso il basso: scarta come ✕; se la modifica scartata
+  /// era consistente, un messaggio breve offre «Ripristina» per qualche secondo (piano §4.4).
+  void chiudiStrumentoDaGesto() {
+    final b = state.bozza;
+    if (b != null && b != state.cronologia.current) {
+      _scartata = b;
+      _baseScartata = state.cronologia.current;
+      state = state.copia(
+        strumento: Strumento.nessuno,
+        bozza: () => null,
+        deforma: false,
+        avviso: Avviso(
+          _prossimoAvviso++,
+          messaggio: MessaggioEditor.modificaScartata,
+        ),
+      );
+    } else {
+      chiudiStrumento();
+    }
+  }
+
+  /// «Ripristina»: rimette la modifica scartata col gesto, se nel frattempo il documento non è cambiato.
+  void ripristinaScartata() {
+    final s = _scartata;
+    final base = _baseScartata;
+    _scartata = _baseScartata = null;
+    if (s == null || base == null || !identical(base, state.cronologia.current)) {
+      return;
+    }
+    _commit(s);
+  }
 
   // ---------- Bozza e cronologia ----------
   /// Mostra [s] senza metterlo in cronologia (trascinamento, cursore, anteprima di uno strumento).
@@ -175,7 +258,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
   void confermaEChiudi([List<Notice> notice = const []]) {
     final b = state.bozza;
     if (b != null) _commit(b, notice: notice);
-    state = state.copia(strumento: Strumento.nessuno);
+    state = state.copia(strumento: Strumento.nessuno, deforma: false);
   }
 
   /// Applica il risultato di un'operazione del motore come passo di cronologia, con i suoi avvisi.
@@ -301,6 +384,73 @@ class ControlloEditor extends Notifier<StatoEditor> {
             : MessaggioEditor.fotoLibere,
       );
     }
+  }
+
+  // ---------- Strumenti Foto (Fase 4) ----------
+  /// Le foto selezionate (senza testi e forme), come nel documento che si vede.
+  List<PhotoItem> get fotoSelezionate =>
+      state.elementiSelezionati.whereType<PhotoItem>().toList();
+
+  /// Applica [f] alle foto selezionate e mostra il risultato come bozza (non entra in Annulla finché non c'è ✓).
+  void modificaFotoSelezionate(PhotoItem Function(PhotoItem) f) {
+    final uids = [for (final p in fotoSelezionate) p.uid];
+    if (uids.isEmpty) return;
+    anteprima(modificaFoto(state.snapshot, uids, f));
+  }
+
+  /// «Applica a tutte» dei colori: le regolazioni della foto principale su tutte le foto (bozza, poi ✓).
+  void coloriATutteLeFoto() {
+    final p = fotoSelezionate;
+    if (p.isEmpty) return;
+    anteprima(coloriATutte(state.snapshot, p.first));
+  }
+
+  /// «Applica a tutte» di cornice, opacità e ombra (bozza, poi ✓).
+  void stileATutteLeFoto() {
+    final p = fotoSelezionate;
+    if (p.isEmpty) return;
+    anteprima(stileATutte(state.snapshot, p.first));
+  }
+
+  void impostaDeforma(bool v) => state = state.copia(deforma: v);
+
+  /// Ritaglio a schermo intero confermato: [ritaglio] in frazioni sulla foto originale.
+  void applicaRitaglio(List<double> ritaglio, {required bool adattaRiquadro}) {
+    final p = fotoSelezionate;
+    if (p.isEmpty) return;
+    final dopo = modificaFoto(
+      state.snapshot,
+      [for (final f in p) f.uid],
+      (f) => conRitaglio(f, ritaglio, adattaRiquadro, _s.misuraDi(f)),
+    );
+    final primo = dopo.items.firstWhere((f) => f.uid == p.first.uid);
+    _commit(
+      dopo,
+      messaggio: haRitaglio(primo)
+          ? MessaggioEditor.ritaglioApplicato
+          : MessaggioEditor.ritaglioTolto,
+    );
+  }
+
+  /// «Copia stile»: cornice, opacità, ombra e colori della foto principale.
+  void copiaStile() {
+    final p = fotoSelezionate;
+    if (p.isEmpty) return;
+    state = state.copia(
+      stileCopiato: StileFoto.di(p.first),
+      avviso: Avviso(_prossimoAvviso++, messaggio: MessaggioEditor.stileCopiato),
+    );
+  }
+
+  /// «Incolla stile» sulle foto selezionate.
+  void incollaStileCopiato() {
+    final stile = state.stileCopiato;
+    final uids = [for (final p in fotoSelezionate) p.uid];
+    if (stile == null || uids.isEmpty) return;
+    _commit(
+      incollaStile(state.snapshot, uids, stile),
+      messaggio: MessaggioEditor.stileIncollato,
+    );
   }
 
   // ---------- Pagine (comandi minimi della Fase 3; il resto arriva con la Fase 6) ----------

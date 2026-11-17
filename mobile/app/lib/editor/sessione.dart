@@ -71,6 +71,9 @@ class SessioneEditor {
 
   String chiaveVoce(LibraryEntry e) => chiaveMedia(fotoDiVoce(e));
 
+  /// Misura in pixel della foto [p] (null se ancora non nota: foto mancante o non ancora letta).
+  MisuraImmagine? misuraDi(PhotoItem p) => misure[chiaveMedia(p)];
+
   void ricordaMisura(String chiave, int w, int h) {
     if (w > 0 && h > 0) misure[chiave] = (w: w, h: h);
   }

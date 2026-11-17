@@ -41,6 +41,9 @@ abstract class RisorseDisegno {
 
   /// Riquadro della grana (`grain_tile`), o null se non ancora pronto.
   ui.Image? get grana;
+
+  /// Prima/dopo: le foto si vedono senza filtri, regolazioni ed effetti (`scene.show_original`).
+  bool get mostraOriginale;
 }
 
 /// Testi del disegno che dipendono dalla lingua (dai file `.arb`).
@@ -240,7 +243,7 @@ void _foto(ui.Canvas canvas, PhotoItem p, RisorseDisegno r, OpzioniDisegno o) {
               : ui.FilterQuality.medium,
       );
       canvas.restore();
-      _effetti(canvas, p, img, r, op);
+      if (!r.mostraOriginale) _effetti(canvas, p, img, r, op);
     } else if (!o.senzaIndicazioni && r.mancante(p)) {
       _segnapostoMancante(canvas, p, o.testi.fotoMancante);
     }

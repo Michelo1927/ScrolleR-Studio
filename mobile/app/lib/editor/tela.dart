@@ -23,7 +23,7 @@ import 'sessione.dart';
 import 'stato.dart';
 import 'vista_pagina.dart';
 
-enum _Modo { nessuno, scorri, sposta, maniglia, pizzica }
+enum _Modo { nessuno, scorri, sposta, maniglia, pizzica, inquadra }
 
 /// Raggio dell'area toccabile di una maniglia (area di 48 dp, piano §4.5: almeno 44).
 const double _raggioTocco = MisureScrl.tocco / 2;
@@ -60,6 +60,10 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
   double _scalaRif = 1, _rotRif = 0;
   Offset _focaleRif = Offset.zero;
   bool _agganciataRotazione = false;
+
+  /// Inquadra: la foto com'è durante il gesto e i valori di pizzico e rotazione dell'aggiornamento precedente.
+  PhotoItem? _inqFoto;
+  double _scalaUlt = 1, _rotUlt = 0;
   int _paginaInizio = 0;
   bool _bordoArmato = true;
 
@@ -80,10 +84,12 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       value: _stato.pagina.toDouble(),
     )..addListener(_alloScorrimento);
     WidgetsBinding.instance.addPostFrameCallback((_) => _prepara());
+    _sessione.risorse.ripristinaQualita = _prepara;
   }
 
   @override
   void dispose() {
+    _sessione.risorse.ripristinaQualita = null;
     _timerPrepara?.cancel();
     _timerBordo?.cancel();
     _scorrimento.dispose();
@@ -95,6 +101,13 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
 
   // ---------- Risorse ----------
   void _preparaConRitardo() {
+    if (_stato.strumento.eFoto) {
+      // Con uno strumento Foto aperto un cursore in movimento cambia il documento a ogni istante: non si aspetta
+      // che il dito si fermi (come per il ritardo normale) ma si colora a ritmo costante, sull'ultimo valore.
+      if (_timerPrepara?.isActive ?? false) return;
+      _timerPrepara = Timer(const Duration(milliseconds: 16), _prepara);
+      return;
+    }
     _timerPrepara?.cancel();
     _timerPrepara = Timer(const Duration(milliseconds: 120), _prepara);
   }
@@ -163,6 +176,12 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     return e is PhotoItem && !e.locked ? e : null;
   }
 
+  /// La sola foto selezionata, anche se ha «Blocca posizione» (l'inquadratura interna non la sposta).
+  PhotoItem? _fotoInquadrabile() {
+    final el = _stato.elementiSelezionati;
+    return el.length == 1 && el.first is PhotoItem ? el.first as PhotoItem : null;
+  }
+
   Offset _posManiglia(PhotoItem p, Maniglia m) {
     final (fx, fy) = m.frazione;
     final (sx, sy) = localeInScena(p, fx * p.w, fy * p.h);
@@ -187,6 +206,8 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
 
   // ---------- Tocco ----------
   void _alTocco(TapUpDetails d) {
+    // Con uno strumento Foto aperto la selezione non cambia: si lavora sulla foto scelta
+    if (_stato.strumento.eFoto) return;
     final e = _elementoSotto(d.localPosition);
     if (e == null) {
       _ctrl.deseleziona();
@@ -217,6 +238,18 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
         return;
       }
       final e = _elementoSotto(punto);
+      if (_stato.strumento.eFoto) {
+        // Strumento Foto aperto: in Inquadra le dita muovono la foto dentro il riquadro; altrimenti si scorre
+        if (_stato.strumento == Strumento.inquadra &&
+            e != null &&
+            sel.contains(rifDi(e)) &&
+            _fotoInquadrabile() != null) {
+          _iniziaInquadra(d.pointerCount);
+          return;
+        }
+        _modo = _Modo.scorri;
+        return;
+      }
       if (e != null && sel.contains(rifDi(e)) && !e.locked) {
         _primario = e;
         _iniziaSposta(punto);
@@ -227,6 +260,15 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       }
     }
     _modo = _Modo.scorri;
+  }
+
+  void _iniziaInquadra(int dita) {
+    _modo = _Modo.inquadra;
+    _base = _stato.snapshot;
+    _inqFoto = _fotoInquadrabile();
+    _scalaUlt = 1;
+    _rotUlt = 0;
+    _punti = dita;
   }
 
   void _iniziaSposta(Offset focale) {
@@ -248,6 +290,14 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
 
   void _aggiornaGesto(ScaleUpdateDetails d) {
     if (_geo == null || _modo == _Modo.nessuno) return;
+    if (_modo == _Modo.inquadra && d.pointerCount != _punti) {
+      // Un dito in più o in meno: il punto focale salta, si riparte da qui senza muovere la foto
+      _punti = d.pointerCount;
+      _scalaUlt = d.scale;
+      _rotUlt = d.rotation;
+      _focaleUltima = d.localFocalPoint;
+      return;
+    }
     if (d.pointerCount != _punti) {
       _punti = d.pointerCount;
       // Un secondo dito su una foto selezionata: da spostamento a pizzico (e viceversa)
@@ -269,6 +319,8 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
         _aggiornaManiglia(d.localFocalPoint);
       case _Modo.pizzica:
         _aggiornaPizzica(d);
+      case _Modo.inquadra:
+        _aggiornaInquadra(d, precedente);
       case _Modo.nessuno:
         break;
     }
@@ -319,7 +371,33 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     final base = _base, foto = _fotoBase, m = _maniglia;
     if (g == null || base == null || foto == null || m == null) return;
     final (sx, sy) = g.daSchermo(focale);
-    _ctrl.anteprima(_con(base, ridimensionaFoto(foto, m, sx, sy)));
+    // «Deforma» (strumento Inquadra): le maniglie sui lati stirano la foto invece di cambiare solo il riquadro
+    final deforma = _stato.deforma && _stato.strumento == Strumento.inquadra;
+    _ctrl.anteprima(
+      _con(base, ridimensionaFoto(foto, m, sx, sy, deforma: deforma)),
+    );
+  }
+
+  /// Inquadra: un dito sposta la foto dentro il riquadro, due la ingrandiscono e la ruotano
+  /// (`pan_x`, `pan_y`, `inner_zoom`, `inner_rotation`). Ogni passo parte dal precedente.
+  void _aggiornaInquadra(ScaleUpdateDetails d, Offset precedente) {
+    final g = _geo?.conPos(_pos);
+    final base = _base;
+    var foto = _inqFoto;
+    if (g == null || base == null || foto == null) return;
+    if (d.pointerCount >= 2) {
+      foto = pizzicoInterno(
+        foto,
+        scala: d.scale / _scalaUlt,
+        gradi: (d.rotation - _rotUlt) * 180.0 / math.pi,
+      );
+    }
+    _scalaUlt = d.scale;
+    _rotUlt = d.rotation;
+    final a = g.daSchermo(precedente), b = g.daSchermo(d.localFocalPoint);
+    foto = panInterno(foto, _sessione.misuraDi(foto), b.$1 - a.$1, b.$2 - a.$2);
+    _inqFoto = foto;
+    _ctrl.anteprima(_con(base, foto));
   }
 
   void _aggiornaPizzica(ScaleUpdateDetails d) {
@@ -386,12 +464,14 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       case _Modo.sposta:
         _concludiSposta();
       case _Modo.maniglia || _Modo.pizzica:
-        _ctrl.conferma();
-      case _Modo.nessuno:
+        // Con uno strumento aperto la modifica resta bozza fino a ✓
+        if (!_stato.strumento.eFoto) _ctrl.conferma();
+      case _Modo.inquadra || _Modo.nessuno:
         break;
     }
     _base = null;
     _primario = null;
+    _inqFoto = null;
   }
 
   /// Fine dello spostamento: le foto rilasciate su un'altra pagina passano a quella pagina (`photosDropped`).
@@ -473,6 +553,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
                         geo.conPos(_pos),
                         _sessione.risorse,
                         testi,
+                        _sessione.risorse.versione,
                       ),
                     ),
                   ),
@@ -515,12 +596,15 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
 
 /// Disegna le pagine visibili con lo stesso modulo dell'esportazione, più le guide di centro.
 class _PitturaPagine extends CustomPainter {
-  _PitturaPagine(this.s, this.geo, this.risorse, this.testi);
+  _PitturaPagine(this.s, this.geo, this.risorse, this.testi, this.versione);
 
   final Snapshot s;
   final GeometriaTela geo;
   final RisorsePagina risorse;
   final TestiDisegno testi;
+
+  /// Versione delle risorse: cambia quando arriva una foto colorata o si preme il confronto prima/dopo.
+  final int versione;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -566,7 +650,10 @@ class _PitturaPagine extends CustomPainter {
 
   @override
   bool shouldRepaint(_PitturaPagine old) =>
-      old.s != s || old.geo.pos != geo.pos || old.geo.scala != geo.scala;
+      old.s != s ||
+      old.geo.pos != geo.pos ||
+      old.geo.scala != geo.scala ||
+      old.versione != versione;
 }
 
 /// Riquadro di selezione, maniglie, lucchetto e linee di aggancio: sopra la pagina, non ritagliati.

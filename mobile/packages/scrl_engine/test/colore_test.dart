@@ -52,6 +52,16 @@ void main() {
     expect(_crc32(g), rif['grain_crc']);
   });
 
+  test('i 9 filtri pronti hanno gli stessi valori del desktop (PRESETS)', () {
+    final desktop = (rif['presets']! as List).cast<Map<String, Object?>>();
+    expect(presets.length, desktop.length);
+    for (var i = 0; i < desktop.length; i++) {
+      expect(presets[i].key, desktop[i]['key']);
+      final adj = (desktop[i]['adj']! as Map).cast<String, Object?>();
+      expect(presetAdjust(presets[i].key), adj, reason: presets[i].key);
+    }
+  });
+
   test('filtri pronti e regolazioni attive', () {
     expect(presets.length, 9);
     final v = presetAdjust('vintage');

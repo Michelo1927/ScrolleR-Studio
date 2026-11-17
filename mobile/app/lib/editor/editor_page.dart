@@ -10,6 +10,8 @@ import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
+import 'pagina_ritaglio.dart';
+import 'pannelli_foto.dart';
 import 'pannello_aggiungi.dart';
 import 'pannello_disposizione.dart';
 import 'pannello_libreria.dart';
@@ -87,7 +89,7 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
   void _indietro() {
     final s = ref.read(editorProvider);
     if (s.strumento != Strumento.nessuno) {
-      _ctrl.chiudiStrumento();
+      _ctrl.chiudiStrumentoDaGesto();
     } else if (s.selezione.isNotEmpty) {
       _ctrl.deseleziona();
     } else {
@@ -113,6 +115,11 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
           duration: const Duration(seconds: 4),
           action: a.annullabile
               ? SnackBarAction(label: t.annulla, onPressed: _ctrl.annulla)
+              : a.ripristinabile
+              ? SnackBarAction(
+                  label: t.ripristina,
+                  onPressed: _ctrl.ripristinaScartata,
+                )
               : null,
         ),
       );
@@ -205,6 +212,13 @@ class _ZonaInferiore extends ConsumerWidget {
         key: ValueKey('disposizione'),
       ),
       Strumento.aggiungi => const PannelloAggiungi(key: ValueKey('aggiungi')),
+      Strumento.inquadra => const PannelloInquadra(key: ValueKey('inquadra')),
+      Strumento.filtri => const PannelloFiltri(key: ValueKey('filtri')),
+      Strumento.regola => const PannelloRegola(key: ValueKey('regola')),
+      Strumento.effetti => const PannelloEffetti(key: ValueKey('effetti')),
+      Strumento.cornice => const PannelloCornice(key: ValueKey('cornice')),
+      Strumento.ombra => const PannelloOmbra(key: ValueKey('ombra')),
+      Strumento.ruota => const PannelloRuota(key: ValueKey('ruota')),
       Strumento.nessuno =>
         haSelezione
             ? const _BarraSelezione(key: ValueKey('selezione'))
@@ -439,6 +453,8 @@ class _BarraInferiore extends ConsumerWidget {
 }
 
 /// Con un elemento selezionato la barra diventa una striscia di strumenti, con ✕ a sinistra per deselezionare.
+/// Foto: Ritaglia · Inquadra · Filtri · Regola · Effetti · Cornice · Ombra · Ruota · Libera · Copia stile ·
+/// Incolla stile · Duplica · Elimina (un video non ha Filtri, Regola ed Effetti).
 class _BarraSelezione extends ConsumerWidget {
   const _BarraSelezione({super.key});
 
@@ -446,9 +462,11 @@ class _BarraSelezione extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Testi.of(context);
     final ctrl = ref.read(editorProvider.notifier);
-    final sel = ref.watch(editorProvider.select((s) => s.elementiSelezionati));
+    final stato = ref.watch(editorProvider);
+    final sel = stato.elementiSelezionati;
     final foto = sel.whereType<PhotoItem>().toList();
     final tutteLibere = foto.isNotEmpty && foto.every((p) => p.free);
+    final conColori = foto.any((p) => !p.isVideo);
     return SizedBox(
       height: MisureScrl.barraInferiore,
       child: Row(
@@ -462,7 +480,49 @@ class _BarraSelezione extends ConsumerWidget {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                if (foto.isNotEmpty)
+                if (foto.isNotEmpty) ...[
+                  VoceBarra(
+                    icona: Icons.crop_rounded,
+                    etichetta: t.strRitaglia,
+                    onTap: () => _ritaglia(context, ref),
+                  ),
+                  VoceBarra(
+                    icona: Icons.center_focus_strong_outlined,
+                    etichetta: t.strInquadra,
+                    onTap: () => ctrl.apriStrumento(Strumento.inquadra),
+                  ),
+                  if (conColori) ...[
+                    VoceBarra(
+                      icona: Icons.auto_awesome_outlined,
+                      etichetta: t.strFiltri,
+                      onTap: () => ctrl.apriStrumento(Strumento.filtri),
+                    ),
+                    VoceBarra(
+                      icona: Icons.tune_rounded,
+                      etichetta: t.strRegola,
+                      onTap: () => ctrl.apriStrumento(Strumento.regola),
+                    ),
+                    VoceBarra(
+                      icona: Icons.auto_fix_high_rounded,
+                      etichetta: t.strEffetti,
+                      onTap: () => ctrl.apriStrumento(Strumento.effetti),
+                    ),
+                  ],
+                  VoceBarra(
+                    icona: Icons.rounded_corner_rounded,
+                    etichetta: t.strCornice,
+                    onTap: () => ctrl.apriStrumento(Strumento.cornice),
+                  ),
+                  VoceBarra(
+                    icona: Icons.blur_on_rounded,
+                    etichetta: t.strOmbra,
+                    onTap: () => ctrl.apriStrumento(Strumento.ombra),
+                  ),
+                  VoceBarra(
+                    icona: Icons.rotate_right_rounded,
+                    etichetta: t.strRuota,
+                    onTap: () => ctrl.apriStrumento(Strumento.ruota),
+                  ),
                   VoceBarra(
                     icona: tutteLibere
                         ? Icons.grid_view_rounded
@@ -470,6 +530,18 @@ class _BarraSelezione extends ConsumerWidget {
                     etichetta: tutteLibere ? t.inDisposizione : t.libera,
                     onTap: ctrl.liberaSelezione,
                   ),
+                  VoceBarra(
+                    icona: Icons.colorize_rounded,
+                    etichetta: t.strCopiaStile,
+                    onTap: ctrl.copiaStile,
+                  ),
+                  VoceBarra(
+                    icona: Icons.format_paint_rounded,
+                    etichetta: t.strIncollaStile,
+                    onTap: ctrl.incollaStileCopiato,
+                    spenta: stato.stileCopiato == null,
+                  ),
+                ],
                 VoceBarra(
                   icona: Icons.copy_rounded,
                   etichetta: t.duplica,
@@ -487,5 +559,22 @@ class _BarraSelezione extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Ritaglio a schermo intero: si apre una pagina nuova e, con ✓, il ritaglio entra in cronologia.
+  Future<void> _ritaglia(BuildContext context, WidgetRef ref) async {
+    final ctrl = ref.read(editorProvider.notifier);
+    final s = ref.read(sessioneProvider);
+    final foto = ctrl.fotoSelezionate;
+    if (foto.isEmpty) return;
+    final r = await Navigator.of(context).push<RisultatoRitaglio>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => PaginaRitaglio(sessione: s, foto: foto.first),
+      ),
+    );
+    if (r != null) {
+      ctrl.applicaRitaglio(r.ritaglio, adattaRiquadro: r.adattaRiquadro);
+    }
   }
 }

@@ -20,6 +20,11 @@ String testoAvviso(Testi t, Avviso a) {
     MessaggioEditor.fotoInDisposizione => t.avvisoFotoInDisposizione,
     MessaggioEditor.paginaAggiunta => t.avvisoPaginaAggiunta,
     MessaggioEditor.salvataggioNonRiuscito => t.avvisoSalvataggioNonRiuscito,
+    MessaggioEditor.stileCopiato => t.avvisoStileCopiato,
+    MessaggioEditor.stileIncollato => t.avvisoStileIncollato,
+    MessaggioEditor.ritaglioApplicato => t.avvisoRitaglioApplicato,
+    MessaggioEditor.ritaglioTolto => t.avvisoRitaglioTolto,
+    MessaggioEditor.modificaScartata => t.avvisoModificaScartata,
     null => '',
   };
 }

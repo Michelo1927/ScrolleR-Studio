@@ -3,6 +3,7 @@
 /// Tutto il lavoro è asincrono e fuori dal thread dell'interfaccia; il disegno resta sincrono.
 library;
 
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -17,7 +18,10 @@ import 'regolazioni.dart';
 class _Pronta {
   final String chiave;
   final FotoPronta foto;
-  const _Pronta(this.chiave, this.foto);
+
+  /// La foto com'era prima delle regolazioni (per il confronto prima/dopo).
+  final ui.Image originale;
+  const _Pronta(this.chiave, this.foto, this.originale);
 }
 
 class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
@@ -32,6 +36,10 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
   final Set<int> _mancanti = {};
   final Map<String, List<int>> _livelli = {};
   final Map<int, String> _inCorso = {};
+
+  /// Richiesta arrivata mentre la foto si stava ancora colorando: parte appena finisce quella in corso, così
+  /// scorrendo un cursore il lavoro non si accumula e conta solo l'ultimo valore.
+  final Map<int, (PhotoItem, double)> _inAttesa = {};
   ui.Image? _grana;
   ui.Image? _sfondo;
   String? _chiaveSfondo;
@@ -40,11 +48,49 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
   /// Fotogrammi dei video impostati dall'esportazione (uid → immagine), al posto della copertina.
   final Map<int, ui.Image> fotogrammi = {};
 
+  /// Cresce a ogni cambio di risorse: chi disegna lo confronta per sapere se deve ridisegnare.
+  int versione = 0;
+
+  bool _mostraOriginale = false;
+  bool _qualitaRidotta = false;
+
+  /// Chiamata quando si torna alla qualità piena (la tela ricalcola le foto).
+  VoidCallback? ripristinaQualita;
+
+  /// Lato lungo delle foto mentre un cursore è in movimento: la colorazione è molto più leggera e l'anteprima
+  /// segue il dito; a dito fermo si ricalcola alla qualità piena.
+  static const int latoInterattivo = 720;
+  final Map<int, (ui.Image, ui.Image)> _ridotte = {};
+
+  /// Un cursore è in movimento: si lavora su copie ridotte delle foto.
+  bool get qualitaRidotta => _qualitaRidotta;
+  set qualitaRidotta(bool v) {
+    if (v == _qualitaRidotta) return;
+    _qualitaRidotta = v;
+    if (!v) ripristinaQualita?.call();
+  }
+
+  /// Prima/dopo (`scene.show_original`): finché è acceso tutte le foto si vedono senza filtri e regolazioni.
+  @override
+  bool get mostraOriginale => _mostraOriginale;
+  set mostraOriginale(bool v) {
+    if (v == _mostraOriginale) return;
+    _mostraOriginale = v;
+    _avvisa();
+  }
+
   @override
   FotoPronta? foto(PhotoItem p) {
     final f = fotogrammi[p.uid];
     if (f != null) return FotoPronta(f);
-    return _foto[p.uid]?.foto;
+    final pronta = _foto[p.uid];
+    if (pronta != null && _mostraOriginale) {
+      return FotoPronta(
+        pronta.originale,
+        originaleMancante: pronta.foto.originaleMancante,
+      );
+    }
+    return pronta?.foto;
   }
 
   @override
@@ -63,7 +109,9 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
   }
 
   void _avvisa() {
-    if (!_chiuso) notifyListeners();
+    if (_chiuso) return;
+    versione++;
+    notifyListeners();
   }
 
   /// Foto (e video) che toccano la pagina [k].
@@ -103,7 +151,7 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
       // Originale mancante (o video, che usa i fotogrammi): l'anteprima
       img ??= ant.immagine;
       final colorata = await _colora(p, src, img, ant.immagine);
-      _foto[p.uid] = _Pronta('esportazione', FotoPronta(colorata));
+      _foto[p.uid] = _Pronta('esportazione', FotoPronta(colorata), img);
     }
   }
 
@@ -151,20 +199,49 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
       final cop = await _copertina(src, p.poster);
       if (cop != null) base = cop;
     }
+    if (_qualitaRidotta && math.max(base.width, base.height) > latoInterattivo) {
+      final r = _ridotte[p.uid];
+      if (r != null && identical(r.$1, base)) {
+        base = r.$2;
+      } else {
+        final piccola = await ridimensiona(base, latoInterattivo);
+        _ridotte[p.uid] = (base, piccola);
+        base = piccola;
+      }
+    }
     final chiave =
         '${identityHashCode(base)}|${jsonEncodeStable(p.adjust)}|${ant.originaleMancante}';
     if (_foto[p.uid]?.chiave == chiave || _inCorso[p.uid] == chiave) return;
+    if (_inCorso.containsKey(p.uid)) {
+      _inAttesa[p.uid] = (p, pixelPerUnita);
+      return;
+    }
     _inCorso[p.uid] = chiave;
     try {
       final colorata = await _colora(p, src, base, ant.immagine);
-      if (_inCorso[p.uid] != chiave) return; // Nel frattempo è cambiata
+      if (_chiuso) {
+        if (!identical(colorata, base)) colorata.dispose();
+        return;
+      }
+      final vecchia = _foto[p.uid];
       _foto[p.uid] = _Pronta(
         chiave,
         FotoPronta(colorata, originaleMancante: ant.originaleMancante),
+        base,
       );
       _avvisa();
+      // L'immagine colorata di prima non serve più (quelle della cache non si toccano)
+      // (con un po' di ritardo: la miniatura o un'esportazione in corso potrebbero ancora disegnarla)
+      if (vecchia != null &&
+          !identical(vecchia.foto.immagine, vecchia.originale) &&
+          !identical(vecchia.foto.immagine, colorata)) {
+        final daLiberare = vecchia.foto.immagine;
+        Timer(const Duration(seconds: 5), daLiberare.dispose);
+      }
     } finally {
-      if (_inCorso[p.uid] == chiave) _inCorso.remove(p.uid);
+      _inCorso.remove(p.uid);
+      final a = _inAttesa.remove(p.uid);
+      if (a != null && !_chiuso) unawaited(_preparaFoto(a.$1, a.$2));
     }
   }
 

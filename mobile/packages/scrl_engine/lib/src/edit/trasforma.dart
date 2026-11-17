@@ -51,7 +51,16 @@ enum Maniglia {
 
 /// `_resize_to`: la foto [inizio] (com'era al tocco) con la maniglia [m] portata sul punto di scena ([px], [py]).
 /// L'angolo (o il lato) opposto resta fermo.
-PhotoItem ridimensionaFoto(PhotoItem inizio, Maniglia m, double px, double py) {
+///
+/// Con [deforma] (interruttore «Deforma» di Inquadra) le maniglie sui lati stirano davvero la foto insieme al
+/// riquadro (campo `stretch`, come sul desktop senza Shift): il contenuto visibile resta lo stesso, deformato.
+PhotoItem ridimensionaFoto(
+  PhotoItem inizio,
+  Maniglia m,
+  double px,
+  double py, {
+  bool deforma = false,
+}) {
   final sx = m.destra ? 1.0 : -1.0;
   final sy = m.basso ? 1.0 : -1.0;
   final ancoraLocale = (sx > 0 ? 0.0 : inizio.w, sy > 0 ? 0.0 : inizio.h);
@@ -81,11 +90,16 @@ PhotoItem ridimensionaFoto(PhotoItem inizio, Maniglia m, double px, double py) {
     inizio.rotation,
   );
   final cx = ancora.$1 + ox, cy = ancora.$2 + oy;
+  final lato =
+      m == Maniglia.l || m == Maniglia.r || m == Maniglia.t || m == Maniglia.b;
   return inizio.copyWith(
     w: w,
     h: h,
     x: cx - w / 2.0,
     y: cy - h / 2.0,
+    stretch: deforma && lato
+        ? inizio.stretch * (w / inizio.w) * (inizio.h / h)
+        : null,
     // Ridimensionata a mano: il riquadro «di prima» non vale più
     savedCell: () => null,
   );

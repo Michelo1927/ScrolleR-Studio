@@ -604,4 +604,217 @@ class TestiIt extends Testi {
 
   @override
   String get noticeSwapNeedsTwo => 'Per scambiare servono esattamente 2 foto';
+
+  @override
+  String get strRitaglia => 'Ritaglia';
+
+  @override
+  String get strInquadra => 'Inquadra';
+
+  @override
+  String get strFiltri => 'Filtri';
+
+  @override
+  String get strRegola => 'Regola';
+
+  @override
+  String get strEffetti => 'Effetti';
+
+  @override
+  String get strCornice => 'Cornice';
+
+  @override
+  String get strOmbra => 'Ombra';
+
+  @override
+  String get strRuota => 'Ruota';
+
+  @override
+  String get strCopiaStile => 'Copia stile';
+
+  @override
+  String get strIncollaStile => 'Incolla stile';
+
+  @override
+  String get parZoom => 'Zoom';
+
+  @override
+  String get parOrizzontale => 'Orizzontale';
+
+  @override
+  String get parVerticale => 'Verticale';
+
+  @override
+  String get parRuotaContenuto => 'Ruota contenuto';
+
+  @override
+  String get parLuminosita => 'Luminosità';
+
+  @override
+  String get parContrasto => 'Contrasto';
+
+  @override
+  String get parOmbre => 'Ombre';
+
+  @override
+  String get parLuci => 'Luci';
+
+  @override
+  String get parSaturazione => 'Saturazione';
+
+  @override
+  String get parCalore => 'Calore';
+
+  @override
+  String get parTinta => 'Tinta';
+
+  @override
+  String get parNitidezza => 'Nitidezza';
+
+  @override
+  String get parVignettatura => 'Vignettatura';
+
+  @override
+  String get parSbiadito => 'Sbiadito';
+
+  @override
+  String get parGrana => 'Grana';
+
+  @override
+  String get parAngoli => 'Angoli';
+
+  @override
+  String get parBordo => 'Bordo';
+
+  @override
+  String get parColore => 'Colore';
+
+  @override
+  String get parOpacita => 'Opacità';
+
+  @override
+  String get parAngolo => 'Angolo';
+
+  @override
+  String get azBiancoNero => 'B/N';
+
+  @override
+  String get azReimpostaColori => 'Reimposta colori';
+
+  @override
+  String get azApplicaATutte => 'Applica a tutte';
+
+  @override
+  String get azRiempi => 'Riempi';
+
+  @override
+  String get azFotoIntera => 'Foto intera';
+
+  @override
+  String get azDeforma => 'Deforma';
+
+  @override
+  String get azReimposta => 'Reimposta';
+
+  @override
+  String get azProporzioniFoto => 'Proporzioni foto';
+
+  @override
+  String get azRiquadroDiPrima => 'Riquadro di prima';
+
+  @override
+  String get azSinistra90 => '90° sx';
+
+  @override
+  String get azDestra90 => '90° dx';
+
+  @override
+  String get azDritta => 'Dritta';
+
+  @override
+  String get azSpecchiaOrizz => 'Specchia orizz.';
+
+  @override
+  String get azSpecchiaVert => 'Specchia vert.';
+
+  @override
+  String get confronta => 'Tieni premuto per confrontare con l\'originale';
+
+  @override
+  String get filtroOriginale => 'Originale';
+
+  @override
+  String get filtroVivace => 'Vivace';
+
+  @override
+  String get filtroEstate => 'Estate';
+
+  @override
+  String get filtroPellicola => 'Pellicola';
+
+  @override
+  String get filtroVintage => 'Vintage';
+
+  @override
+  String get filtroBnContrastato => 'B/N contrastato';
+
+  @override
+  String get filtroFreddo => 'Freddo';
+
+  @override
+  String get filtroMorbido => 'Morbido';
+
+  @override
+  String get filtroDrammatico => 'Drammatico';
+
+  @override
+  String get ritTitolo => 'Ritaglia';
+
+  @override
+  String get ritLibera => 'Libera';
+
+  @override
+  String get ritOriginale => 'Originale';
+
+  @override
+  String get ritRiquadro => 'Riquadro';
+
+  @override
+  String get ritScambia => 'Scambia verticale e orizzontale';
+
+  @override
+  String get ritAdatta => 'Adatta il riquadro al ritaglio';
+
+  @override
+  String get ritNonLeggibile => 'Non riesco a leggere questa foto';
+
+  @override
+  String get ritAnnulla => 'Chiudi senza ritagliare';
+
+  @override
+  String get ritApplica => 'Applica il ritaglio';
+
+  @override
+  String get avvisoStileCopiato =>
+      'Stile copiato: scegli un\'altra foto e usa «Incolla stile»';
+
+  @override
+  String get avvisoStileIncollato => 'Stile incollato';
+
+  @override
+  String get avvisoRitaglioApplicato => 'Ritaglio applicato';
+
+  @override
+  String get avvisoRitaglioTolto => 'Ritaglio tolto: foto intera';
+
+  @override
+  String get avvisoModificaScartata => 'Modifica scartata';
+
+  @override
+  String get ripristina => 'Ripristina';
+
+  @override
+  String ritMisura(int w, int h) {
+    return 'Ritaglio: $w × $h px';
+  }
 }

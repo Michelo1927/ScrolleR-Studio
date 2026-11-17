@@ -98,3 +98,22 @@ abstract final class MotoScrl {
   static const Duration breve = Duration(milliseconds: 150);
   static const Curve curva = Curves.easeOutCubic;
 }
+
+/// Colori rapidi per i contenuti del collage (bordi, forme, testi): `SWATCHES` del desktop. Non sono colori
+/// dell'interfaccia, per questo stanno fuori da [ColoriScrl].
+abstract final class CampioniScrl {
+  static const List<Color> rapidi = [
+    Color(0xFFFFFFFF),
+    Color(0xFF000000),
+    Color(0xFF8E8E93),
+    Color(0xFFFF3B30),
+    Color(0xFFFF9500),
+    Color(0xFFFFCC00),
+    Color(0xFF34C759),
+    Color(0xFF00C7BE),
+    Color(0xFF007AFF),
+    Color(0xFF5856D6),
+    Color(0xFFAF52DE),
+    Color(0xFFFF2D55),
+  ];
+}
