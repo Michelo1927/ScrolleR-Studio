@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:scrl_engine/scrl_engine.dart';
 
 import '../media/cache_media.dart';
+import '../media/importa.dart';
 import '../render/testo.dart';
 import 'archivio.dart';
 
@@ -68,4 +69,29 @@ Future<ProgettoCaricato> creaProgetto({
   final dati = DatiAccessori(nome: nome, misure: misure);
   await archivio.salva(cartella, file, dati);
   return ProgettoCaricato(cartella, file, dati);
+}
+
+/// Foto copiate in `media/` di [cartella] (dal selettore di sistema o da un'altra app) come foto scelte, con la misura
+/// letta dall'anteprima, che resta in `cache/`. Un file non leggibile non blocca gli altri: si salta.
+Future<List<FotoScelta>> scelteDaCopie(
+  Directory cartella,
+  List<FileImportato> copiati,
+) async {
+  final cache = CacheMedia(cartella: Directory('${cartella.path}/cache'));
+  final scelte = <FotoScelta>[];
+  for (final f in copiati) {
+    final p = PhotoItem(uid: 0, path: f.rel, rel: f.rel, isVideo: f.video);
+    final ant = await cache.carica(
+      sorgenteDi(p, cartella.path),
+      Dettaglio.anteprima,
+    );
+    if (ant == null) continue; // File non leggibile: si salta
+    scelte.add((
+      voce: LibraryEntry(path: f.rel, rel: f.rel),
+      chiave: chiaveMedia(p),
+      w: ant.immagine.width,
+      h: ant.immagine.height,
+    ));
+  }
+  return scelte;
 }

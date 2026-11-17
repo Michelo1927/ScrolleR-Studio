@@ -2663,5 +2663,327 @@
         "example": "1350"
       }
     }
+  },
+  "condividiProgetto": "Condividi progetto",
+  "@condividiProgetto": {
+    "description": "Home: azione sul progetto"
+  },
+  "importaProgetto": "Importa progetto",
+  "@importaProgetto": {
+    "description": "Home: pulsante e titolo"
+  },
+  "scambioPreparo": "Preparo il progetto…",
+  "@scambioPreparo": {
+    "description": "Avanzamento dello zip"
+  },
+  "zipAvvisoTitolo": "Foto senza originale",
+  "@zipAvvisoTitolo": {
+    "description": "Avviso prima di creare lo zip"
+  },
+  "zipSoloAnteprima": "{n, plural, =1{1 foto non ha più l'originale: nello zip ci sarà la sua anteprima ridotta (lato lungo 1600 px).} other{{n} foto non hanno più l'originale: nello zip ci saranno le loro anteprime ridotte (lato lungo 1600 px).}}",
+  "@zipSoloAnteprima": {
+    "description": "Avviso prima di creare lo zip",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "zipMancanti": "{n, plural, =1{1 file non c'è più, nemmeno come anteprima: non sarà nello zip e sul PC comparirà come «Foto mancante».} other{{n} file non ci sono più, nemmeno come anteprima: non saranno nello zip e sul PC compariranno come «Foto mancante».}}",
+  "@zipMancanti": {
+    "description": "Avviso prima di creare lo zip",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "zipContinua": "Crea comunque",
+  "@zipContinua": {
+    "description": "Avviso prima di creare lo zip"
+  },
+  "zipFile": "Copio {nome}",
+  "@zipFile": {
+    "description": "Avanzamento dello zip: file in corso",
+    "placeholders": {
+      "nome": {
+        "type": "String",
+        "example": "IMG_1.jpg"
+      }
+    }
+  },
+  "zipPronto": "Progetto pronto",
+  "@zipPronto": {
+    "description": "Esito dello zip"
+  },
+  "zipPronto2": "{n, plural, =1{1 file copiato} other{{n} file copiati}} · {dimensione}",
+  "@zipPronto2": {
+    "description": "Esito dello zip",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "12"
+      },
+      "dimensione": {
+        "type": "String",
+        "example": "24 MB"
+      }
+    }
+  },
+  "zipSpazio": "Spazio insufficiente sul telefono. Libera un po' di memoria e riprova.",
+  "@zipSpazio": {
+    "description": "Errore dello zip"
+  },
+  "zipErrore": "Non è stato possibile creare lo zip: {errore}",
+  "@zipErrore": {
+    "description": "Errore dello zip",
+    "placeholders": {
+      "errore": {
+        "type": "String",
+        "example": "..."
+      }
+    }
+  },
+  "lavoroAnnullato": "Operazione annullata",
+  "@lavoroAnnullato": {
+    "description": "Esito di un lavoro annullato"
+  },
+  "impScegli": "Scegli un progetto (.zip o .scrlproj)",
+  "@impScegli": {
+    "description": "Selettore di file"
+  },
+  "impFile": "Importo {nome}",
+  "@impFile": {
+    "description": "Avanzamento dell'importazione",
+    "placeholders": {
+      "nome": {
+        "type": "String",
+        "example": "IMG_1.jpg"
+      }
+    }
+  },
+  "impFatto": "«{nome}» è stato importato",
+  "@impFatto": {
+    "description": "Esito dell'importazione",
+    "placeholders": {
+      "nome": {
+        "type": "String",
+        "example": "IMG_1.jpg"
+      }
+    }
+  },
+  "impEstratti": "{n, plural, =0{Nessuna foto con il progetto: se mancano, si ricollegano dall'editor.} =1{1 foto o video importato.} other{{n} foto e video importati.}}",
+  "@impEstratti": {
+    "description": "Esito dell'importazione",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "impAltriProgetti": "{n, plural, =1{Lo zip conteneva un altro progetto: non è stato importato.} other{Lo zip conteneva altri {n} progetti: non sono stati importati.}}",
+  "@impAltriProgetti": {
+    "description": "Esito dell'importazione",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "impApri": "Apri progetto",
+  "@impApri": {
+    "description": "Esito dell'importazione"
+  },
+  "impNonRiconosciuto": "Questo file non è un progetto di ScrolleR Studio (.scrlproj o .zip).",
+  "@impNonRiconosciuto": {
+    "description": "Errore di importazione"
+  },
+  "impNessunProgetto": "Nello zip non c'è nessun progetto (.scrlproj).",
+  "@impNessunProgetto": {
+    "description": "Errore di importazione"
+  },
+  "impNonValido": "Il progetto è rovinato o non è di ScrolleR Studio.",
+  "@impNonValido": {
+    "description": "Errore di importazione"
+  },
+  "impZipNonSupportato": "Questo zip non si può aprire qui: {motivo}.",
+  "@impZipNonSupportato": {
+    "description": "Errore di importazione",
+    "placeholders": {
+      "motivo": {
+        "type": "String",
+        "example": "ZIP64"
+      }
+    }
+  },
+  "impErrore": "Importazione non riuscita: {errore}",
+  "@impErrore": {
+    "description": "Errore di importazione",
+    "placeholders": {
+      "errore": {
+        "type": "String",
+        "example": "..."
+      }
+    }
+  },
+  "impDaFoto": "{n, plural, =1{Progetto creato con 1 foto} other{Progetto creato con {n} foto}}",
+  "@impDaFoto": {
+    "description": "Foto ricevute da un'altra app",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "impScartati": "Non leggibili, saltate: {nomi}",
+  "@impScartati": {
+    "description": "Foto ricevute da un'altra app",
+    "placeholders": {
+      "nomi": {
+        "type": "String",
+        "example": "a.jpg, b.jpg"
+      }
+    }
+  },
+  "manBadge": "{n, plural, =1{1 foto mancante} other{{n} foto mancanti}}",
+  "@manBadge": {
+    "description": "Segno sulla tela",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "manTitolo": "Foto mancanti",
+  "@manTitolo": {
+    "description": "Pagina dell'elenco"
+  },
+  "manIntro": "Queste foto non sono più nella galleria o non si trovano. Restano sulla tela con la loro anteprima e le loro impostazioni: ricollegale per tornare agli originali.",
+  "@manIntro": {
+    "description": "Pagina dell'elenco"
+  },
+  "manCerca": "Cerca nella galleria per nome",
+  "@manCerca": {
+    "description": "Pagina dell'elenco"
+  },
+  "manRicollega": "Ricollega",
+  "@manRicollega": {
+    "description": "Pagina dell'elenco"
+  },
+  "manUsi": "{n, plural, =0{Solo in libreria} =1{Usata 1 volta} other{Usata {n} volte}}",
+  "@manUsi": {
+    "description": "Pagina dell'elenco",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "manRicerca": "Cerco nella galleria… ({n} guardati)",
+  "@manRicerca": {
+    "description": "Avanzamento della ricerca",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "manRitrovate": "Ritrovate {n} su {tot}",
+  "@manRitrovate": {
+    "description": "Esito della ricerca",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      },
+      "tot": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "manNessunaTrovata": "Nessuna trovata per nome nella galleria. Puoi sceglierle a mano con «Ricollega».",
+  "@manNessunaTrovata": {
+    "description": "Esito della ricerca"
+  },
+  "manTutte": "Tutte le foto sono al loro posto.",
+  "@manTutte": {
+    "description": "Pagina dell'elenco"
+  },
+  "manSenzaAccesso": "Per cercare nella galleria serve l'accesso alle foto. Puoi darlo dalle impostazioni del telefono, oppure ricollegare le foto una per una.",
+  "@manSenzaAccesso": {
+    "description": "Pagina dell'elenco"
+  },
+  "manAperturaTitolo": "Foto non trovate",
+  "@manAperturaTitolo": {
+    "description": "Avviso all'apertura"
+  },
+  "manApertura": "{n, plural, =1{1 foto del progetto non si trova più} other{{n} foto del progetto non si trovano più}}. Restano sulla tela con la loro anteprima: puoi cercarle nella galleria o ricollegarle una per una.",
+  "@manApertura": {
+    "description": "Avviso all'apertura",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "manPiuTardi": "Più tardi",
+  "@manPiuTardi": {
+    "description": "Avviso all'apertura"
+  },
+  "manVediElenco": "Vedi elenco",
+  "@manVediElenco": {
+    "description": "Avviso all'apertura"
+  },
+  "manScegli": "Dov'è ora «{nome}»?",
+  "@manScegli": {
+    "description": "Titolo della scelta per ricollegare",
+    "placeholders": {
+      "nome": {
+        "type": "String",
+        "example": "IMG_1.jpg"
+      }
+    }
+  },
+  "manAnteprima": "Si vede l'anteprima salvata",
+  "@manAnteprima": {
+    "description": "Pagina dell'elenco"
+  },
+  "avvisoFotoRicollegate": "{n, plural, =1{1 foto ricollegata} other{{n} foto ricollegate}}",
+  "@avvisoFotoRicollegate": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "espOriginaliMancanti": "{n, plural, =1{1 foto ha l'originale mancante} other{{n} foto hanno l'originale mancante}}: nell'immagine esportata uscirà alla qualità dell'anteprima (lato lungo 1600 px). Esportare comunque?",
+  "@espOriginaliMancanti": {
+    "description": "Avviso prima di esportare",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "espRicollega": "Ricollega",
+  "@espRicollega": {
+    "description": "Avviso prima di esportare"
+  },
+  "strRicollega": "Ricollega",
+  "@strRicollega": {
+    "description": "Barra di selezione"
   }
 }

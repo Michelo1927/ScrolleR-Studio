@@ -16,7 +16,6 @@ import 'package:photo_manager/photo_manager.dart' show ThumbnailSize;
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
 import '../l10n/app_localizations.dart';
-import '../media/cache_media.dart';
 import '../media/galleria.dart';
 import '../media/importa.dart';
 import '../project/crea_progetto.dart';
@@ -31,7 +30,11 @@ class SceltaFoto extends ConsumerStatefulWidget {
     required this.etichettaFatto,
     this.onSalta,
     this.etichettaSalta,
+    this.singola = false,
   });
+
+  /// Si sceglie una foto sola (per ricollegare una foto mancante): un tocco su un'altra sposta la scelta.
+  final bool singola;
 
   /// Cartella del progetto dove copiare i file del selettore di sistema (la crea chi chiama, se serve).
   final Future<Directory> Function() cartellaPerCopie;
@@ -122,7 +125,13 @@ class _SceltaFotoState extends ConsumerState<SceltaFoto>
   void _tocca(ElementoGalleria e) {
     final id = e.entita.id;
     setState(() {
-      if (!_ordine.remove(id)) _ordine.add(id);
+      if (widget.singola) {
+        final eraScelta = _ordine.contains(id);
+        _ordine.clear();
+        if (!eraScelta) _ordine.add(id);
+      } else if (!_ordine.remove(id)) {
+        _ordine.add(id);
+      }
     });
   }
 
@@ -157,22 +166,7 @@ class _SceltaFotoState extends ConsumerState<SceltaFoto>
     try {
       final cartella = await widget.cartellaPerCopie();
       final copiati = await scegliECopia(cartella);
-      final cache = CacheMedia(cartella: Directory('${cartella.path}/cache'));
-      final scelte = <FotoScelta>[];
-      for (final f in copiati) {
-        final p = PhotoItem(uid: 0, path: f.rel, rel: f.rel, isVideo: f.video);
-        final ant = await cache.carica(
-          sorgenteDi(p, cartella.path),
-          Dettaglio.anteprima,
-        );
-        if (ant == null) continue; // File non leggibile: si salta
-        scelte.add((
-          voce: LibraryEntry(path: f.rel, rel: f.rel),
-          chiave: chiaveMedia(p),
-          w: ant.immagine.width,
-          h: ant.immagine.height,
-        ));
-      }
+      final scelte = await scelteDaCopie(cartella, copiati);
       if (scelte.isNotEmpty) widget.onFatto(scelte);
     } finally {
       if (mounted) setState(() => _occupato = false);
@@ -382,9 +376,20 @@ class _TesseraGalleriaState extends State<_TesseraGalleria> {
 /// Schermata intera con la scelta delle foto, per aggiungerne alla libreria di un progetto aperto.
 /// Restituisce le foto scelte (nessuna se si torna indietro).
 class SceltaFotoPage extends StatelessWidget {
-  const SceltaFotoPage({super.key, required this.cartellaPerCopie});
+  const SceltaFotoPage({
+    super.key,
+    required this.cartellaPerCopie,
+    this.singola = false,
+    this.titolo,
+    this.etichettaFatto,
+  });
 
   final Future<Directory> Function() cartellaPerCopie;
+  final bool singola;
+
+  /// Titolo della pagina (di partenza «Scegli le foto»).
+  final String? titolo;
+  final String Function(Testi t, int n)? etichettaFatto;
 
   @override
   Widget build(BuildContext context) {
@@ -395,13 +400,14 @@ class SceltaFotoPage extends StatelessWidget {
           icon: const Icon(Icons.close_rounded),
           onPressed: () => Navigator.of(context).pop(<FotoScelta>[]),
         ),
-        title: Text(t.passoFoto),
+        title: Text(titolo ?? t.passoFoto),
       ),
       body: SafeArea(
         child: SceltaFoto(
           cartellaPerCopie: cartellaPerCopie,
+          singola: singola,
           onFatto: (l) => Navigator.of(context).pop(l),
-          etichettaFatto: (t, n) => t.aggiungiNFoto(n),
+          etichettaFatto: etichettaFatto ?? (t, n) => t.aggiungiNFoto(n),
         ),
       ),
     );

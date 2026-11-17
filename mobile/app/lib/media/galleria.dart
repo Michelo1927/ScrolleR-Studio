@@ -122,6 +122,55 @@ class Galleria {
   /// File originale (solo per leggerlo, mai copiarlo nel progetto).
   Future<File?> originale(AssetEntity e) => e.originFile;
 
+  /// Toglie le copie temporanee che il sistema ha fatto per darci gli originali (`originFile` su Android 10+).
+  Future<void> pulisciTemporanei() async {
+    try {
+      await PhotoManager.clearFileCache();
+    } on Exception {
+      // Non è essenziale: lo spazio si libera da solo con la cache dell'app
+    }
+  }
+
+  /// Ricerca automatica per nome (piano §6, «Foto mancanti»): scorre la galleria, dalle foto più recenti, e
+  /// raccoglie gli elementi il cui nome file coincide (senza badare alle maiuscole) con uno di [nomi].
+  /// Con più elementi dallo stesso nome restano tutti, nell'ordine di scoperta: sceglie chi chiama.
+  /// [progresso] riceve quanti elementi ha guardato; [annullato] si controlla a ogni pagina.
+  /// Si ferma quando li ha trovati tutti o dopo [massimo] elementi (come `MAX_SCAN_FILES` del desktop).
+  Future<Map<String, List<ElementoGalleria>>> cercaPerNome(
+    Set<String> nomi, {
+    int massimo = 50000,
+    void Function(int guardati)? progresso,
+    bool Function()? annullato,
+  }) async {
+    final cercati = {for (final n in nomi) n.toLowerCase()};
+    final trovati = <String, List<ElementoGalleria>>{};
+    if (cercati.isEmpty) return trovati;
+    final percorsi = await PhotoManager.getAssetPathList(
+      type: RequestType.common,
+      onlyAll: true,
+    );
+    if (percorsi.isEmpty) return trovati;
+    final tutte = percorsi.first;
+    const pagina = 200;
+    var guardati = 0;
+    for (var p = 0; guardati < massimo; p++) {
+      if (annullato?.call() ?? false) break;
+      final l = await tutte.getAssetListPaged(page: p, size: pagina);
+      for (final e in l) {
+        // Su iOS il nome non è nei dati letti in blocco: si chiede a parte
+        final nome = (e.title ?? (Platform.isIOS ? await e.titleAsync : ''))
+            .toLowerCase();
+        if (cercati.contains(nome)) {
+          trovati.putIfAbsent(nome, () => []).add(ElementoGalleria(e));
+        }
+      }
+      guardati += l.length;
+      progresso?.call(guardati);
+      if (l.length < pagina || trovati.length == cercati.length) break;
+    }
+    return trovati;
+  }
+
   /// Sorgente per `scrl_video` (URI `content://` su Android).
   Future<String?> sorgenteVideo(AssetEntity e) async {
     if (Platform.isAndroid) return (await e.getMediaUrl());

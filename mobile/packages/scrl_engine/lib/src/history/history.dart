@@ -90,6 +90,11 @@ class History {
     return History._(states, labels, i, startLabel);
   }
 
+  /// Stessa cronologia (indice e nomi dei passaggi) con ogni stato passato da [fn]: il ricollegamento di una foto
+  /// mancante vale anche per i passi di Annulla/Ripeti (`_remap_paths` riscrive tutta la cronologia).
+  History riscritta(Snapshot Function(Snapshot) fn) =>
+      History._([for (final s in states) fn(s)], labels, index, startLabel);
+
   History undo() => canUndo ? goTo(index - 1) : this;
   History redo() => canRedo ? goTo(index + 1) : this;
 

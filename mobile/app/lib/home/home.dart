@@ -2,6 +2,7 @@
 /// pressione lunga su un progetto per Rinomina, Duplica, Elimina (fogli dal basso, niente finestre al centro).
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -9,12 +10,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../editor/apri_editor.dart';
+import '../editor/widget_comuni.dart';
 import '../l10n/app_localizations.dart';
 import '../project/archivio.dart';
 import '../project/provider.dart';
 import '../theme/tokens.dart';
 import 'nuovo_progetto.dart';
 import 'prove.dart';
+import 'scambio_ui.dart';
 
 /// Progetti dell'archivio, i più recenti per primi.
 final progettiProvider = FutureProvider.autoDispose<List<InfoProgetto>>(
@@ -49,6 +52,12 @@ class HomePage extends ConsumerWidget {
       appBar: AppBar(
         title: Text(t.appTitolo),
         actions: [
+          PulsanteIcona(
+            key: const ValueKey('home-importa'),
+            icona: Icons.file_open_outlined,
+            etichetta: t.importaProgetto,
+            onTap: () => unawaited(scegliEImporta(context, ref)),
+          ),
           // Le prove della Fase 2 restano solo nelle build di sviluppo
           if (kDebugMode)
             TextButton(
@@ -109,6 +118,11 @@ class HomePage extends ConsumerWidget {
               _VoceAzione(Icons.edit_rounded, t.rinomina, _Azione.rinomina),
               _VoceAzione(Icons.copy_rounded, t.duplica, _Azione.duplica),
               _VoceAzione(
+                Icons.ios_share_rounded,
+                t.condividiProgetto,
+                _Azione.condividi,
+              ),
+              _VoceAzione(
                 Icons.delete_outline_rounded,
                 t.elimina,
                 _Azione.elimina,
@@ -130,6 +144,8 @@ class HomePage extends ConsumerWidget {
       case _Azione.duplica:
         final t = Testi.of(context);
         await archivio.duplica(p.cartella, t.copiaDi(p.nome));
+      case _Azione.condividi:
+        await condividiProgetto(context, ref, p);
       case _Azione.elimina:
         if (await _confermaElimina(context, p.nome) ?? false) {
           await archivio.elimina(p.cartella);
@@ -197,7 +213,7 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-enum _Azione { rinomina, duplica, elimina }
+enum _Azione { rinomina, duplica, condividi, elimina }
 
 class _VoceAzione extends StatelessWidget {
   const _VoceAzione(this.icona, this.testo, this.azione, {this.colore});

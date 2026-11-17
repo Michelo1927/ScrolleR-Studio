@@ -1903,4 +1903,264 @@ class TestiIt extends Testi {
     );
     return '$_temp0 ($larghezza×$altezza px, 30 fps)';
   }
+
+  @override
+  String get condividiProgetto => 'Condividi progetto';
+
+  @override
+  String get importaProgetto => 'Importa progetto';
+
+  @override
+  String get scambioPreparo => 'Preparo il progetto…';
+
+  @override
+  String get zipAvvisoTitolo => 'Foto senza originale';
+
+  @override
+  String zipSoloAnteprima(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other:
+          '$n foto non hanno più l\'originale: nello zip ci saranno le loro anteprime ridotte (lato lungo 1600 px).',
+      one: '1 foto non ha più l\'originale: nello zip ci sarà la sua anteprima ridotta (lato lungo 1600 px).',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String zipMancanti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other:
+          '$n file non ci sono più, nemmeno come anteprima: non saranno nello zip e sul PC compariranno come «Foto mancante».',
+      one: '1 file non c\'è più, nemmeno come anteprima: non sarà nello zip e sul PC comparirà come «Foto mancante».',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get zipContinua => 'Crea comunque';
+
+  @override
+  String zipFile(String nome) {
+    return 'Copio $nome';
+  }
+
+  @override
+  String get zipPronto => 'Progetto pronto';
+
+  @override
+  String zipPronto2(int n, String dimensione) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n file copiati',
+      one: '1 file copiato',
+    );
+    return '$_temp0 · $dimensione';
+  }
+
+  @override
+  String get zipSpazio =>
+      'Spazio insufficiente sul telefono. Libera un po\' di memoria e riprova.';
+
+  @override
+  String zipErrore(String errore) {
+    return 'Non è stato possibile creare lo zip: $errore';
+  }
+
+  @override
+  String get lavoroAnnullato => 'Operazione annullata';
+
+  @override
+  String get impScegli => 'Scegli un progetto (.zip o .scrlproj)';
+
+  @override
+  String impFile(String nome) {
+    return 'Importo $nome';
+  }
+
+  @override
+  String impFatto(String nome) {
+    return '«$nome» è stato importato';
+  }
+
+  @override
+  String impEstratti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n foto e video importati.',
+      one: '1 foto o video importato.',
+      zero: 'Nessuna foto con il progetto: se mancano, si ricollegano dall\'editor.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String impAltriProgetti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Lo zip conteneva altri $n progetti: non sono stati importati.',
+      one: 'Lo zip conteneva un altro progetto: non è stato importato.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get impApri => 'Apri progetto';
+
+  @override
+  String get impNonRiconosciuto =>
+      'Questo file non è un progetto di ScrolleR Studio (.scrlproj o .zip).';
+
+  @override
+  String get impNessunProgetto =>
+      'Nello zip non c\'è nessun progetto (.scrlproj).';
+
+  @override
+  String get impNonValido =>
+      'Il progetto è rovinato o non è di ScrolleR Studio.';
+
+  @override
+  String impZipNonSupportato(String motivo) {
+    return 'Questo zip non si può aprire qui: $motivo.';
+  }
+
+  @override
+  String impErrore(String errore) {
+    return 'Importazione non riuscita: $errore';
+  }
+
+  @override
+  String impDaFoto(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Progetto creato con $n foto',
+      one: 'Progetto creato con 1 foto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String impScartati(String nomi) {
+    return 'Non leggibili, saltate: $nomi';
+  }
+
+  @override
+  String manBadge(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n foto mancanti',
+      one: '1 foto mancante',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manTitolo => 'Foto mancanti';
+
+  @override
+  String get manIntro =>
+      'Queste foto non sono più nella galleria o non si trovano. Restano sulla tela con la loro anteprima e le loro impostazioni: ricollegale per tornare agli originali.';
+
+  @override
+  String get manCerca => 'Cerca nella galleria per nome';
+
+  @override
+  String get manRicollega => 'Ricollega';
+
+  @override
+  String manUsi(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Usata $n volte',
+      one: 'Usata 1 volta',
+      zero: 'Solo in libreria',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String manRicerca(int n) {
+    return 'Cerco nella galleria… ($n guardati)';
+  }
+
+  @override
+  String manRitrovate(int n, int tot) {
+    return 'Ritrovate $n su $tot';
+  }
+
+  @override
+  String get manNessunaTrovata =>
+      'Nessuna trovata per nome nella galleria. Puoi sceglierle a mano con «Ricollega».';
+
+  @override
+  String get manTutte => 'Tutte le foto sono al loro posto.';
+
+  @override
+  String get manSenzaAccesso =>
+      'Per cercare nella galleria serve l\'accesso alle foto. Puoi darlo dalle impostazioni del telefono, oppure ricollegare le foto una per una.';
+
+  @override
+  String get manAperturaTitolo => 'Foto non trovate';
+
+  @override
+  String manApertura(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n foto del progetto non si trovano più',
+      one: '1 foto del progetto non si trova più',
+    );
+    return '$_temp0. Restano sulla tela con la loro anteprima: puoi cercarle nella galleria o ricollegarle una per una.';
+  }
+
+  @override
+  String get manPiuTardi => 'Più tardi';
+
+  @override
+  String get manVediElenco => 'Vedi elenco';
+
+  @override
+  String manScegli(String nome) {
+    return 'Dov\'è ora «$nome»?';
+  }
+
+  @override
+  String get manAnteprima => 'Si vede l\'anteprima salvata';
+
+  @override
+  String avvisoFotoRicollegate(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n foto ricollegate',
+      one: '1 foto ricollegata',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String espOriginaliMancanti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n foto hanno l\'originale mancante',
+      one: '1 foto ha l\'originale mancante',
+    );
+    return '$_temp0: nell\'immagine esportata uscirà alla qualità dell\'anteprima (lato lungo 1600 px). Esportare comunque?';
+  }
+
+  @override
+  String get espRicollega => 'Ricollega';
+
+  @override
+  String get strRicollega => 'Ricollega';
 }

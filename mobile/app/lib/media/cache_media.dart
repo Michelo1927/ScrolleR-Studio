@@ -141,6 +141,13 @@ class CacheMedia {
     _byte = 0;
   }
 
+  /// File dell'anteprima salvata su disco per [s], o null se non c'è (serve allo `.zip` di «Condividi progetto»
+  /// quando l'originale è sparito).
+  File? fileAnteprima(SorgenteMedia s) {
+    final f = _fileCache(s, Dettaglio.anteprima);
+    return f.existsSync() ? f : null;
+  }
+
   File _fileCache(SorgenteMedia s, Dettaglio d) =>
       File('${cartella.path}/${_hash(s.chiave)}_${_lato(d)}.img');
 

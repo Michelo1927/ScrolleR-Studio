@@ -13,6 +13,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrl_engine/scrl_engine.dart';
 
+import '../media/mancanti.dart' show Ritrovata;
 import '../render/caratteri.dart';
 import 'sessione.dart';
 
@@ -104,6 +105,7 @@ typedef Punto = ({double x, double y});
 /// Messaggi brevi dell'editor (il testo sta nei file `.arb`).
 enum MessaggioEditor {
   fotoAggiunte,
+  fotoRicollegate,
   elementoEliminato,
   elementiEliminati,
   elementoDuplicato,
@@ -1252,6 +1254,36 @@ class ControlloEditor extends Notifier<StatoEditor> {
       selezione: {},
       messaggio: MessaggioEditor.telaSvuotata,
     );
+  }
+
+  // ---------- Foto mancanti (Fase 9) ----------
+  /// Ricollega foto mancanti: [perChiave] dice, per ogni foto (chiave), dove si trova ora. Il nuovo riferimento
+  /// sostituisce il vecchio ovunque (tela, libreria, sfondo e **tutta la cronologia**, come `_remap_paths` del
+  /// desktop): Annulla non rimette una foto mancante. Non è un passo di cronologia a sé.
+  void ricollega(Map<String, Ritrovata> perChiave) {
+    if (perChiave.isEmpty) return;
+    Collegamento fn(Collegamento c) =>
+        perChiave[chiaveDi(c)]?.collegamento ?? c;
+    for (final e in perChiave.entries) {
+      final nuova = e.value;
+      final misura = nuova.misura ?? _s.misure[e.key];
+      if (misura != null) {
+        _s.ricordaMisura(chiaveDi(nuova.collegamento), misura.w, misura.h);
+      }
+    }
+    final visti = <String>{};
+    final libreria = [
+      for (final e in riscriviLibreria(state.libreria, fn))
+        if (visti.add(chiaveRiferimento(e.path, e.rel, e.asset))) e,
+    ];
+    final bozza = state.bozza;
+    state = state.copia(
+      cronologia: state.cronologia.riscritta((s) => riscriviSnapshot(s, fn)),
+      bozza: () => bozza == null ? null : riscriviSnapshot(bozza, fn),
+      libreria: libreria,
+    );
+    messaggio(MessaggioEditor.fotoRicollegate, n: perChiave.length);
+    _programmaSalvataggio();
   }
 
   // ---------- Salvataggio ----------

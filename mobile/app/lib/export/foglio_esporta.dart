@@ -11,6 +11,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 import 'package:scrl_video/scrl_video.dart' show RegoleVideo;
 
+import '../editor/mancanti_ui.dart';
 import '../editor/sessione.dart';
 import '../editor/stato.dart';
 import '../editor/vista_pagina.dart';
@@ -27,6 +28,8 @@ import 'preferenze.dart';
 import 'video_pagina.dart';
 
 enum ModoEsportazione { pagine, questa, collage }
+
+enum _SceltaOriginali { annulla, ricollega, comunque }
 
 /// Apre il foglio. Con [pagina] si parte da «Questa pagina» su quella pagina (azione «Esporta questa»); senza, dalle
 /// pagine separate, tutte scelte. Sta fuori dal `ProviderScope` dell'editor: gli si passa lo stesso contenitore.
@@ -238,6 +241,8 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
       return false;
     }
     if (!mounted) return false;
+    if (!await _avvisoOriginali(pagine, mancanti)) return false;
+    if (!mounted) return false;
     if (_documento.items.isEmpty) {
       return _conferma(
         t.espTelaVuotaTitolo,
@@ -246,6 +251,54 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
       );
     }
     return true;
+  }
+
+  /// Foto con l'originale mancante ma l'anteprima salvata: escono alla qualità dell'anteprima (piano §9). Si avvisa e
+  /// si propone il ricollegamento. [senzaAnteprima] sono quelle già segnalate (nemmeno l'anteprima).
+  Future<bool> _avvisoOriginali(List<int> pagine, int senzaAnteprima) async {
+    final t = Testi.of(context);
+    final elenco = await ref.read(mancantiProvider.future);
+    if (!mounted) return false;
+    final foto = pagine.isEmpty
+        ? _documento.items
+        : {
+            for (final k in pagine)
+              ...RisorsePagina.fotoDellaPagina(_documento, k),
+          }.toList();
+    final chiavi = {for (final m in elenco) m.chiave};
+    final conAnteprima =
+        foto.where((p) => chiavi.contains(chiaveMedia(p))).length -
+        senzaAnteprima;
+    if (conAnteprima <= 0) return true;
+    final scelta = await showDialog<_SceltaOriginali>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.espMancantiTitolo),
+        content: Text(t.espOriginaliMancanti(conAnteprima)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(d).pop(_SceltaOriginali.annulla),
+            child: Text(t.annulla),
+          ),
+          TextButton(
+            key: const ValueKey('esporta-ricollega'),
+            onPressed: () => Navigator.of(d).pop(_SceltaOriginali.ricollega),
+            child: Text(t.espRicollega),
+          ),
+          FilledButton(
+            key: const ValueKey('esporta-conferma'),
+            onPressed: () => Navigator.of(d).pop(_SceltaOriginali.comunque),
+            child: Text(t.espEsportaComunque),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return false;
+    if (scelta == _SceltaOriginali.ricollega) {
+      await apriMancanti(context);
+      return false; // Si riesporta dopo il ricollegamento
+    }
+    return scelta == _SceltaOriginali.comunque;
   }
 
   Future<void> _esporta(Destinazione destinazione) async {

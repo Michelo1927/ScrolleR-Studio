@@ -13,6 +13,7 @@ String testoAvviso(Testi t, Avviso a) {
   if (n != null) return _notice(t, n);
   return switch (a.messaggio) {
     MessaggioEditor.fotoAggiunte => t.avvisoFotoAggiunte(a.n),
+    MessaggioEditor.fotoRicollegate => t.avvisoFotoRicollegate(a.n),
     MessaggioEditor.elementoEliminato => t.avvisoEliminato,
     MessaggioEditor.elementiEliminati => t.avvisoEliminati(a.n),
     MessaggioEditor.elementoDuplicato => t.avvisoDuplicato,

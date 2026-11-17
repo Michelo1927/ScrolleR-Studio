@@ -30,6 +30,7 @@ class SessioneEditor {
     required this.inizio,
     this.libreriaIniziale = const [],
     this.extraFile = const {},
+    this.controllaMancanti = false,
     LeggiInfoVideo? leggiInfoVideo,
     ApriLettore? apriLettoreVideo,
   }) : nome = dati.nome,
@@ -50,6 +51,10 @@ class SessioneEditor {
   final Directory cartella;
   final CacheMedia cache;
   final Galleria galleria;
+
+  /// Si controlla che le foto del progetto esistano ancora (segno sulla tela, avviso all'apertura, «Ricollega»).
+  /// L'app lo accende sempre; le prove dell'editor con foto finte lo lasciano spento.
+  final bool controllaMancanti;
 
   /// Documento com'era all'apertura (o appena creato) e sua libreria.
   final Snapshot inizio;

@@ -10,6 +10,15 @@
 #   ANDROID_KEY_ALIAS         alias della chiave
 #   ANDROID_KEY_PASSWORD      password della chiave
 # Senza la stessa chiave gli aggiornamenti non si installano sopra la versione precedente: conservarla.
+#
+# iOS (job "ios", solo tag mobile-v* e "Run workflow"; runner macOS): compila sempre un .ipa SENZA firma, che non va in nessuno
+# store e non si allega alla release. Si installa su un iPhone da Windows con Sideloadly o AltStore, che lo firmano con
+# l'Apple ID dell'utente (account gratuito: l'app dura 7 giorni). Se ci sono i segreti qui sotto produce anche un .ipa firmato
+# (account Apple Developer a pagamento, iPhone registrato nel profilo). Niente TestFlight né App Store: è fuori dal piano (§2.4).
+#   IOS_CERTIFICATE_BASE64       certificato di sviluppo/distribuzione .p12 in base64
+#   IOS_CERTIFICATE_PASSWORD     password del .p12
+#   IOS_PROVISIONING_PROFILE_BASE64   profilo .mobileprovision per io.github.michelo1927.scrollerstudio.dev, in base64
+#   IOS_EXPORT_METHOD            facoltativo: development (predefinito) | ad-hoc
 name: Mobile
 
 on:
@@ -123,6 +132,85 @@ jobs:
         with:
           name: ScrolleR-Studio-Mobile-APK
           path: out/*.apk
+          if-no-files-found: error
+
+  # iOS: compila su un runner macOS. Senza firma di default (§2.4); firmato solo se ci sono i segreti.
+  ios:
+    if: startsWith(github.ref, 'refs/tags/mobile-v') || github.event_name == 'workflow_dispatch'
+    needs: verifica
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Versione
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/mobile-v* ]]; then
+            echo "version=${GITHUB_REF_NAME#mobile-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(grep '^version:' mobile/app/pubspec.yaml | sed 's/version: *//; s/+.*//')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build iOS senza firma
+        working-directory: mobile/app
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign --build-name "${{ steps.ver.outputs.version }}" --build-number "${{ github.run_number }}"
+          mkdir -p ../../out/Payload
+          cp -R build/ios/iphoneos/Runner.app ../../out/Payload/
+          (cd ../../out && zip -qry "ScrolleR-Studio-Mobile-${{ steps.ver.outputs.version }}-senza-firma.ipa" Payload && rm -rf Payload)
+
+      - name: Firma (solo con i segreti)
+        env:
+          CERT_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          EXPORT_METHOD: ${{ secrets.IOS_EXPORT_METHOD }}
+        working-directory: mobile/app
+        run: |
+          if [ -z "$CERT_BASE64" ] || [ -z "$PROFILE_BASE64" ]; then
+            echo "::notice::Segreti di firma iOS assenti: resta solo l'.ipa senza firma (si firma con Sideloadly o AltStore)"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/scrl.keychain-db"
+          security create-keychain -p "ci" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "ci" "$KEYCHAIN"
+          echo "$CERT_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "ci" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain
+          echo "$PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/profilo.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/profilo.mobileprovision" > "$RUNNER_TEMP/profilo.plist"
+          UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" "$RUNNER_TEMP/profilo.plist")
+          NOME=$(/usr/libexec/PlistBuddy -c "Print Name" "$RUNNER_TEMP/profilo.plist")
+          TEAM=$(/usr/libexec/PlistBuddy -c "Print TeamIdentifier:0" "$RUNNER_TEMP/profilo.plist")
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/profilo.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>${EXPORT_METHOD:-development}</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict>
+              <key>io.github.michelo1927.scrollerstudio.dev</key><string>$NOME</string>
+            </dict>
+          </dict></plist>
+          EOF
+          flutter build ipa --release --build-name "${{ steps.ver.outputs.version }}" --build-number "${{ github.run_number }}" --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+          cp build/ios/ipa/*.ipa "../../out/ScrolleR-Studio-Mobile-${{ steps.ver.outputs.version }}-firmato.ipa"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ScrolleR-Studio-Mobile-iOS
+          path: out/*.ipa
           if-no-files-found: error
 
   release:

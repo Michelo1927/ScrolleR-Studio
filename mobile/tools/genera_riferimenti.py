@@ -6,10 +6,18 @@ Uso, dalla root della repo e con l'ambiente Python del desktop:
 
     python mobile/tools/genera_riferimenti.py [--uscita CARTELLA] [--senza-immagini]
     python mobile/tools/genera_riferimenti.py --verifica CARTELLA
+    python mobile/tools/genera_riferimenti.py --verifica-zip FILE.zip
+    python mobile/tools/genera_riferimenti.py --crea-zip-desktop [FILE.zip]
 
 La seconda forma non genera niente: apre nel desktop i `.scrlproj` della cartella (per esempio quelli riscritti
 dal motore con `dart run tool/riscrivi_progetti.dart`) e controlla che si riaprano identici, con le foto della
 galleria del telefono (campo `asset`) mostrate come «Foto mancante».
+
+`--verifica-zip` apre nel desktop vero lo `.zip` di «Condividi progetto» del telefono, estratto come farebbe l'utente sul
+PC, e controlla che il progetto si apra identico e con **tutte** le foto trovate (`rel` e `path` verso `media/`).
+`--crea-zip-desktop` fa il percorso inverso: costruisce un progetto nel desktop, lo raccoglie con «Raccogli progetto»
+(cartella con `.scrlproj` e sottocartella `Foto/`) e lo comprime in uno `.zip` come farebbe l'utente; di partenza lo scrive in
+`mobile/app/test/riferimenti/progetto-desktop.zip`, che le prove dell'app importano.
 
 Produce in `mobile/packages/scrl_engine/test/riferimenti/`:
 - `disposizioni.jsonl`: un caso per riga. `prima` è lo stato di partenza (tela + foto con le proporzioni
@@ -982,6 +990,109 @@ def verifica(cartella: str) -> int:
     return 1 if falliti else 0
 
 
+# ================= SCAMBIO .ZIP (Fase 9) =================
+def estrai_zip(percorso_zip: str, cartella: str) -> str:
+    """Estrae lo zip come farebbe l'utente sul PC e restituisce il percorso del `.scrlproj` più vicino alla radice."""
+    import zipfile
+    with zipfile.ZipFile(percorso_zip) as z:
+        if z.testzip() is not None:
+            raise SystemExit("lo zip ha un file rovinato")
+        z.extractall(cartella)
+        progetti = sorted((n for n in z.namelist() if n.lower().endswith(".scrlproj")),
+                          key=lambda n: (n.count("/"), n))
+    if not progetti:
+        raise SystemExit("nello zip non c'è nessun .scrlproj")
+    return os.path.join(cartella, *progetti[0].split("/"))
+
+
+def verifica_zip(percorso_zip: str) -> int:
+    """Telefono → PC: lo zip estratto si apre nel desktop identico al file e con tutte le foto trovate."""
+    tmp = tempfile.mkdtemp(prefix="scrl_verifica_zip_")
+    try:
+        isola_finestra(tmp)
+        scrlproj = estrai_zip(percorso_zip, os.path.join(tmp, "estratto"))
+        with open(scrlproj, encoding="utf-8") as f:
+            dati = json.load(f)
+        win = MainWindow()
+        win._autosave_timer.stop()
+        errori = verifica_progetto(win, scrlproj)
+        # Nessun `asset` deve essere rimasto: sul PC non avrebbe senso
+        if '"asset"' in json.dumps(dati):
+            errori.append("il progetto nello zip contiene ancora il campo `asset`")
+        for s in dati["items"]:
+            rel = s.get("rel")
+            if not rel or s.get("path") != rel or not os.path.isfile(os.path.join(os.path.dirname(scrlproj), rel)):
+                errori.append(f"items[{s['uid']}]: percorso relativo mancante o file assente ({rel!r}, {s.get('path')!r})")
+        n = len(dati["items"])
+        win.close()
+        print(("OK      " if not errori else "ERRORE  ") + f"{os.path.basename(percorso_zip)}: {n} foto aperte dal desktop")
+        for e in errori[:20]:
+            print("        " + e)
+        return 1 if errori else 0
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def crea_zip_desktop(uscita: str) -> int:
+    """PC → telefono: progetto vero del desktop, raccolto con «Raccogli progetto» e zippato come farebbe l'utente."""
+    import zipfile
+    from PyQt6.QtWidgets import QFileDialog
+    tmp = tempfile.mkdtemp(prefix="scrl_zip_desktop_")
+    try:
+        isola_finestra(tmp)
+        # Foto piccole (poche migliaia di byte): lo zip finisce tra i dati di riferimento della repo
+        misure = [(90, 120), (120, 90), (100, 100), (128, 72)]
+        foto = []
+        for i, (w, h) in enumerate(misure):
+            img = Image.new("RGB", (w, h))
+            px = img.load()
+            for y in range(h):
+                for x in range(w):
+                    px[x, y] = ((60 * i + x * 160 // w) % 256, (90 * i + 40 + y * 160 // h) % 256, 80 + 40 * i)
+            p = os.path.join(tmp, f"Foto di viaggio {i + 1}.png")
+            img.save(p)
+            foto.append(p)
+        win = MainWindow()
+        win._autosave_timer.stop()
+        loaded, errors = win._load_into_library(foto, "Foto di prova")
+        if errors or len(loaded) != len(foto):
+            raise SystemExit(f"Foto di prova non caricate: {errors}")
+        c = tela(ratio_index=2, frames=2, mode="grid", seed=4242)
+        tela_iniziale(win, foto, c, 4, testi=[(0, 120, 200)], forme=[(1, 100, 300)])
+        win._schedule_commit()  # Il salvataggio scrive l'ultimo passo della cronologia
+        win._flush_pending_commit()
+        genitore = os.path.join(tmp, "Documenti")
+        os.makedirs(genitore)
+        QFileDialog.getExistingDirectory = staticmethod(lambda *a, **k: genitore)
+        QMessageBox.exec = lambda self: 0  # «Progetto raccolto»: nessuno preme «Ok»
+        win.collect_project()
+        raccolti = [d for d in os.listdir(genitore) if os.path.isdir(os.path.join(genitore, d))]
+        if len(raccolti) != 1:
+            raise SystemExit(f"«Raccogli progetto» non ha creato la cartella: {os.listdir(genitore)}")
+        cartella = os.path.join(genitore, raccolti[0])
+        os.makedirs(os.path.dirname(uscita), exist_ok=True)
+        # Come «Invia a → Cartella compressa»: lo zip contiene la cartella intera
+        with zipfile.ZipFile(uscita, "w", zipfile.ZIP_DEFLATED) as z:
+            for radice, _dirs, files in os.walk(cartella):
+                for f in sorted(files):
+                    pieno = os.path.join(radice, f)
+                    nome = os.path.join(raccolti[0], os.path.relpath(pieno, cartella)).replace(os.sep, "/")
+                    if f.endswith(".scrlproj"):
+                        # I percorsi assoluti del desktop non devono rivelare la cartella temporanea di chi genera
+                        with open(pieno, encoding="utf-8") as fp:
+                            testo = fp.read().replace(json.dumps(genitore)[1:-1],
+                                                      json.dumps("C:\\Users\\utente\\Documenti")[1:-1])
+                        z.writestr(nome, testo.encode("utf-8"))
+                    else:
+                        z.write(pieno, nome)
+        win.close()
+        with zipfile.ZipFile(uscita) as z:
+            print(f"{os.path.relpath(uscita, ROOT)}: " + ", ".join(z.namelist()))
+        return 0
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--uscita", default=USCITA_PREDEFINITA, help="cartella dei dati di riferimento")
@@ -990,6 +1101,11 @@ def main():
                     help="scrive soltanto selezione.jsonl (gli altri dati di riferimento restano com'erano)")
     ap.add_argument("--verifica", metavar="CARTELLA",
                     help="invece di generare: apre nel desktop i .scrlproj della cartella e li confronta col file")
+    ap.add_argument("--verifica-zip", metavar="FILE.zip",
+                    help="apre nel desktop lo .zip di «Condividi progetto» del telefono e controlla le foto")
+    ap.add_argument("--crea-zip-desktop", metavar="FILE.zip", nargs="?",
+                    const=os.path.join(ROOT, "mobile", "app", "test", "riferimenti", "progetto-desktop.zip"),
+                    help="crea lo .zip di un progetto raccolto dal desktop (di partenza tra i riferimenti dell'app)")
     args = ap.parse_args()
 
     app = QApplication(sys.argv)
@@ -998,6 +1114,13 @@ def main():
     app.setApplicationName("genera_riferimenti")
     vere_prima = impostazioni_vere()
     neutralizza_dialoghi()
+
+    if args.verifica_zip or args.crea_zip_desktop:
+        esito = (verifica_zip(os.path.abspath(args.verifica_zip)) if args.verifica_zip
+                 else crea_zip_desktop(os.path.abspath(args.crea_zip_desktop)))
+        if impostazioni_vere() != vere_prima:
+            raise SystemExit("ERRORE: le impostazioni vere di ScrolleR Studio sono cambiate")
+        raise SystemExit(esito)
 
     if args.verifica:
         esito = verifica(os.path.abspath(args.verifica))

@@ -34,5 +34,6 @@ export 'src/pages/videos.dart';
 export 'src/project/formato.dart';
 export 'src/project/paths.dart';
 export 'src/project/project_file.dart';
+export 'src/project/riferimenti.dart';
 export 'src/util/py.dart';
 export 'src/util/py_random.dart';

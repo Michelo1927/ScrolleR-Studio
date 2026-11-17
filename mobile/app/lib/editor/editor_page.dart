@@ -10,7 +10,9 @@ import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
 import '../export/foglio_esporta.dart';
 import '../l10n/app_localizations.dart';
+import '../media/cache_media.dart' show chiaveMedia;
 import '../theme/tokens.dart';
+import 'mancanti_ui.dart';
 import 'menu_pressione_lunga.dart';
 import 'pagina_anteprima.dart';
 import 'pagina_panoramica.dart';
@@ -66,6 +68,9 @@ class _Editor extends ConsumerStatefulWidget {
 class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
   ControlloEditor get _ctrl => ref.read(editorProvider.notifier);
 
+  /// L'avviso «foto non trovate» si dà una volta sola per apertura del progetto.
+  bool _avvisatoMancanti = false;
+
   @override
   void initState() {
     super.initState();
@@ -80,6 +85,8 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState stato) {
+    // Tornati da un'altra app (la galleria, i file…) una foto può essere sparita o tornata
+    if (stato == AppLifecycleState.resumed) ref.invalidate(mancantiProvider);
     // L'app va in secondo piano: si salva subito, senza aspettare il ritardo di 1 s
     if (stato == AppLifecycleState.paused ||
         stato == AppLifecycleState.inactive ||
@@ -130,6 +137,16 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
         ),
       );
     });
+    // Controllo all'apertura (piano §9): le foto che non si trovano più si dicono subito, con la ricerca a un tocco
+    ref.listen(mancantiProvider, (_, m) {
+      final l = m.value;
+      if (_avvisatoMancanti || l == null) return;
+      _avvisatoMancanti = true;
+      if (l.isEmpty) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(avvisaMancantiAllApertura(context, l.length));
+      });
+    });
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (esce, _) {
@@ -147,7 +164,17 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
             child: _BarraSuperiore(onIndietro: _esci),
           ),
         ),
-        body: const TelaEditor(),
+        body: const Stack(
+          children: [
+            Positioned.fill(child: TelaEditor()),
+            // Segno «N foto mancanti», in alto a sinistra
+            Positioned(
+              top: MisureScrl.spazioPiccolo,
+              left: MisureScrl.spazio,
+              child: BadgeMancanti(),
+            ),
+          ],
+        ),
         // Il padding porta la zona inferiore sopra la tastiera; restando un bottomNavigationBar, gli avvisi
         // continuano a comparire sopra la barra
         bottomNavigationBar: Padding(
@@ -566,6 +593,12 @@ class _BarraSelezione extends ConsumerWidget {
     final soloTesti = foto.isEmpty && forme.isEmpty && testi.isNotEmpty;
     final soloForme = foto.isEmpty && testi.isEmpty && forme.isNotEmpty;
     final multi = sel.length > 1;
+    // Una foto selezionata che non si trova più: «Ricollega» sta in testa alla barra
+    final mancanteSel = ref
+        .watch(mancantiProvider)
+        .value
+        ?.where((m) => foto.any((p) => chiaveMedia(p) == m.chiave))
+        .firstOrNull;
     final inGruppi = selezioneHaGruppi(stato.snapshot, stato.selezione);
     final unGruppo = selezioneEUnGruppo(stato.snapshot, stato.selezione);
     final bloccati = sel.isNotEmpty && sel.every((e) => e.locked);
@@ -617,6 +650,14 @@ class _BarraSelezione extends ConsumerWidget {
                     ),
                     const _VoceAudio(key: ValueKey('voce-audio')),
                   ],
+                  if (soloFoto && mancanteSel != null)
+                    VoceBarra(
+                      key: const ValueKey('voce-ricollega'),
+                      icona: Icons.link_rounded,
+                      etichetta: t.strRicollega,
+                      onTap: () =>
+                          unawaited(ricollegaUna(context, ref, mancanteSel)),
+                    ),
                   if (soloFoto) ...[
                     VoceBarra(
                       icona: Icons.crop_rounded,

@@ -10,7 +10,6 @@ import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
 import '../l10n/app_localizations.dart';
 import '../media/cache_media.dart';
-import '../render/risorse_pagina.dart' show campoSfondoAsset;
 import '../theme/tokens.dart';
 import 'intelaiatura.dart';
 import 'pannello_libreria.dart' show ImmagineVoce;

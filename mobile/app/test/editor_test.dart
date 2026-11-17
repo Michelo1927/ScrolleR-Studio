@@ -593,6 +593,14 @@ Future<void> _finoA(WidgetTester tester, Finder finder) async {
   expect(finder, findsWidgets);
 }
 
+/// Le foto di prova non esistono sul disco: all'apertura l'editor lo dice (piano §9). Qui si risponde «Più tardi».
+Future<void> _piuTardiMancanti(WidgetTester tester, int quante) async {
+  await _finoA(tester, find.byKey(const ValueKey('mancanti-piu-tardi')));
+  expect(find.textContaining('$quante foto del progetto'), findsOneWidget);
+  await tester.tap(find.byKey(const ValueKey('mancanti-piu-tardi')));
+  await tester.pumpAndSettle();
+}
+
 void mainPercorso() {
   testWidgets(
     'si crea un carosello di 5 pagine da 12 foto, si cambia disposizione, si chiude e riapre senza perdere niente',
@@ -627,7 +635,7 @@ void mainPercorso() {
       // Apre il progetto
       await tester.tap(find.text('Viaggio'));
       await _finoA(tester, find.byType(TelaEditor));
-      await tester.pumpAndSettle();
+      await _piuTardiMancanti(tester, 12);
       final contenitore = ProviderScope.containerOf(
         tester.element(find.byType(TelaEditor)),
       );
@@ -670,7 +678,7 @@ void mainPercorso() {
       // Lo riapre: tutto com'era
       await tester.tap(find.text('Viaggio'));
       await _finoA(tester, find.byType(TelaEditor));
-      await tester.pumpAndSettle();
+      await _piuTardiMancanti(tester, 12);
       final riaperto = ProviderScope.containerOf(
         tester.element(find.byType(TelaEditor)),
       ).read(editorProvider);

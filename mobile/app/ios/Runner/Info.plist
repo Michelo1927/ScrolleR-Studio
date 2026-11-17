@@ -72,5 +72,74 @@
 	<string>ScrolleR Studio salva nella galleria le immagini e i video che esporti.</string>
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
 	<true/>
+	<!-- «Apri con ScrolleR Studio» / «Copia in ScrolleR Studio» (piano §6, Fase 9): progetti .scrlproj, archivi .zip
+	     e, dal foglio Condividi di sistema, foto e video. iOS copia il file nell'app: lo riceve AppDelegate.swift. -->
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Progetto ScrolleR Studio</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>io.github.michelo1927.scrollerstudio.scrlproj</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Archivio zip</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.zip-archive</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Foto e video</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.image</string>
+				<string>public.movie</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.michelo1927.scrollerstudio.scrlproj</string>
+			<key>UTTypeDescription</key>
+			<string>Progetto ScrolleR Studio</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>scrlproj</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/x-scrlproj</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 </dict>
 </plist>

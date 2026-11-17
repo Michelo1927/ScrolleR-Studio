@@ -28,6 +28,7 @@ SessioneEditor creaSessione(
   inizio: p.file.snapshot,
   libreriaIniziale: p.file.library,
   extraFile: p.file.extra,
+  controllaMancanti: true,
 );
 
 /// Apre [cartella] nell'editor e aspetta che si torni alla Home.

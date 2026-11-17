@@ -3174,6 +3174,288 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'{n, plural, =1{La pagina con video è un MP4} other{Le {n} pagine con video sono MP4}} ({larghezza}×{altezza} px, 30 fps)'**
   String espVideoSalvati(int n, int larghezza, int altezza);
+
+  /// Home: azione sul progetto
+  ///
+  /// In it, this message translates to:
+  /// **'Condividi progetto'**
+  String get condividiProgetto;
+
+  /// Home: pulsante e titolo
+  ///
+  /// In it, this message translates to:
+  /// **'Importa progetto'**
+  String get importaProgetto;
+
+  /// Avanzamento dello zip
+  ///
+  /// In it, this message translates to:
+  /// **'Preparo il progetto…'**
+  String get scambioPreparo;
+
+  /// Avviso prima di creare lo zip
+  ///
+  /// In it, this message translates to:
+  /// **'Foto senza originale'**
+  String get zipAvvisoTitolo;
+
+  /// Avviso prima di creare lo zip
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 foto non ha più l\'originale: nello zip ci sarà la sua anteprima ridotta (lato lungo 1600 px).} other{{n} foto non hanno più l\'originale: nello zip ci saranno le loro anteprime ridotte (lato lungo 1600 px).}}'**
+  String zipSoloAnteprima(int n);
+
+  /// Avviso prima di creare lo zip
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 file non c\'è più, nemmeno come anteprima: non sarà nello zip e sul PC comparirà come «Foto mancante».} other{{n} file non ci sono più, nemmeno come anteprima: non saranno nello zip e sul PC compariranno come «Foto mancante».}}'**
+  String zipMancanti(int n);
+
+  /// Avviso prima di creare lo zip
+  ///
+  /// In it, this message translates to:
+  /// **'Crea comunque'**
+  String get zipContinua;
+
+  /// Avanzamento dello zip: file in corso
+  ///
+  /// In it, this message translates to:
+  /// **'Copio {nome}'**
+  String zipFile(String nome);
+
+  /// Esito dello zip
+  ///
+  /// In it, this message translates to:
+  /// **'Progetto pronto'**
+  String get zipPronto;
+
+  /// Esito dello zip
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 file copiato} other{{n} file copiati}} · {dimensione}'**
+  String zipPronto2(int n, String dimensione);
+
+  /// Errore dello zip
+  ///
+  /// In it, this message translates to:
+  /// **'Spazio insufficiente sul telefono. Libera un po\' di memoria e riprova.'**
+  String get zipSpazio;
+
+  /// Errore dello zip
+  ///
+  /// In it, this message translates to:
+  /// **'Non è stato possibile creare lo zip: {errore}'**
+  String zipErrore(String errore);
+
+  /// Esito di un lavoro annullato
+  ///
+  /// In it, this message translates to:
+  /// **'Operazione annullata'**
+  String get lavoroAnnullato;
+
+  /// Selettore di file
+  ///
+  /// In it, this message translates to:
+  /// **'Scegli un progetto (.zip o .scrlproj)'**
+  String get impScegli;
+
+  /// Avanzamento dell'importazione
+  ///
+  /// In it, this message translates to:
+  /// **'Importo {nome}'**
+  String impFile(String nome);
+
+  /// Esito dell'importazione
+  ///
+  /// In it, this message translates to:
+  /// **'«{nome}» è stato importato'**
+  String impFatto(String nome);
+
+  /// Esito dell'importazione
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =0{Nessuna foto con il progetto: se mancano, si ricollegano dall\'editor.} =1{1 foto o video importato.} other{{n} foto e video importati.}}'**
+  String impEstratti(int n);
+
+  /// Esito dell'importazione
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Lo zip conteneva un altro progetto: non è stato importato.} other{Lo zip conteneva altri {n} progetti: non sono stati importati.}}'**
+  String impAltriProgetti(int n);
+
+  /// Esito dell'importazione
+  ///
+  /// In it, this message translates to:
+  /// **'Apri progetto'**
+  String get impApri;
+
+  /// Errore di importazione
+  ///
+  /// In it, this message translates to:
+  /// **'Questo file non è un progetto di ScrolleR Studio (.scrlproj o .zip).'**
+  String get impNonRiconosciuto;
+
+  /// Errore di importazione
+  ///
+  /// In it, this message translates to:
+  /// **'Nello zip non c\'è nessun progetto (.scrlproj).'**
+  String get impNessunProgetto;
+
+  /// Errore di importazione
+  ///
+  /// In it, this message translates to:
+  /// **'Il progetto è rovinato o non è di ScrolleR Studio.'**
+  String get impNonValido;
+
+  /// Errore di importazione
+  ///
+  /// In it, this message translates to:
+  /// **'Questo zip non si può aprire qui: {motivo}.'**
+  String impZipNonSupportato(String motivo);
+
+  /// Errore di importazione
+  ///
+  /// In it, this message translates to:
+  /// **'Importazione non riuscita: {errore}'**
+  String impErrore(String errore);
+
+  /// Foto ricevute da un'altra app
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Progetto creato con 1 foto} other{Progetto creato con {n} foto}}'**
+  String impDaFoto(int n);
+
+  /// Foto ricevute da un'altra app
+  ///
+  /// In it, this message translates to:
+  /// **'Non leggibili, saltate: {nomi}'**
+  String impScartati(String nomi);
+
+  /// Segno sulla tela
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 foto mancante} other{{n} foto mancanti}}'**
+  String manBadge(int n);
+
+  /// Pagina dell'elenco
+  ///
+  /// In it, this message translates to:
+  /// **'Foto mancanti'**
+  String get manTitolo;
+
+  /// Pagina dell'elenco
+  ///
+  /// In it, this message translates to:
+  /// **'Queste foto non sono più nella galleria o non si trovano. Restano sulla tela con la loro anteprima e le loro impostazioni: ricollegale per tornare agli originali.'**
+  String get manIntro;
+
+  /// Pagina dell'elenco
+  ///
+  /// In it, this message translates to:
+  /// **'Cerca nella galleria per nome'**
+  String get manCerca;
+
+  /// Pagina dell'elenco
+  ///
+  /// In it, this message translates to:
+  /// **'Ricollega'**
+  String get manRicollega;
+
+  /// Pagina dell'elenco
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =0{Solo in libreria} =1{Usata 1 volta} other{Usata {n} volte}}'**
+  String manUsi(int n);
+
+  /// Avanzamento della ricerca
+  ///
+  /// In it, this message translates to:
+  /// **'Cerco nella galleria… ({n} guardati)'**
+  String manRicerca(int n);
+
+  /// Esito della ricerca
+  ///
+  /// In it, this message translates to:
+  /// **'Ritrovate {n} su {tot}'**
+  String manRitrovate(int n, int tot);
+
+  /// Esito della ricerca
+  ///
+  /// In it, this message translates to:
+  /// **'Nessuna trovata per nome nella galleria. Puoi sceglierle a mano con «Ricollega».'**
+  String get manNessunaTrovata;
+
+  /// Pagina dell'elenco
+  ///
+  /// In it, this message translates to:
+  /// **'Tutte le foto sono al loro posto.'**
+  String get manTutte;
+
+  /// Pagina dell'elenco
+  ///
+  /// In it, this message translates to:
+  /// **'Per cercare nella galleria serve l\'accesso alle foto. Puoi darlo dalle impostazioni del telefono, oppure ricollegare le foto una per una.'**
+  String get manSenzaAccesso;
+
+  /// Avviso all'apertura
+  ///
+  /// In it, this message translates to:
+  /// **'Foto non trovate'**
+  String get manAperturaTitolo;
+
+  /// Avviso all'apertura
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 foto del progetto non si trova più} other{{n} foto del progetto non si trovano più}}. Restano sulla tela con la loro anteprima: puoi cercarle nella galleria o ricollegarle una per una.'**
+  String manApertura(int n);
+
+  /// Avviso all'apertura
+  ///
+  /// In it, this message translates to:
+  /// **'Più tardi'**
+  String get manPiuTardi;
+
+  /// Avviso all'apertura
+  ///
+  /// In it, this message translates to:
+  /// **'Vedi elenco'**
+  String get manVediElenco;
+
+  /// Titolo della scelta per ricollegare
+  ///
+  /// In it, this message translates to:
+  /// **'Dov\'è ora «{nome}»?'**
+  String manScegli(String nome);
+
+  /// Pagina dell'elenco
+  ///
+  /// In it, this message translates to:
+  /// **'Si vede l\'anteprima salvata'**
+  String get manAnteprima;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 foto ricollegata} other{{n} foto ricollegate}}'**
+  String avvisoFotoRicollegate(int n);
+
+  /// Avviso prima di esportare
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 foto ha l\'originale mancante} other{{n} foto hanno l\'originale mancante}}: nell\'immagine esportata uscirà alla qualità dell\'anteprima (lato lungo 1600 px). Esportare comunque?'**
+  String espOriginaliMancanti(int n);
+
+  /// Avviso prima di esportare
+  ///
+  /// In it, this message translates to:
+  /// **'Ricollega'**
+  String get espRicollega;
+
+  /// Barra di selezione
+  ///
+  /// In it, this message translates to:
+  /// **'Ricollega'**
+  String get strRicollega;
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

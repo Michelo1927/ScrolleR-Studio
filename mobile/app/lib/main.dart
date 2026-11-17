@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'export/preferenze.dart';
 import 'home/home.dart';
+import 'home/scambio_ui.dart';
 import 'l10n/app_localizations.dart';
 import 'project/archivio.dart';
 import 'project/provider.dart';
@@ -60,7 +61,7 @@ class ScrollerStudioApp extends StatelessWidget {
         maxScaleFactor: TestoScrl.scalaMassima,
         child: child!,
       ),
-      home: const HomePage(),
+      home: const AscoltaFileRicevuti(child: HomePage()),
     );
   }
 }

@@ -51,7 +51,7 @@ Future<List<FileImportato>> copiaInMedia(
   };
   final out = <FileImportato>[];
   for (final s in sorgenti) {
-    final nome = nomeLibero(_pulito(s.nome), usati);
+    final nome = nomeLibero(nomePulito(s.nome), usati);
     await File(s.percorso).copy('${media.path}/$nome');
     out.add(FileImportato('media/$nome', video: eVideo(nome)));
   }
@@ -59,7 +59,7 @@ Future<List<FileImportato>> copiaInMedia(
 }
 
 /// Nome di file senza cartelle né caratteri vietati su Windows (il progetto può tornare al PC).
-String _pulito(String nome) {
+String nomePulito(String nome) {
   final base = nome.split(RegExp(r'[/\\]')).last.trim();
   final p = base.replaceAll(RegExp(r'[<>:"|?*\x00-\x1F]'), '_');
   return p.isEmpty ? 'media' : p;

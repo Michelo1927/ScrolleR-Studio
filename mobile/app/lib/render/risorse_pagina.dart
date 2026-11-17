@@ -25,10 +25,6 @@ class _Pronta {
   const _Pronta(this.chiave, this.foto, this.originale);
 }
 
-/// Campo solo mobile del `canvas` (il desktop lo ignora): la foto di sfondo collegata alla galleria del telefono,
-/// come il campo `asset` delle foto (le `bg_blur_*` del desktop conoscono solo i percorsi).
-const String campoSfondoAsset = 'bg_blur_asset';
-
 /// Legge durata e audio di un video (sostituibile nelle prove).
 typedef LeggiInfoVideo = Future<InfoVideo> Function(String sorgente);
 
