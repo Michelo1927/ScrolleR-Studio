@@ -81,7 +81,8 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          # 21: il lint degli strumenti Android recenti (lintVitalAnalyzeRelease) usa API di Java 21 e con 17 si rompe
+          java-version: "21"
 
       - uses: subosito/flutter-action@v2
         with:
