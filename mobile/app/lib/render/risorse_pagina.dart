@@ -24,6 +24,10 @@ class _Pronta {
   const _Pronta(this.chiave, this.foto, this.originale);
 }
 
+/// Campo solo mobile del `canvas` (il desktop lo ignora): la foto di sfondo collegata alla galleria del telefono,
+/// come il campo `asset` delle foto (le `bg_blur_*` del desktop conoscono solo i percorsi).
+const String campoSfondoAsset = 'bg_blur_asset';
+
 class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
   RisorsePagina({required this.cache, required this.cartellaProgetto});
 
@@ -158,12 +162,18 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
   Future<void> _preparaComuni(Snapshot s) async {
     _grana ??= await _creaGrana();
     final c = s.canvas;
+    final asset = MediaAsset.fromJson(c.extra[campoSfondoAsset]);
     if (c.bgMode == 'blur' &&
-        (c.bgBlurPath.isNotEmpty || c.bgBlurRel != null)) {
+        (c.bgBlurPath.isNotEmpty || c.bgBlurRel != null || asset != null)) {
       final chiave =
-          '${c.bgBlurPath}|${c.bgBlurRel}|${c.bgBlurAmount}|${c.bgDim}';
+          '${c.bgBlurPath}|${c.bgBlurRel}|${asset?.id}|${c.bgBlurAmount}|${c.bgDim}';
       if (chiave != _chiaveSfondo) {
-        final finta = PhotoItem(uid: 0, path: c.bgBlurPath, rel: c.bgBlurRel);
+        final finta = PhotoItem(
+          uid: 0,
+          path: c.bgBlurPath,
+          rel: c.bgBlurRel,
+          asset: asset,
+        );
         final ant = await cache.carica(
           sorgenteDi(finta, cartellaProgetto),
           Dettaglio.anteprima,

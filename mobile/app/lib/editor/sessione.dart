@@ -97,6 +97,40 @@ class SessioneEditor {
     return nuove;
   }
 
+  /// Prepara le foto degli appunti per questo progetto (copia da un altro progetto): i file `media/` che qui non
+  /// ci sono si copiano dalla [cartellaOrigine]; le foto collegate alla galleria non si toccano. Restituisce le voci
+  /// di libreria da aggiungere (una per foto, senza doppioni).
+  Future<List<LibraryEntry>> portaMedia(
+    AppuntiElementi appunti,
+    String? cartellaOrigine,
+  ) async {
+    final voci = <String, LibraryEntry>{};
+    for (final v in appunti.voci) {
+      if (v.tipo != ElementKind.photo) continue;
+      final foto = PhotoItem.fromJson(v.stato);
+      final rel = foto.rel;
+      if (rel != null && foto.asset == null && cartellaOrigine != null) {
+        final qui = File('${cartella.path}/$rel');
+        final la = File('$cartellaOrigine/$rel');
+        if (cartellaOrigine != cartella.path &&
+            !qui.existsSync() &&
+            la.existsSync()) {
+          try {
+            await qui.parent.create(recursive: true);
+            await la.copy(qui.path);
+          } on Exception {
+            // Il file non si copia: la foto resta sulla tela come «mancante» e si ricollega dopo
+          }
+        }
+      }
+      voci.putIfAbsent(
+        chiaveMedia(foto),
+        () => LibraryEntry(path: foto.path, rel: foto.rel, asset: foto.asset),
+      );
+    }
+    return voci.values.toList();
+  }
+
   /// Scrive il progetto su disco (atomico). Le richieste si mettono in coda una dopo l'altra.
   Future<void> salva(Snapshot s, List<LibraryEntry> libreria) {
     final file = ProjectFile(snapshot: s, library: libreria, extra: extraFile);

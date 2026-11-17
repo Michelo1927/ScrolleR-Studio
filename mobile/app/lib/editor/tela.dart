@@ -20,6 +20,7 @@ import '../render/disegno.dart';
 import '../render/risorse_pagina.dart';
 import '../theme/tokens.dart';
 import 'geometria_tela.dart';
+import 'menu_pressione_lunga.dart';
 import 'sessione.dart';
 import 'stato.dart';
 import 'vista_pagina.dart';
@@ -305,6 +306,14 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     // Con uno strumento aperto la selezione non cambia: si lavora sull'elemento scelto
     if (_stato.strumento.suElemento) return;
     final e = _elementoSotto(d.localPosition);
+    // «Seleziona più»: ogni tocco su un elemento lo aggiunge alla selezione o lo toglie (con tutto il suo gruppo)
+    if (_stato.selezionePiu) {
+      if (e != null) {
+        _ctrl.alternaInSelezione(e);
+        HapticFeedback.selectionClick();
+      }
+      return;
+    }
     final ts = _tsGiu;
     final prima = _tsUltimoTocco;
     final rif = e == null ? null : rifDi(e);
@@ -327,6 +336,29 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       _ctrl.seleziona(conGruppo(_stato.snapshot, e));
       HapticFeedback.selectionClick();
     }
+  }
+
+  /// Pressione lunga: su un elemento il menu dell'elemento (lo seleziona, con tutto il suo gruppo), sul vuoto quello
+  /// della pagina (incolla, aggiungi testo o forma qui, seleziona tutto, azioni della pagina).
+  void _allaPressioneLunga(LongPressStartDetails d) {
+    // Con uno strumento aperto, o il contagocce, la pressione lunga non apre menu
+    if (_stato.strumento != Strumento.nessuno || _stato.contagocce) return;
+    final g = _geo?.conPos(_pos);
+    if (g == null) return;
+    final e = _elementoSotto(d.localPosition);
+    unawaited(HapticFeedback.mediumImpact());
+    if (e != null) {
+      if (!_stato.selezione.contains(rifDi(e))) {
+        _ctrl.seleziona(conGruppo(_stato.snapshot, e));
+      }
+      unawaited(mostraMenuElemento(context));
+      return;
+    }
+    final (sx, sy) = g.daSchermo(d.localPosition);
+    final n = _stato.snapshot.canvas.numFrames;
+    final pagina = (sx / _stato.snapshot.canvas.frameW).floor().clamp(0, n - 1);
+    _ctrl.vaiAPagina(pagina);
+    unawaited(mostraMenuVuoto(context, pagina: pagina, punto: (x: sx, y: sy)));
   }
 
   /// Contagocce: legge il colore del disegno nel punto toccato (se cade dentro una pagina).
@@ -493,7 +525,9 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     var dy = sy - _stripInizio.$2;
     final p = _primario;
     var agg = Aggancio.nessuno;
-    if (p != null && (p is PhotoItem || p is ShapeItem)) {
+    if (p != null &&
+        _stato.aggancioAttivo &&
+        (p is PhotoItem || p is ShapeItem)) {
       final r = ingombroElemento(base, p, _sessione.ctx);
       agg = calcolaAggancio(
         base,
@@ -747,6 +781,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTapUp: _alTocco,
+              onLongPressStart: _allaPressioneLunga,
               onScaleStart: _inizioGesto,
               onScaleUpdate: _aggiornaGesto,
               onScaleEnd: _fineGesto,
@@ -765,6 +800,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
                         _sessione.risorse,
                         testi,
                         _sessione.risorse.versione,
+                        stato.mostraGuide,
                       ),
                     ),
                   ),
@@ -808,7 +844,14 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
 
 /// Disegna le pagine visibili con lo stesso modulo dell'esportazione, più le guide di centro.
 class _PitturaPagine extends CustomPainter {
-  _PitturaPagine(this.s, this.geo, this.risorse, this.testi, this.versione);
+  _PitturaPagine(
+    this.s,
+    this.geo,
+    this.risorse,
+    this.testi,
+    this.versione,
+    this.mostraGuide,
+  );
 
   final Snapshot s;
   final GeometriaTela geo;
@@ -817,6 +860,9 @@ class _PitturaPagine extends CustomPainter {
 
   /// Versione delle risorse: cambia quando arriva una foto colorata o si preme il confronto prima/dopo.
   final int versione;
+
+  /// Linee di centro leggere (`show_guides`): si accendono e spengono da Stile.
+  final bool mostraGuide;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -833,7 +879,7 @@ class _PitturaPagine extends CustomPainter {
         OpzioniDisegno(testi: testi),
         scala: geo.scala,
       );
-      if (haElementi) _guide(canvas);
+      if (haElementi && mostraGuide) _guide(canvas);
       canvas.restore();
     }
   }
@@ -865,6 +911,7 @@ class _PitturaPagine extends CustomPainter {
       old.s != s ||
       old.geo.pos != geo.pos ||
       old.geo.scala != geo.scala ||
+      old.mostraGuide != mostraGuide ||
       old.versione != versione;
 }
 

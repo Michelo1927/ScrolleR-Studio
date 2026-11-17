@@ -28,7 +28,8 @@ enum _Parametro {
 const int _spaziaturaIniziale = 16;
 const int _margineIniziale = 24;
 
-String _nomeDisposizione(Testi t, String modo) => switch (modo) {
+/// Nome del modo di disposizione, dai file `.arb`.
+String nomeDisposizione(Testi t, String modo) => switch (modo) {
   LayoutModes.grid => t.dispGriglia,
   LayoutModes.mosaic => t.dispMosaico,
   LayoutModes.stripsH => t.dispRighe,
@@ -180,7 +181,7 @@ class _PannelloDisposizioneState extends ConsumerState<PannelloDisposizione> {
                       padding: const EdgeInsets.only(right: 8),
                       child: TesseraScelta(
                         disegno: IconaDisposizione(m, colore: ColoriScrl.testo),
-                        etichetta: _nomeDisposizione(t, m),
+                        etichetta: nomeDisposizione(t, m),
                         scelta: attuale == m,
                         onTap: () => _scegliDisposizione(m),
                       ),

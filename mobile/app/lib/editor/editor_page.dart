@@ -10,13 +10,20 @@ import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
+import 'menu_pressione_lunga.dart';
+import 'pagina_anteprima.dart';
+import 'pagina_panoramica.dart';
 import 'pagina_ritaglio.dart';
 import 'pannelli_forma.dart';
 import 'pannelli_foto.dart';
 import 'pannelli_testo.dart';
 import 'pannello_aggiungi.dart';
+import 'pannello_cronologia.dart';
+import 'pannello_disponi.dart';
 import 'pannello_disposizione.dart';
 import 'pannello_libreria.dart';
+import 'pannello_pagine.dart';
+import 'pannello_stile.dart';
 import 'sessione.dart';
 import 'stato.dart';
 import 'tela.dart';
@@ -92,7 +99,7 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
     final s = ref.read(editorProvider);
     if (s.strumento != Strumento.nessuno) {
       _ctrl.chiudiStrumentoDaGesto();
-    } else if (s.selezione.isNotEmpty) {
+    } else if (s.selezione.isNotEmpty || s.selezionePiu) {
       _ctrl.deseleziona();
     } else {
       unawaited(_esci());
@@ -182,6 +189,8 @@ class _BarraSuperiore extends ConsumerWidget {
             icona: Icons.undo_rounded,
             etichetta: t.annulla,
             onTap: stato.puoAnnullare ? ctrl.annulla : null,
+            // Pressione lunga su Annulla = Cronologia
+            onLongPress: () => unawaited(mostraCronologia(context)),
           ),
           PulsanteIcona(
             icona: Icons.redo_rounded,
@@ -192,7 +201,7 @@ class _BarraSuperiore extends ConsumerWidget {
           PulsanteIcona(
             icona: Icons.play_arrow_rounded,
             etichetta: t.anteprima,
-            onTap: onArrivera,
+            onTap: () => unawaited(apriAnteprima(context)),
           ),
           PulsanteIcona(
             icona: Icons.ios_share_rounded,
@@ -216,7 +225,7 @@ class _ZonaInferiore extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final strumento = ref.watch(editorProvider.select((s) => s.strumento));
     final haSelezione = ref.watch(
-      editorProvider.select((s) => s.selezione.isNotEmpty),
+      editorProvider.select((s) => s.selezione.isNotEmpty || s.selezionePiu),
     );
     final Widget sotto = switch (strumento) {
       Strumento.libreria => const PannelloLibreria(key: ValueKey('libreria')),
@@ -280,13 +289,26 @@ class _ZonaInferiore extends ConsumerWidget {
       Strumento.formaRuota => const PannelloRuotaForma(
         key: ValueKey('formaRuota'),
       ),
+      Strumento.pagine => PannelloPagine(
+        key: const ValueKey('pagine'),
+        onApriPanoramica: () => unawaited(apriPanoramica(context)),
+        onArrivera: onArrivera,
+      ),
+      Strumento.stile => const PannelloStile(key: ValueKey('stile')),
+      Strumento.sfondo => const PannelloSfondo(key: ValueKey('sfondo')),
+      Strumento.numeriPagina => const PannelloNumeriPagina(
+        key: ValueKey('numeriPagina'),
+      ),
+      Strumento.scorri => const PannelloScorri(key: ValueKey('scorri')),
+      Strumento.disponi => const PannelloDisponi(key: ValueKey('disponi')),
+      Strumento.allinea => const PannelloAllinea(key: ValueKey('allinea')),
+      Strumento.distribuisci => const PannelloDistribuisci(
+        key: ValueKey('distribuisci'),
+      ),
       Strumento.nessuno =>
         haSelezione
             ? const _BarraSelezione(key: ValueKey('selezione'))
-            : _BarraInferiore(
-                key: const ValueKey('barra'),
-                onArrivera: onArrivera,
-              ),
+            : const _BarraInferiore(key: ValueKey('barra')),
     };
     final durata = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
@@ -300,7 +322,7 @@ class _ZonaInferiore extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _StrisciaPagine(onArrivera: onArrivera),
+            const _StrisciaPagine(),
             AnimatedSize(
               duration: durata,
               curve: MotoScrl.curva,
@@ -316,9 +338,7 @@ class _ZonaInferiore extends ConsumerWidget {
 
 /// Puntini delle pagine: tocco = vai alla pagina; lucchetto sulle bloccate, trattino tra le pagine unite.
 class _StrisciaPagine extends ConsumerWidget {
-  const _StrisciaPagine({required this.onArrivera});
-
-  final VoidCallback onArrivera;
+  const _StrisciaPagine();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -370,7 +390,11 @@ class _StrisciaPagine extends ConsumerWidget {
             t.paginaSuccessiva,
             k < c.numFrames - 1 ? () => ctrl.vaiAPagina(k + 1) : null,
           ),
-          _Freccia(Icons.grid_view_rounded, t.panoramica, onArrivera),
+          _Freccia(
+            Icons.grid_view_rounded,
+            t.panoramica,
+            () => unawaited(apriPanoramica(context)),
+          ),
         ],
       ),
     );
@@ -458,9 +482,7 @@ class _Puntino extends StatelessWidget {
 
 /// Barra inferiore con niente selezionato: le 5 voci del piano (§4.3).
 class _BarraInferiore extends ConsumerWidget {
-  const _BarraInferiore({super.key, required this.onArrivera});
-
-  final VoidCallback onArrivera;
+  const _BarraInferiore({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -495,16 +517,14 @@ class _BarraInferiore extends ConsumerWidget {
             child: VoceBarra(
               icona: Icons.view_carousel_outlined,
               etichetta: t.barraPagine,
-              onTap: onArrivera,
-              spenta: true,
+              onTap: () => ctrl.apriStrumento(Strumento.pagine),
             ),
           ),
           Expanded(
             child: VoceBarra(
               icona: Icons.palette_outlined,
               etichetta: t.barraStile,
-              onTap: onArrivera,
-              spenta: true,
+              onTap: () => ctrl.apriStrumento(Strumento.stile),
             ),
           ),
         ],
@@ -533,9 +553,15 @@ class _BarraSelezione extends ConsumerWidget {
     final conColori = foto.any((p) => !p.isVideo);
     final testi = sel.whereType<TextItem>().toList();
     final forme = sel.whereType<ShapeItem>().toList();
-    // Gli strumenti di testi e forme valgono quando la selezione è fatta solo di testi o solo di forme
+    // Gli strumenti di foto, testi e forme valgono quando la selezione è fatta di un solo tipo; con tipi diversi restano
+    // i comandi per più elementi (Allinea, Distribuisci, Raggruppa, Blocca…)
+    final soloFoto = testi.isEmpty && forme.isEmpty && foto.isNotEmpty;
     final soloTesti = foto.isEmpty && forme.isEmpty && testi.isNotEmpty;
     final soloForme = foto.isEmpty && testi.isEmpty && forme.isNotEmpty;
+    final multi = sel.length > 1;
+    final inGruppi = selezioneHaGruppi(stato.snapshot, stato.selezione);
+    final unGruppo = selezioneEUnGruppo(stato.snapshot, stato.selezione);
+    final bloccati = sel.isNotEmpty && sel.every((e) => e.locked);
     final tutteLinee = soloForme && forme.every((f) => f.isLine);
     final conAngoli = soloForme && forme.any((f) => f.kind == 'rect');
     void apri(Strumento s) => ctrl.apriStrumento(s);
@@ -548,11 +574,19 @@ class _BarraSelezione extends ConsumerWidget {
             etichetta: t.deseleziona,
             onTap: ctrl.deseleziona,
           ),
-          Expanded(
+          if (sel.isEmpty)
+            Expanded(
+              child: Text(
+                t.selezionaPiuAiuto,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            )
+          else
+            Expanded(
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                if (foto.isNotEmpty) ...[
+                if (soloFoto) ...[
                   VoceBarra(
                     icona: Icons.crop_rounded,
                     etichetta: t.strRitaglia,
@@ -596,11 +630,23 @@ class _BarraSelezione extends ConsumerWidget {
                     onTap: () => ctrl.apriStrumento(Strumento.ruota),
                   ),
                   VoceBarra(
+                    icona: Icons.layers_outlined,
+                    etichetta: t.strDisponi,
+                    onTap: () => ctrl.apriStrumento(Strumento.disponi),
+                  ),
+                  VoceBarra(
                     icona: tutteLibere
                         ? Icons.grid_view_rounded
                         : Icons.open_with_rounded,
                     etichetta: tutteLibere ? t.inDisposizione : t.libera,
                     onTap: ctrl.liberaSelezione,
+                  ),
+                  VoceBarra(
+                    icona: Icons.drive_file_move_outlined,
+                    etichetta: t.menuSpostaInPagina,
+                    onTap: () => unawaited(
+                      mostraMenuElemento(context, soloPagina: true),
+                    ),
                   ),
                   VoceBarra(
                     icona: Icons.colorize_rounded,
@@ -672,6 +718,11 @@ class _BarraSelezione extends ConsumerWidget {
                     etichetta: t.strRuota,
                     onTap: () => apri(Strumento.testoRuota),
                   ),
+                  VoceBarra(
+                    icona: Icons.layers_outlined,
+                    etichetta: t.strDisponi,
+                    onTap: () => apri(Strumento.disponi),
+                  ),
                 ],
                 if (soloForme) ...[
                   VoceBarra(
@@ -706,7 +757,61 @@ class _BarraSelezione extends ConsumerWidget {
                     etichetta: t.strRuota,
                     onTap: () => apri(Strumento.formaRuota),
                   ),
+                  VoceBarra(
+                    icona: Icons.layers_outlined,
+                    etichetta: t.strDisponi,
+                    onTap: () => apri(Strumento.disponi),
+                  ),
                 ],
+                if (multi && !soloFoto && !soloTesti && !soloForme)
+                  VoceBarra(
+                    icona: Icons.layers_outlined,
+                    etichetta: t.strDisponi,
+                    onTap: () => apri(Strumento.disponi),
+                  ),
+                VoceBarra(
+                  icona: Icons.align_horizontal_left_rounded,
+                  etichetta: t.strAllinea,
+                  onTap: () => apri(Strumento.allinea),
+                ),
+                if (multi) ...[
+                  VoceBarra(
+                    icona: Icons.horizontal_distribute_rounded,
+                    etichetta: t.strDistribuisci,
+                    onTap: () => apri(Strumento.distribuisci),
+                  ),
+                  if (!unGruppo)
+                    VoceBarra(
+                      icona: Icons.workspaces_outline,
+                      etichetta: t.strRaggruppa,
+                      onTap: ctrl.raggruppaSelezione,
+                    ),
+                  if (inGruppi)
+                    VoceBarra(
+                      icona: Icons.workspaces_filled,
+                      etichetta: t.strSepara,
+                      onTap: ctrl.separaSelezione,
+                    ),
+                  if (foto.length == 2 && sel.length == 2)
+                    VoceBarra(
+                      icona: Icons.swap_horiz_rounded,
+                      etichetta: t.strScambia,
+                      onTap: ctrl.scambiaFoto,
+                    ),
+                  VoceBarra(
+                    icona: bloccati
+                        ? Icons.lock_open_rounded
+                        : Icons.lock_outline,
+                    etichetta: bloccati ? t.strSblocca : t.strBlocca,
+                    attiva: bloccati,
+                    onTap: ctrl.bloccaSelezione,
+                  ),
+                ] else if (inGruppi)
+                  VoceBarra(
+                    icona: Icons.workspaces_filled,
+                    etichetta: t.strSepara,
+                    onTap: ctrl.separaSelezione,
+                  ),
                 VoceBarra(
                   icona: Icons.copy_rounded,
                   etichetta: t.duplica,

@@ -141,6 +141,9 @@ Future<void> _vediVoce(WidgetTester tester, String testo) async {
   final lista = find
       .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
       .first;
+  // Si riparte dall'inizio della striscia: una voce già superata non è più costruita
+  await tester.drag(lista, const Offset(10000, 0));
+  await tester.pump();
   await tester.scrollUntilVisible(find.text(testo), 120, scrollable: lista);
   await tester.pump();
 }

@@ -8,6 +8,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrl_engine/scrl_engine.dart';
@@ -49,7 +50,19 @@ enum Strumento {
   formaBordo,
   formaAngoli,
   formaOpacita,
-  formaRuota;
+  formaRuota,
+
+  // Pagine e carosello (Fase 6): pannello delle azioni di pagina, Stile e i suoi strumenti
+  pagine,
+  stile,
+  sfondo,
+  numeriPagina,
+  scorri,
+
+  // Comandi sulla selezione (Fase 6): Disponi (livello, blocco, frecce), Allinea, Distribuisci
+  disponi,
+  allinea,
+  distribuisci;
 
   /// Strumento Foto che lavora sulla foto selezionata.
   bool get eFoto => index >= inquadra.index && index <= ruota.index;
@@ -60,8 +73,12 @@ enum Strumento {
   /// Strumento Forme che lavora sulla forma selezionata (la scelta del tipo per una forma nuova non conta).
   bool get eForma => index >= formaTipo.index && index <= formaRuota.index;
 
+  /// Comando sulla selezione (Disponi, Allinea, Distribuisci): agisce subito, a ogni tocco.
+  bool get eDisposizione =>
+      this == disponi || this == allinea || this == distribuisci;
+
   /// Strumento che lavora sull'elemento selezionato: la selezione resta ferma finché è aperto.
-  bool get suElemento => eFoto || eTesto || eForma;
+  bool get suElemento => eFoto || eTesto || eForma || eDisposizione;
 
   /// Lo stile scelto con questo strumento diventa quello delle prossime forme (`_remember_shape_style`).
   bool get ricordaStileForma =>
@@ -73,6 +90,9 @@ enum Strumento {
       this == Strumento.regola ||
       this == Strumento.effetti;
 }
+
+/// Un punto della striscia (coordinate del progetto).
+typedef Punto = ({double x, double y});
 
 /// Messaggi brevi dell'editor (il testo sta nei file `.arb`).
 enum MessaggioEditor {
@@ -91,6 +111,31 @@ enum MessaggioEditor {
   ritaglioTolto,
   modificaScartata,
   formaAggiunta,
+  paginaDuplicata,
+  paginaEliminata,
+  paginaSpostata,
+  paginaBloccata,
+  paginaSbloccata,
+  paginaUnita,
+  paginaSeparata,
+  paginaRiordinata,
+  raggruppati,
+  separati,
+  serveDueElementi,
+  serveTreElementi,
+  nessunGruppo,
+  posizioneBloccata,
+  posizioneSbloccata,
+  portatoDavanti,
+  mandatoDietro,
+  copiati,
+  tagliati,
+  incollati,
+  nienteDaIncollare,
+  fotoSpostate,
+  selezionaPiu,
+  sfondoSenzaFoto,
+  inArrivo,
 }
 
 /// Un messaggio da mostrare: [id] cresce a ogni messaggio nuovo, così l'interfaccia riconosce i nuovi.
@@ -112,7 +157,24 @@ class Avviso {
       messaggio == MessaggioEditor.stileIncollato ||
       messaggio == MessaggioEditor.ritaglioApplicato ||
       messaggio == MessaggioEditor.ritaglioTolto ||
-      messaggio == MessaggioEditor.formaAggiunta;
+      messaggio == MessaggioEditor.formaAggiunta ||
+      messaggio == MessaggioEditor.paginaDuplicata ||
+      messaggio == MessaggioEditor.paginaEliminata ||
+      messaggio == MessaggioEditor.paginaSpostata ||
+      messaggio == MessaggioEditor.paginaBloccata ||
+      messaggio == MessaggioEditor.paginaSbloccata ||
+      messaggio == MessaggioEditor.paginaUnita ||
+      messaggio == MessaggioEditor.paginaSeparata ||
+      messaggio == MessaggioEditor.paginaRiordinata ||
+      messaggio == MessaggioEditor.raggruppati ||
+      messaggio == MessaggioEditor.separati ||
+      messaggio == MessaggioEditor.posizioneBloccata ||
+      messaggio == MessaggioEditor.posizioneSbloccata ||
+      messaggio == MessaggioEditor.portatoDavanti ||
+      messaggio == MessaggioEditor.mandatoDietro ||
+      messaggio == MessaggioEditor.tagliati ||
+      messaggio == MessaggioEditor.incollati ||
+      messaggio == MessaggioEditor.fotoSpostate;
 
   /// Dopo l'avviso si può rimettere la modifica appena scartata con «Ripristina».
   bool get ripristinabile => messaggio == MessaggioEditor.modificaScartata;
@@ -132,6 +194,9 @@ class StatoEditor {
     this.stiliForma = const StiliForma(),
     this.contagocce = false,
     this.colorePreso,
+    this.mostraGuide = true,
+    this.aggancioAttivo = true,
+    this.selezionePiu = false,
   });
 
   final History cronologia;
@@ -160,6 +225,16 @@ class StatoEditor {
   /// L'ultimo colore prelevato con il contagocce; [n] cresce a ogni prelievo, così il selettore riconosce i nuovi.
   final ({int n, int argb})? colorePreso;
 
+  /// Guide di centro sulla pagina (`show_guides` del desktop): una preferenza di vista, non entra in Annulla né
+  /// nel progetto.
+  final bool mostraGuide;
+
+  /// Aggancio acceso (`snap_enabled` del desktop): spostando un elemento le sue linee si attaccano a quelle degli altri.
+  final bool aggancioAttivo;
+
+  /// Modalità «Seleziona più»: ogni tocco su un elemento lo aggiunge alla selezione o lo toglie.
+  final bool selezionePiu;
+
   /// Ciò che si vede: la bozza se c'è, altrimenti l'ultimo passo.
   Snapshot get snapshot => bozza ?? cronologia.current;
 
@@ -183,6 +258,9 @@ class StatoEditor {
     StiliForma? stiliForma,
     bool? contagocce,
     ({int n, int argb})? colorePreso,
+    bool? mostraGuide,
+    bool? aggancioAttivo,
+    bool? selezionePiu,
   }) => StatoEditor(
     cronologia: cronologia ?? this.cronologia,
     bozza: bozza != null ? bozza() : this.bozza,
@@ -196,8 +274,48 @@ class StatoEditor {
     stiliForma: stiliForma ?? this.stiliForma,
     contagocce: contagocce ?? this.contagocce,
     colorePreso: colorePreso ?? this.colorePreso,
+    mostraGuide: mostraGuide ?? this.mostraGuide,
+    aggancioAttivo: aggancioAttivo ?? this.aggancioAttivo,
+    selezionePiu: selezionePiu ?? this.selezionePiu,
   );
 }
+
+/// Appunti interni dell'app (piano §6 «Comuni a tutti gli elementi»): elementi copiati o tagliati, validi anche in un
+/// altro progetto. Stanno fuori dall'editor, così sopravvivono alla chiusura di un progetto e all'apertura di un altro.
+class AppuntiApp {
+  const AppuntiApp({
+    required this.dati,
+    required this.cartellaOrigine,
+    this.ripetizione = 0,
+  });
+
+  final AppuntiElementi dati;
+
+  /// Cartella del progetto da cui vengono: le foto con un file nel progetto (`media/`) si portano nel progetto di
+  /// destinazione all'incolla.
+  final String? cartellaOrigine;
+
+  /// Quante volte sono già stati incollati nella pagina d'origine (ogni copia si sposta di 30 unità; −1 dopo «Taglia»).
+  final int ripetizione;
+
+  AppuntiApp conRipetizione(int r) => AppuntiApp(
+    dati: dati,
+    cartellaOrigine: cartellaOrigine,
+    ripetizione: r,
+  );
+}
+
+class AppuntiNotifier extends Notifier<AppuntiApp?> {
+  @override
+  AppuntiApp? build() => null;
+
+  void imposta(AppuntiApp a) => state = a;
+  void ripetizione(int r) => state = state?.conRipetizione(r);
+}
+
+final appuntiProvider = NotifierProvider<AppuntiNotifier, AppuntiApp?>(
+  AppuntiNotifier.new,
+);
 
 /// La sessione del progetto aperto: si fornisce con un `ProviderScope` attorno all'editor.
 final sessioneProvider = Provider<SessioneEditor>(
@@ -245,8 +363,11 @@ class ControlloEditor extends Notifier<StatoEditor> {
   void seleziona(Iterable<RifElemento> refs) =>
       state = state.copia(selezione: refs.toSet());
 
+  /// Toglie la selezione ed esce dalla modalità «Seleziona più».
   void deseleziona() {
-    if (state.selezione.isNotEmpty) state = state.copia(selezione: {});
+    if (state.selezione.isNotEmpty || state.selezionePiu) {
+      state = state.copia(selezione: {}, selezionePiu: false);
+    }
   }
 
   void apriStrumento(Strumento s) {
@@ -384,6 +505,9 @@ class ControlloEditor extends Notifier<StatoEditor> {
       avviso: Avviso(_prossimoAvviso++, notice: notice.first),
     );
   }
+
+  /// Funzione che arriva con una fase successiva (per esempio «Esporta questa pagina»).
+  void inArrivo() => messaggio(MessaggioEditor.inArrivo);
 
   void messaggio(MessaggioEditor m, {int n = 0}) => state = state.copia(
     avviso: Avviso(_prossimoAvviso++, messaggio: m, n: n),
@@ -536,9 +660,17 @@ class ControlloEditor extends Notifier<StatoEditor> {
   /// Contesto del motore: misura dei testi (dipende dai caratteri) e contatori degli `uid`.
   EngineContext get contesto => _s.ctx;
 
+  /// L'elemento [r] con il centro in [punto] (della striscia), se c'è; altrimenti dov'è (al centro della pagina).
+  Snapshot _centratoIn(Snapshot s, RifElemento r, Punto? punto) {
+    final e = elementoDi(s, r);
+    if (punto == null || e == null) return s;
+    final c = Scene(s, _s.ctx).elementRect(e);
+    return spostaElementi(s, [r], punto.x - c.centerX, punto.y - c.centerY);
+  }
+
   /// «＋ → Testo»: un testo nuovo al centro della pagina corrente, selezionato, con la tastiera pronta a scriverci.
   /// Nasce come **bozza**: con ✓ diventa un solo passo di cronologia (testo compreso), con ✕ non è mai esistito.
-  void nuovoTesto() {
+  void nuovoTesto({Punto? punto}) {
     final r = aggiungiTesto(
       state.snapshot,
       _s.ctx,
@@ -546,7 +678,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
       carattere: Caratteri.predefinito,
     );
     state = state.copia(
-      bozza: () => r.snapshot,
+      bozza: () => _centratoIn(r.snapshot, r.ref, punto),
       selezione: {r.ref},
       strumento: Strumento.testoModifica,
       contagocce: false,
@@ -578,7 +710,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
       state.elementiSelezionati.whereType<ShapeItem>().toList();
 
   /// «＋ → Forma → tipo»: una forma nuova al centro della pagina corrente, con l'ultimo stile usato, selezionata.
-  void nuovaForma(String tipo) {
+  void nuovaForma(String tipo, {Punto? punto}) {
     final r = aggiungiForma(
       state.snapshot,
       _s.ctx,
@@ -587,7 +719,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
       stili: state.stiliForma,
     );
     _commit(
-      r.snapshot,
+      _centratoIn(r.snapshot, r.ref, punto),
       selezione: {r.ref},
       messaggio: MessaggioEditor.formaAggiunta,
     );
@@ -620,20 +752,323 @@ class ControlloEditor extends Notifier<StatoEditor> {
     colorePreso: (n: (state.colorePreso?.n ?? 0) + 1, argb: argb),
   );
 
-  // ---------- Pagine (comandi minimi della Fase 3; il resto arriva con la Fase 6) ----------
-  void aggiungiPagina() {
-    final r = insertPageAfter(state.snapshot, state.pagina, _s.ctx);
+  // ---------- Pagine (Fase 6) ----------
+  /// Applica il risultato di un comando di pagina: un passo di cronologia con il suo messaggio (gli avvisi del motore
+  /// hanno la precedenza) e, se serve, la vista passa a [vaiA]. Falso se il motore l'ha rifiutato.
+  bool _comandoPagina(
+    EngineResult r, {
+    MessaggioEditor? messaggio,
+    int n = 0,
+    int? vaiA,
+  }) {
     if (!r.applied) {
       avvisaNotice(r.notices);
-      return;
+      return false;
     }
     _commit(
       r.snapshot,
       notice: r.notices,
-      messaggio: MessaggioEditor.paginaAggiunta,
+      messaggio: r.notices.isEmpty ? messaggio : null,
+      n: n,
     );
-    state = state.copia(pagina: state.pagina + 1);
+    if (vaiA != null) {
+      final ultima = state.snapshot.canvas.numFrames - 1;
+      state = state.copia(pagina: vaiA.clamp(0, ultima));
+    }
+    return true;
   }
+
+  /// «Pagina nuova» dopo la corrente.
+  void aggiungiPagina() => inserisciPagina(state.pagina + 1);
+
+  /// Pagina vuota in posizione [posizione] (0 = all'inizio); la vista passa alla pagina nuova.
+  void inserisciPagina(int posizione) => _comandoPagina(
+    insertPageAt(state.snapshot, posizione, _s.ctx),
+    messaggio: MessaggioEditor.paginaAggiunta,
+    vaiA: posizione,
+  );
+
+  void duplicaPagina([int? k]) {
+    final p = k ?? state.pagina;
+    _comandoPagina(
+      duplicatePage(state.snapshot, p, _s.ctx),
+      messaggio: MessaggioEditor.paginaDuplicata,
+      n: p + 2,
+      vaiA: p + 1,
+    );
+  }
+
+  void eliminaPagina([int? k]) {
+    final p = k ?? state.pagina;
+    _comandoPagina(
+      deletePage(state.snapshot, p, _s.ctx),
+      messaggio: MessaggioEditor.paginaEliminata,
+      n: p + 1,
+      vaiA: math.min(p, state.snapshot.canvas.numFrames - 2),
+    );
+  }
+
+  /// Sposta la pagina [k] di un posto ([direzione] −1 o +1); un gruppo «a cavallo» si sposta intero.
+  void spostaPagina(int direzione, [int? k]) {
+    final p = k ?? state.pagina;
+    final ordine = ordineSpostaPagina(state.snapshot.canvas, p, direzione);
+    if (ordine == null) {
+      avvisaNotice(const [Notice(NoticeKind.pageAtEdge)]);
+      return;
+    }
+    final nuova = ordine.indexOf(p);
+    _comandoPagina(
+      reorderPages(state.snapshot, ordine, _s.ctx),
+      messaggio: MessaggioEditor.paginaSpostata,
+      n: nuova + 1,
+      vaiA: nuova,
+    );
+  }
+
+  /// Riordina le pagine (Panoramica): `ordine[nuova posizione] = vecchia posizione`. La vista segue la pagina corrente.
+  void riordinaPagine(List<int> ordine) => _comandoPagina(
+    reorderPages(state.snapshot, ordine, _s.ctx),
+    messaggio: MessaggioEditor.paginaRiordinata,
+    vaiA: ordine.indexOf(state.pagina),
+  );
+
+  /// Blocca o sblocca la pagina [k] (un gruppo «a cavallo» si blocca intero).
+  void bloccaPagina([int? k]) {
+    final p = k ?? state.pagina;
+    final r = togglePageLock(state.snapshot, p, _s.ctx);
+    _comandoPagina(
+      r,
+      messaggio: r.snapshot.canvas.pageLocked(p)
+          ? MessaggioEditor.paginaBloccata
+          : MessaggioEditor.paginaSbloccata,
+      n: p + 1,
+    );
+  }
+
+  /// Unisce «a cavallo» la pagina [k] con la successiva, o le separa.
+  void unisciPagina([int? k]) {
+    final p = k ?? state.pagina;
+    final r = togglePageJoined(state.snapshot, p, _s.ctx);
+    _comandoPagina(
+      r,
+      messaggio: r.snapshot.canvas.joined(p)
+          ? MessaggioEditor.paginaUnita
+          : MessaggioEditor.paginaSeparata,
+      n: p + 1,
+    );
+  }
+
+  /// Formato del carosello scelto dall'elenco (8 = Personalizzato, con le ultime misure personalizzate).
+  void impostaFormato(int indice) =>
+      _comandoPagina(setAspectRatio(state.snapshot, indice, _s.ctx));
+
+  /// Misure del formato Personalizzato (200–6000 px).
+  void impostaMisure(int larghezza, int altezza) => _comandoPagina(
+    setCustomSize(state.snapshot, larghezza, altezza, _s.ctx),
+  );
+
+  // ---------- Selezione multipla e comandi sulla selezione (Fase 6) ----------
+  /// «Seleziona più»: da ora ogni tocco su un elemento lo aggiunge alla selezione o lo toglie.
+  void impostaSelezionePiu(bool acceso) {
+    if (state.selezionePiu == acceso) return;
+    state = state.copia(selezionePiu: acceso);
+  }
+
+  /// In «Seleziona più»: aggiunge [e] (con tutto il suo gruppo) alla selezione o lo toglie.
+  void alternaInSelezione(CanvasElement e) {
+    final refs = conGruppo(state.snapshot, e);
+    final sel = {...state.selezione};
+    if (sel.contains(rifDi(e))) {
+      sel.removeAll(refs);
+    } else {
+      sel.addAll(refs);
+    }
+    state = state.copia(selezione: sel);
+  }
+
+  /// Seleziona tutti gli elementi (tranne quelli delle pagine bloccate, che non si selezionano).
+  void selezionaTutto() => state = state.copia(
+    selezione: {
+      for (final e in state.snapshot.allElements)
+        if (!e.pageLocked) rifDi(e),
+    },
+  );
+
+  void raggruppaSelezione() {
+    final r = raggruppa(state.snapshot, state.selezione);
+    if (r == null) {
+      messaggio(MessaggioEditor.serveDueElementi);
+      return;
+    }
+    _commit(
+      r,
+      messaggio: MessaggioEditor.raggruppati,
+      n: state.selezione.length,
+    );
+  }
+
+  void separaSelezione() {
+    final r = separa(state.snapshot, state.selezione);
+    if (r == null) {
+      messaggio(MessaggioEditor.nessunGruppo);
+      return;
+    }
+    _commit(r, messaggio: MessaggioEditor.separati);
+  }
+
+  /// «Blocca posizione e dimensioni»: se non sono tutti bloccati si bloccano tutti, altrimenti si sbloccano.
+  void bloccaSelezione() {
+    final r = alternaBloccoPosizione(state.snapshot, state.selezione);
+    if (r == null) return;
+    _commit(
+      r.snapshot,
+      messaggio: r.bloccati
+          ? MessaggioEditor.posizioneBloccata
+          : MessaggioEditor.posizioneSbloccata,
+    );
+  }
+
+  void davantiSelezione() {
+    if (state.selezione.isEmpty) return;
+    _commit(
+      portaDavanti(state.snapshot, state.selezione),
+      messaggio: MessaggioEditor.portatoDavanti,
+    );
+  }
+
+  void dietroSelezione() {
+    if (state.selezione.isEmpty) return;
+    _commit(
+      mandaDietro(state.snapshot, state.selezione),
+      messaggio: MessaggioEditor.mandatoDietro,
+    );
+  }
+
+  void allineaSelezione(Allineamento come) {
+    if (state.selezione.isEmpty) return;
+    _commit(allinea(state.snapshot, state.selezione, come, _s.ctx));
+  }
+
+  void distribuisciSelezione({required bool orizzontale}) {
+    final r = distribuisci(
+      state.snapshot,
+      state.selezione,
+      orizzontale: orizzontale,
+      ctx: _s.ctx,
+    );
+    if (r == null) {
+      messaggio(MessaggioEditor.serveTreElementi);
+      return;
+    }
+    _commit(r);
+  }
+
+  /// Spostamento fine con le quattro frecce dello strumento Disponi (gli elementi bloccati restano fermi).
+  void spostaSelezione(double dx, double dy) {
+    if (state.selezione.isEmpty) return;
+    _commit(spostaElementi(state.snapshot, state.selezione, dx, dy));
+  }
+
+  /// «Scambia» le due foto selezionate (con altro numero di foto il motore rifiuta e dice perché).
+  void scambiaFoto() {
+    final uids = [for (final p in fotoSelezionate) p.uid];
+    if (uids.length != 2) {
+      avvisaNotice(const [Notice(NoticeKind.swapNeedsTwo)]);
+      return;
+    }
+    applica(swapPhotos(state.snapshot, uids[0], uids[1], _s.ctx));
+  }
+
+  /// «Sposta in pagina N»: le foto selezionate passano a quella pagina (`_move_photos_to_page`).
+  void spostaFotoInPagina(int pagina) {
+    final uids = [for (final p in fotoSelezionate) p.uid];
+    if (uids.isEmpty) return;
+    final r = movePhotosToPage(state.snapshot, uids, pagina, _s.ctx);
+    if (_comandoPagina(
+      r,
+      messaggio: MessaggioEditor.fotoSpostate,
+      n: pagina + 1,
+    )) {
+      vaiAPagina(pagina);
+    }
+  }
+
+  // ---------- Appunti interni (Fase 6) ----------
+  /// «Copia»: foto, testi e forme selezionati negli appunti dell'app (validi anche in un altro progetto).
+  void copiaSelezione() {
+    final a = copiaElementi(state.snapshot, state.selezione, _s.ctx);
+    if (a == null) return;
+    ref
+        .read(appuntiProvider.notifier)
+        .imposta(AppuntiApp(dati: a, cartellaOrigine: _s.cartella.path));
+    messaggio(MessaggioEditor.copiati, n: a.numero);
+  }
+
+  /// «Taglia»: copia e toglie dalla tela; il primo «Incolla» li rimette dov'erano.
+  void tagliaSelezione() {
+    final a = copiaElementi(state.snapshot, state.selezione, _s.ctx);
+    if (a == null) return;
+    ref
+        .read(appuntiProvider.notifier)
+        .imposta(
+          AppuntiApp(
+            dati: a,
+            cartellaOrigine: _s.cartella.path,
+            ripetizione: -1,
+          ),
+        );
+    _commit(
+      eliminaElementi(state.snapshot, state.selezione),
+      selezione: {},
+      messaggio: MessaggioEditor.tagliati,
+      n: a.numero,
+    );
+  }
+
+  /// «Incolla» nella pagina [pagina] (di partenza la corrente), nella stessa posizione che gli elementi avevano nella
+  /// loro pagina; nella stessa pagina ogni copia si sposta di 30 unità. Le foto incollate sono libere. Le foto
+  /// copiate da un altro progetto portano con sé il loro file (`media/`) e finiscono anche nella libreria.
+  Future<void> incolla({int? pagina}) async {
+    final ap = ref.read(appuntiProvider);
+    if (ap == null) {
+      messaggio(MessaggioEditor.nienteDaIncollare);
+      return;
+    }
+    final voci = await _s.portaMedia(ap.dati, ap.cartellaOrigine);
+    final k = pagina ?? state.pagina;
+    final stessa = k == ap.dati.pagina;
+    final rip = stessa ? ap.ripetizione + 1 : ap.ripetizione;
+    final r = incollaElementi(state.snapshot, ap.dati, k, rip, _s.ctx);
+    if (!r.risultato.applied) {
+      avvisaNotice(r.risultato.notices);
+      return;
+    }
+    ref.read(appuntiProvider.notifier).ripetizione(rip);
+    if (voci.isNotEmpty) aggiungiAllaLibreria(voci);
+    _commit(
+      r.risultato.snapshot,
+      notice: r.risultato.notices,
+      selezione: r.incollati.toSet(),
+      messaggio: MessaggioEditor.incollati,
+      n: r.incollati.length,
+    );
+    if (voci.isNotEmpty) unawaited(_completaMisure());
+  }
+
+  // ---------- Stile, Sfondo, Numeri di pagina (Fase 6) ----------
+  /// Cambia le impostazioni della tela e mostra il risultato come bozza (Sfondo, Numeri di pagina, «scorri»):
+  /// ✓ lo conferma come un solo passo di cronologia, ✕ torna com'era.
+  void modificaTela(CanvasState Function(CanvasState) f) =>
+      anteprima(state.snapshot.copyWith(canvas: f(state.snapshot.canvas)));
+
+  void alternaGuide() => state = state.copia(mostraGuide: !state.mostraGuide);
+
+  void alternaAggancio() =>
+      state = state.copia(aggancioAttivo: !state.aggancioAttivo);
+
+  // ---------- Cronologia (Fase 6) ----------
+  /// Torna al passaggio [i] della cronologia (anche in avanti): come Annulla/Ripeti ripetuti.
+  void vaiAPassaggio(int i) => _vaiA(state.cronologia.goTo(i));
 
   // ---------- Libreria ----------
   /// Aggiunge alla libreria le foto scelte (senza duplicati). La libreria non entra in Annulla, come sul desktop.

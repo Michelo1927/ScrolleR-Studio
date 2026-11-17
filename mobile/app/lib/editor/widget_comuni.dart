@@ -17,12 +17,16 @@ class PulsanteIcona extends StatelessWidget {
     required this.etichetta,
     required this.onTap,
     this.colore,
+    this.onLongPress,
   });
 
   final IconData icona;
   final String etichetta;
   final VoidCallback? onTap;
   final Color? colore;
+
+  /// Pressione lunga (per esempio Annulla → Cronologia).
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +38,7 @@ class PulsanteIcona extends StatelessWidget {
       excludeSemantics: true,
       child: InkResponse(
         onTap: onTap,
+        onLongPress: onLongPress,
         radius: MisureScrl.tocco / 2,
         child: SizedBox(
           width: MisureScrl.tocco,
@@ -112,6 +117,49 @@ class VoceBarra extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Tessera larga con icona e nome (96 dp): le azioni dei pannelli Pagine, Stile e Disponi.
+class TesseraVoce extends StatelessWidget {
+  const TesseraVoce({
+    super.key,
+    required this.icona,
+    required this.etichetta,
+    required this.onTap,
+    this.attiva = false,
+    this.spenta = false,
+    this.colore,
+    this.larghezza = 96,
+  });
+
+  final IconData icona;
+  final String etichetta;
+  final VoidCallback onTap;
+  final bool attiva;
+  final bool spenta;
+  final Color? colore;
+  final double larghezza;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(right: MisureScrl.spazioPiccolo),
+    child: Container(
+      width: larghezza,
+      decoration: BoxDecoration(
+        color: attiva ? ColoriScrl.premuto : ColoriScrl.rilievo,
+        borderRadius: BorderRadius.circular(MisureScrl.angoloTessera),
+        border: attiva ? Border.all(color: ColoriScrl.accento, width: 2) : null,
+      ),
+      child: VoceBarra(
+        icona: icona,
+        etichetta: etichetta,
+        onTap: onTap,
+        attiva: attiva,
+        spenta: spenta,
+        colore: colore,
+      ),
+    ),
+  );
 }
 
 /// Tessera quadrata (12 dp di angolo) con un disegno e una didascalia: disposizioni, stili, formati.

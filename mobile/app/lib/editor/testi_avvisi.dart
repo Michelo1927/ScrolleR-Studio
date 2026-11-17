@@ -1,7 +1,8 @@
 /// Testi dei messaggi brevi dell'editor: avvisi del motore (`Notice`) e messaggi dell'app, dai file `.arb`.
 library;
 
-import 'package:scrl_engine/scrl_engine.dart' show Notice, NoticeKind;
+import 'package:scrl_engine/scrl_engine.dart'
+    show ChangeKind, ChangeLabel, ElementKind, Notice, NoticeKind;
 
 import '../l10n/app_localizations.dart';
 import 'stato.dart';
@@ -26,6 +27,31 @@ String testoAvviso(Testi t, Avviso a) {
     MessaggioEditor.ritaglioTolto => t.avvisoRitaglioTolto,
     MessaggioEditor.modificaScartata => t.avvisoModificaScartata,
     MessaggioEditor.formaAggiunta => t.avvisoFormaAggiunta,
+    MessaggioEditor.paginaDuplicata => t.avvisoPaginaDuplicata(a.n),
+    MessaggioEditor.paginaEliminata => t.avvisoPaginaEliminata(a.n),
+    MessaggioEditor.paginaSpostata => t.avvisoPaginaSpostata(a.n),
+    MessaggioEditor.paginaBloccata => t.avvisoPaginaBloccata(a.n),
+    MessaggioEditor.paginaSbloccata => t.avvisoPaginaSbloccata(a.n),
+    MessaggioEditor.paginaUnita => t.avvisoPaginaUnita(a.n),
+    MessaggioEditor.paginaSeparata => t.avvisoPaginaSeparata(a.n),
+    MessaggioEditor.paginaRiordinata => t.avvisoPagineRiordinate,
+    MessaggioEditor.raggruppati => t.avvisoRaggruppati(a.n),
+    MessaggioEditor.separati => t.avvisoSeparati,
+    MessaggioEditor.serveDueElementi => t.avvisoServeDue,
+    MessaggioEditor.serveTreElementi => t.avvisoServeTre,
+    MessaggioEditor.nessunGruppo => t.avvisoNessunGruppo,
+    MessaggioEditor.posizioneBloccata => t.avvisoPosizioneBloccata,
+    MessaggioEditor.posizioneSbloccata => t.avvisoPosizioneSbloccata,
+    MessaggioEditor.portatoDavanti => t.avvisoPortatoDavanti,
+    MessaggioEditor.mandatoDietro => t.avvisoMandatoDietro,
+    MessaggioEditor.copiati => t.avvisoCopiati(a.n),
+    MessaggioEditor.tagliati => t.avvisoTagliati(a.n),
+    MessaggioEditor.incollati => t.avvisoIncollati(a.n),
+    MessaggioEditor.nienteDaIncollare => t.avvisoNienteDaIncollare,
+    MessaggioEditor.fotoSpostate => t.avvisoFotoSpostate(a.n),
+    MessaggioEditor.selezionaPiu => t.selezionaPiuAiuto,
+    MessaggioEditor.sfondoSenzaFoto => t.sfSenzaFoto,
+    MessaggioEditor.inArrivo => t.inArrivo,
     null => '',
   };
 }
@@ -53,5 +79,80 @@ String _notice(Testi t, Notice n) {
     NoticeKind.seamIgnoresPageSettings => t.noticeSeamIgnoresPageSettings,
     NoticeKind.videoKeptInPage => t.noticeVideoKeptInPage,
     NoticeKind.swapNeedsTwo => t.noticeSwapNeedsTwo,
+  };
+}
+
+/// Nome di un passaggio della cronologia, composto dai file `.arb` (il motore dà un nome strutturato, come
+/// `_describe_change` del desktop). [nomeDisposizione] traduce il modo di disposizione.
+String testoCambio(
+  Testi t,
+  ChangeLabel c,
+  String Function(String modo) nomeDisposizione,
+) {
+  String tipo(ElementKind? k) => switch (k) {
+    ElementKind.photo => 'photo',
+    ElementKind.text => 'text',
+    ElementKind.shape => 'shape',
+    null => 'other',
+  };
+  String aggiunti() => switch (c.element) {
+    ElementKind.photo => t.cambFotoAggiunte(c.count),
+    ElementKind.text => t.cambTestiAggiunti(c.count),
+    ElementKind.shape => t.cambFormeAggiunte(c.count),
+    null => t.cambElementiAggiunti(c.count),
+  };
+  String eliminati() => switch (c.element) {
+    ElementKind.photo => t.cambFotoEliminate(c.count),
+    ElementKind.text => t.cambTestiEliminati(c.count),
+    ElementKind.shape => t.cambFormeEliminate(c.count),
+    null => t.cambElementiEliminati(c.count),
+  };
+  return switch (c.kind) {
+    ChangeKind.start => c.text ?? t.cambAperto,
+    ChangeKind.pageDuplicated => t.cambPaginaDuplicata,
+    ChangeKind.pageAdded => t.cambPaginaAggiunta,
+    ChangeKind.pageDeleted => t.cambPaginaEliminata,
+    ChangeKind.photosReplaced => t.cambFotoSostituite,
+    ChangeKind.elementsChanged => t.cambElementiCambiati,
+    ChangeKind.added => aggiunti(),
+    ChangeKind.removed => eliminati(),
+    ChangeKind.pagesCount => t.cambPagine(c.from, c.to),
+    ChangeKind.pageFormat => t.cambFormatoPagina,
+    ChangeKind.layout => t.cambDisposizione(
+      nomeDisposizione(c.layoutMode ?? ''),
+    ),
+    ChangeKind.mosaicStyle => t.cambStileMosaico,
+    ChangeKind.photosShuffled => t.cambFotoRimescolate,
+    ChangeKind.pageLocks => t.cambLucchettoPagine,
+    ChangeKind.pageSeams => t.cambPagineACavallo,
+    ChangeKind.pageLayout => t.cambDisposizionePagina,
+    ChangeKind.photosPerPage => t.cambFotoPerPagina,
+    ChangeKind.spacing => t.cambSpaziatura,
+    ChangeKind.margin => t.cambMargine,
+    ChangeKind.background => t.cambSfondo,
+    ChangeKind.pageNumbers => t.cambNumeriPagina,
+    ChangeKind.swipeHint => t.cambScorri,
+    ChangeKind.exportName => t.cambNomeFile,
+    ChangeKind.modified => t.cambModifica,
+    ChangeKind.grouped => t.cambRaggruppati,
+    ChangeKind.ungrouped => t.cambSeparati,
+    ChangeKind.photoOrder => t.cambOrdineFoto,
+    ChangeKind.levelChanged => t.cambLivello,
+    ChangeKind.positionLock => t.cambBloccoPosizione,
+    ChangeKind.movedMany => t.cambNSpostati(c.count),
+    ChangeKind.layoutUpdated => t.cambDispAggiornata,
+    ChangeKind.modifiedMany => t.cambNModificati(c.count),
+    ChangeKind.moved => t.cambSpostato(tipo(c.element)),
+    ChangeKind.resized => t.cambRidimensionato(tipo(c.element)),
+    ChangeKind.rotated => t.cambRuotato(tipo(c.element)),
+    ChangeKind.textEdited => t.cambTestoModificato,
+    ChangeKind.photoColors => t.cambColoriFoto,
+    ChangeKind.videoTrim => t.cambTaglioVideo,
+    ChangeKind.videoPoster => t.cambCopertinaVideo,
+    ChangeKind.videoAudio => t.cambAudioVideo,
+    ChangeKind.photoFraming => t.cambInquadratura,
+    ChangeKind.photoFree => t.cambFotoLibera,
+    ChangeKind.photoInLayout => t.cambFotoInDisposizione,
+    ChangeKind.style => t.cambStile(tipo(c.element)),
   };
 }

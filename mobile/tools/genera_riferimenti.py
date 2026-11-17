@@ -22,6 +22,8 @@ Produce in `mobile/packages/scrl_engine/test/riferimenti/`:
 - `pagine.jsonl`: azioni vere del desktop su pagine e tela (inserisci, duplica, elimina, sposta, riordina,
   blocca, unisci, disposizione e foto di una pagina, numero di pagine, formato…), una sequenza per riga, con lo
   stato completo prima e dopo.
+- `selezione.jsonl`: comandi sulla selezione (raggruppa, allinea, distribuisci, blocca, davanti/dietro, copia, taglia,
+  incolla), una sequenza per riga, con lo stato completo prima e dopo. Si rigenera da solo con `--solo-selezione`.
 - `cronologia.jsonl`: coppie di stati prodotte da singole azioni, con il nome del passaggio (`_describe_change`).
 - `progetti/`: progetti salvati dal desktop con tutti i tipi di elemento, da rileggere e riscrivere col motore.
 - `indice.json`: versione del desktop, numero di casi e immagini campione.
@@ -50,6 +52,8 @@ from PyQt6.QtCore import QRectF, QSettings  # noqa: E402
 from PyQt6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 from scrollr import __version__ as APP_VERSION  # noqa: E402
+from scrollr.canvas.shape_item import ShapeItem  # noqa: E402
+from scrollr.canvas.text_item import TextItem  # noqa: E402
 from scrollr.window.main_window import MainWindow  # noqa: E402
 
 USCITA_PREDEFINITA = os.path.join(ROOT, "mobile", "packages", "scrl_engine", "test", "riferimenti")
@@ -723,6 +727,115 @@ def casi_cronologia(win, foto: list) -> list:
     return out
 
 
+# ================= SELEZIONE MULTIPLA, APPUNTI, LIVELLI =================
+def tipo_el(it) -> str:
+    return "text" if isinstance(it, TextItem) else "shape" if isinstance(it, ShapeItem) else "photo"
+
+
+def seleziona_el(win, indici) -> list:
+    """Seleziona gli elementi in quelle posizioni di `_all_elements()` (un gruppo si seleziona intero) e restituisce
+    i loro riferimenti [tipo, uid]: la selezione vera, dopo l'espansione dei gruppi."""
+    els = win._all_elements()
+    win.scene.clearSelection()
+    for i in indici:
+        els[i % len(els)].setSelected(True)
+    return [[tipo_el(it), it.uid] for it in win._selected_elements()]
+
+
+def applica_selezione(win, op: str, args: list) -> list:
+    """Esegue un comando sulla selezione come lo farebbe l'utente; restituisce gli argomenti da registrare."""
+    if op in ("paste",):
+        win._paste_elements(args[0])
+        args = [args[0]]
+    else:
+        refs = seleziona_el(win, args[0])
+        if op == "group":
+            win._group_selected()
+        elif op == "ungroup":
+            win._ungroup_selected()
+        elif op == "align":
+            win._align_selected(args[1])
+        elif op == "distribute":
+            win._distribute_selected(args[1])
+        elif op == "toggle_lock":
+            win._toggle_lock_selected()
+        elif op == "front":
+            win._bring_to_front()
+        elif op == "back":
+            win._send_to_back()
+        elif op == "copy":
+            win._copy_selected()
+        elif op == "cut":
+            win._cut_selected()
+        else:
+            raise ValueError(op)
+        args = [refs] + list(args[1:])
+    win._flush_pending_commit()
+    return args
+
+
+def casi_selezione(win, foto: list) -> list:
+    """(id, stato iniziale, azioni, stato finale): comandi sulla selezione, gli appunti e i livelli."""
+    out = []
+    t3 = [(0, 100, 100), (1, 300, 900), (2, 50, 1200)]
+    f3 = [(1, 500, 200), (2, 700, 700)]
+    basi = [("s3", tela(0, None, 3, "grid"), 9, {"testi": t3, "forme": f3}),
+            ("s3libere", tela(0, None, 3, "strips_h"), 8, {"libere": [1, 4], "testi": t3, "forme": f3})]
+    # Posizioni in `_all_elements()`: foto, poi testi, poi forme
+    sel = {"foto3": [0, 1, 2], "colonna": [0, 3, 6], "testi": None, "misti": None, "una": [4], "forme": None,
+           "tutti": None, "quattro": [2, 5, 8, 11]}
+    for nome, c, n, opz in basi:
+        nf = n
+        sel["testi"] = [nf, nf + 1, nf + 2]
+        sel["misti"] = [0, nf, nf + 3]
+        sel["forme"] = [nf + 3, nf + 4]
+        sel["tutti"] = list(range(nf + 5))
+        sel["quattro"] = [2, 5, nf, nf + 4]
+        azioni = []
+        for sn, idx in sel.items():
+            azioni += [(f"{sn}-group", [["group", [idx]]]),
+                       (f"{sn}-group-ungroup", [["group", [idx]], ["ungroup", [idx]]]),
+                       (f"{sn}-lock", [["toggle_lock", [idx]]]),
+                       (f"{sn}-lock-lock", [["toggle_lock", [idx]], ["toggle_lock", [idx]]]),
+                       (f"{sn}-front", [["front", [idx]]]),
+                       (f"{sn}-back", [["back", [idx]]]),
+                       (f"{sn}-copy-paste", [["copy", [idx]], ["paste", [0]], ["paste", [0]]]),
+                       (f"{sn}-copy-paste1", [["copy", [idx]], ["paste", [1]]]),
+                       (f"{sn}-cut-paste", [["cut", [idx]], ["paste", [0]]]),
+                       (f"{sn}-cut-paste2", [["cut", [idx]], ["paste", [2]]])]
+            azioni += [(f"{sn}-align-{how}", [["align", [idx, how]]])
+                       for how in ("left", "hcenter", "right", "top", "vcenter", "bottom")]
+            azioni += [(f"{sn}-distribute-{'h' if h else 'v'}", [["distribute", [idx, h]]]) for h in (True, False)]
+        azioni += [("lock-then-align", [["toggle_lock", [[1]]], ["align", [[0, 1, 2], "left"]]]),
+                   ("lock-then-distribute", [["toggle_lock", [[1]]], ["distribute", [[0, 1, 2, 3], True]]]),
+                   ("group-then-front", [["group", [[0, 1]]], ["front", [[0]]]]),
+                   ("group-then-copy", [["group", [[0, 1]]], ["copy", [[1]]], ["paste", [1]]]),
+                   ("group-lock-paste", [["toggle_lock", [[0]]], ["copy", [[0, 1]]], ["paste", [0]]])]
+        for nome_az, ops in azioni:
+            out.append((f"{nome}-{nome_az}", c, n, opz, ops))
+    return out
+
+
+def esegui_caso_selezione(win, foto: list, nome: str, c: dict, n: int, opz: dict, ops: list) -> dict:
+    tela_iniziale(win, foto, c, n, **opz)
+    # Un po' di rotazione: l'ingombro di un elemento ruotato è diverso dal suo riquadro
+    els = win._all_elements()
+    els[1].setRotation(20)
+    els[len(win.get_canvas_photos())].setRotation(-30)
+    # A parità di livello o di posizione l'ordine della selezione di Qt non è definito (`selectedItems()` è un
+    # insieme): livelli e posizioni tutti diversi, così il risultato del desktop non dipende da quell'ordine
+    for i, it in enumerate(els):
+        it.moveBy(i * 7, i * 11)
+        if tipo_el(it) != "photo":
+            it.setZValue(20 + i)
+    win._flush_pending_commit()
+    win._restore_snapshot(win._snapshot())
+    prima = stato_completo(win)
+    fatte = [[op, applica_selezione(win, op, list(args))] for op, args in ops]
+    return {"id": nome, "prima": prima, "azioni": fatte, "dopo": stato_completo(win)}
+
+
+
 def _ridotto(win, snap: dict) -> dict:
     snap = json.loads(json.dumps(snap))
     for s in snap["items"]:
@@ -873,6 +986,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--uscita", default=USCITA_PREDEFINITA, help="cartella dei dati di riferimento")
     ap.add_argument("--senza-immagini", action="store_true", help="non esporta le pagine campione")
+    ap.add_argument("--solo-selezione", action="store_true",
+                    help="scrive soltanto selezione.jsonl (gli altri dati di riferimento restano com'erano)")
     ap.add_argument("--verifica", metavar="CARTELLA",
                     help="invece di generare: apre nel desktop i .scrlproj della cartella e li confronta col file")
     args = ap.parse_args()
@@ -901,6 +1016,15 @@ def main():
             raise SystemExit(f"Foto di prova non caricate: {errors}")
 
         os.makedirs(args.uscita, exist_ok=True)
+        if args.solo_selezione:
+            selezione = casi_selezione(win, foto)
+            with open(os.path.join(args.uscita, "selezione.jsonl"), "w", encoding="utf-8", newline="\n") as f:
+                for nome, c, n, opz, ops in selezione:
+                    caso = esegui_caso_selezione(win, foto, nome, c, n, opz, ops)
+                    f.write(json.dumps(caso, ensure_ascii=False, separators=(",", ":")) + "\n")
+            win.close()
+            print(f"{len(selezione)} casi di selezione in {os.path.relpath(args.uscita, ROOT)}")
+            return
         elenco = casi()
         with open(os.path.join(args.uscita, "disposizioni.jsonl"), "w", encoding="utf-8", newline="\n") as f:
             for nome, c, n, extra in elenco:

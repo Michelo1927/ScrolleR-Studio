@@ -1313,5 +1313,887 @@
   "avvisoFormaAggiunta": "Forma aggiunta",
   "@avvisoFormaAggiunta": {
     "description": "Messaggio breve"
+  },
+  "pagAggiungiPrima": "Aggiungi prima",
+  "@pagAggiungiPrima": {
+    "description": "Pagine: aggiunge una pagina vuota prima della corrente"
+  },
+  "pagAggiungiDopo": "Aggiungi dopo",
+  "@pagAggiungiDopo": {
+    "description": "Pagine: aggiunge una pagina vuota dopo la corrente"
+  },
+  "pagDuplica": "Duplica",
+  "@pagDuplica": {
+    "description": "Pagine: duplica la pagina corrente"
+  },
+  "pagSpostaIndietro": "Sposta a sinistra",
+  "@pagSpostaIndietro": {
+    "description": "Pagine: sposta la pagina di un posto indietro"
+  },
+  "pagSpostaAvanti": "Sposta a destra",
+  "@pagSpostaAvanti": {
+    "description": "Pagine: sposta la pagina di un posto avanti"
+  },
+  "pagBlocca": "Blocca",
+  "@pagBlocca": {
+    "description": "Pagine: blocca la pagina"
+  },
+  "pagSblocca": "Sblocca",
+  "@pagSblocca": {
+    "description": "Pagine: sblocca la pagina"
+  },
+  "pagUnisci": "Unisci a cavallo",
+  "@pagUnisci": {
+    "description": "Pagine: unisce la pagina alla successiva «a cavallo»"
+  },
+  "pagSepara": "Separa",
+  "@pagSepara": {
+    "description": "Pagine: separa la pagina dalla successiva"
+  },
+  "pagEsporta": "Esporta questa",
+  "@pagEsporta": {
+    "description": "Pagine: esporta la pagina corrente"
+  },
+  "pagElimina": "Elimina",
+  "@pagElimina": {
+    "description": "Pagine: elimina la pagina corrente"
+  },
+  "pagFormato": "Formato",
+  "@pagFormato": {
+    "description": "Pagine: formato del carosello"
+  },
+  "pagRiordina": "Riordina",
+  "@pagRiordina": {
+    "description": "Pagine: apre la Panoramica per riordinare"
+  },
+  "pagAzioni": "Azioni",
+  "@pagAzioni": {
+    "description": "Pagine: scheda delle azioni di pagina"
+  },
+  "pagMisure": "Misure",
+  "@pagMisure": {
+    "description": "Pagine: misure del formato personalizzato"
+  },
+  "pagFormatoBloccato": "Con pagine bloccate il formato non si cambia",
+  "@pagFormatoBloccato": {
+    "description": "Pagine: avviso sul formato"
+  },
+  "stileSfondo": "Sfondo",
+  "@stileSfondo": {
+    "description": "Stile: sfondo del carosello"
+  },
+  "stileNumeri": "Numeri di pagina",
+  "@stileNumeri": {
+    "description": "Stile: numeri di pagina"
+  },
+  "stileScorri": "Indicatore «scorri»",
+  "@stileScorri": {
+    "description": "Stile: indicatore «scorri»"
+  },
+  "stileGuide": "Guide",
+  "@stileGuide": {
+    "description": "Stile: guide di centro sulla pagina"
+  },
+  "stileAggancio": "Aggancio",
+  "@stileAggancio": {
+    "description": "Stile: aggancio degli elementi"
+  },
+  "sfTinta": "Tinta",
+  "@sfTinta": {
+    "description": "Sfondo: tinta unita"
+  },
+  "sfSfumatura": "Sfumatura",
+  "@sfSfumatura": {
+    "description": "Sfondo: sfumatura tra due colori"
+  },
+  "sfFotoSfocata": "Foto sfocata",
+  "@sfFotoSfocata": {
+    "description": "Sfondo: foto sfocata"
+  },
+  "sfColoreIniziale": "Colore iniziale",
+  "@sfColoreIniziale": {
+    "description": "Sfondo: primo colore della sfumatura"
+  },
+  "sfColoreFinale": "Colore finale",
+  "@sfColoreFinale": {
+    "description": "Sfondo: secondo colore della sfumatura"
+  },
+  "sfDirVerticale": "Dall'alto",
+  "@sfDirVerticale": {
+    "description": "Sfondo: sfumatura verticale"
+  },
+  "sfDirOrizzontale": "Da sinistra",
+  "@sfDirOrizzontale": {
+    "description": "Sfondo: sfumatura orizzontale"
+  },
+  "sfDirDiagonale": "In diagonale",
+  "@sfDirDiagonale": {
+    "description": "Sfondo: sfumatura diagonale"
+  },
+  "sfFoto": "Foto",
+  "@sfFoto": {
+    "description": "Sfondo: scelta della foto sfocata"
+  },
+  "sfSfocatura": "Sfocatura",
+  "@sfSfocatura": {
+    "description": "Sfondo: quanto è sfocata la foto"
+  },
+  "sfScurisci": "Scurisci",
+  "@sfScurisci": {
+    "description": "Sfondo: quanto si scurisce la foto"
+  },
+  "sfSenzaFoto": "Aggiungi prima delle foto alla libreria",
+  "@sfSenzaFoto": {
+    "description": "Sfondo: non ci sono foto per lo sfondo sfocato"
+  },
+  "numAcceso": "Numero di pagina",
+  "@numAcceso": {
+    "description": "Numeri di pagina: interruttore"
+  },
+  "numFormato": "Formato",
+  "@numFormato": {
+    "description": "Numeri di pagina: come si scrive il numero"
+  },
+  "numPosizione": "Posizione",
+  "@numPosizione": {
+    "description": "Numeri di pagina e indicatore: dove va"
+  },
+  "numStile": "Stile",
+  "@numStile": {
+    "description": "Numeri di pagina: aspetto dell'etichetta"
+  },
+  "numFormatoDi": "1 di 5",
+  "@numFormatoDi": {
+    "description": "Numeri di pagina: formato «1 di 5»"
+  },
+  "numDuePagine": "Il numero compare quando il carosello ha almeno 2 pagine",
+  "@numDuePagine": {
+    "description": "Numeri di pagina: promemoria"
+  },
+  "posBassoCentro": "In basso al centro",
+  "@posBassoCentro": {
+    "description": "Posizione"
+  },
+  "posBassoDestra": "In basso a destra",
+  "@posBassoDestra": {
+    "description": "Posizione"
+  },
+  "posBassoSinistra": "In basso a sinistra",
+  "@posBassoSinistra": {
+    "description": "Posizione"
+  },
+  "posAltoCentro": "In alto al centro",
+  "@posAltoCentro": {
+    "description": "Posizione"
+  },
+  "posAltoDestra": "In alto a destra",
+  "@posAltoDestra": {
+    "description": "Posizione"
+  },
+  "posAltoSinistra": "In alto a sinistra",
+  "@posAltoSinistra": {
+    "description": "Posizione"
+  },
+  "posCentroDestra": "Al centro a destra",
+  "@posCentroDestra": {
+    "description": "Posizione dell'indicatore «scorri»"
+  },
+  "ovScuro": "Etichetta scura",
+  "@ovScuro": {
+    "description": "Stile dell'etichetta"
+  },
+  "ovChiaro": "Etichetta chiara",
+  "@ovChiaro": {
+    "description": "Stile dell'etichetta"
+  },
+  "ovSoloTesto": "Solo testo",
+  "@ovSoloTesto": {
+    "description": "Stile dell'etichetta"
+  },
+  "scorriAcceso": "Indicatore",
+  "@scorriAcceso": {
+    "description": "Indicatore «scorri»: interruttore"
+  },
+  "scorriTesto": "Testo",
+  "@scorriTesto": {
+    "description": "Indicatore «scorri»: il testo"
+  },
+  "scorriTestoEtichetta": "Testo dell'indicatore",
+  "@scorriTestoEtichetta": {
+    "description": "Indicatore «scorri»: campo di testo"
+  },
+  "strAllinea": "Allinea",
+  "@strAllinea": {
+    "description": "Strumento Allinea"
+  },
+  "strDistribuisci": "Distribuisci",
+  "@strDistribuisci": {
+    "description": "Strumento Distribuisci"
+  },
+  "strRaggruppa": "Raggruppa",
+  "@strRaggruppa": {
+    "description": "Raggruppa gli elementi scelti"
+  },
+  "strSepara": "Separa",
+  "@strSepara": {
+    "description": "Separa il gruppo"
+  },
+  "strScambia": "Scambia",
+  "@strScambia": {
+    "description": "Scambia due foto"
+  },
+  "strBlocca": "Blocca",
+  "@strBlocca": {
+    "description": "Blocca posizione e dimensioni"
+  },
+  "strSblocca": "Sblocca",
+  "@strSblocca": {
+    "description": "Sblocca posizione e dimensioni"
+  },
+  "strDisponi": "Disponi",
+  "@strDisponi": {
+    "description": "Strumento Disponi: livello, blocco e frecce"
+  },
+  "selezionaPiuAiuto": "Tocca gli elementi da scegliere",
+  "@selezionaPiuAiuto": {
+    "description": "Aiuto della selezione multipla vuota"
+  },
+  "allSinistra": "A sinistra",
+  "@allSinistra": {
+    "description": "Allinea a sinistra"
+  },
+  "allCentroOrizz": "Centro orizzontale",
+  "@allCentroOrizz": {
+    "description": "Allinea al centro in orizzontale"
+  },
+  "allDestra": "A destra",
+  "@allDestra": {
+    "description": "Allinea a destra"
+  },
+  "allAlto": "In alto",
+  "@allAlto": {
+    "description": "Allinea in alto"
+  },
+  "allCentroVert": "Centro verticale",
+  "@allCentroVert": {
+    "description": "Allinea al centro in verticale"
+  },
+  "allBasso": "In basso",
+  "@allBasso": {
+    "description": "Allinea in basso"
+  },
+  "distOrizzontale": "Spazi uguali in orizzontale",
+  "@distOrizzontale": {
+    "description": "Distribuisci in orizzontale"
+  },
+  "distVerticale": "Spazi uguali in verticale",
+  "@distVerticale": {
+    "description": "Distribuisci in verticale"
+  },
+  "dispLivello": "Livello",
+  "@dispLivello": {
+    "description": "Disponi: scheda del livello"
+  },
+  "dispSposta": "Sposta",
+  "@dispSposta": {
+    "description": "Disponi: scheda delle frecce"
+  },
+  "dispDavanti": "Porta davanti",
+  "@dispDavanti": {
+    "description": "Disponi: davanti a tutto"
+  },
+  "dispDietro": "Manda dietro",
+  "@dispDietro": {
+    "description": "Disponi: dietro a tutto"
+  },
+  "passoPx": "{n} px",
+  "@passoPx": {
+    "description": "Passo delle frecce di Disponi",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "frecciaSu": "Su",
+  "@frecciaSu": {
+    "description": "Freccia di Disponi"
+  },
+  "frecciaGiu": "Giù",
+  "@frecciaGiu": {
+    "description": "Freccia di Disponi"
+  },
+  "frecciaSinistra": "Sinistra",
+  "@frecciaSinistra": {
+    "description": "Freccia di Disponi"
+  },
+  "frecciaDestra": "Destra",
+  "@frecciaDestra": {
+    "description": "Freccia di Disponi"
+  },
+  "menuCopia": "Copia",
+  "@menuCopia": {
+    "description": "Menu della pressione lunga"
+  },
+  "menuTaglia": "Taglia",
+  "@menuTaglia": {
+    "description": "Menu della pressione lunga"
+  },
+  "menuIncolla": "Incolla qui",
+  "@menuIncolla": {
+    "description": "Menu della pressione lunga sul vuoto"
+  },
+  "menuSelezionaPiu": "Seleziona più",
+  "@menuSelezionaPiu": {
+    "description": "Menu della pressione lunga: modalità selezione multipla"
+  },
+  "menuSelezionaTutto": "Seleziona tutto",
+  "@menuSelezionaTutto": {
+    "description": "Menu della pressione lunga sul vuoto"
+  },
+  "menuSpostaInPagina": "Sposta in pagina…",
+  "@menuSpostaInPagina": {
+    "description": "Menu della pressione lunga su una foto"
+  },
+  "menuAggiungiTesto": "Aggiungi testo qui",
+  "@menuAggiungiTesto": {
+    "description": "Menu della pressione lunga sul vuoto"
+  },
+  "menuAggiungiForma": "Aggiungi forma qui",
+  "@menuAggiungiForma": {
+    "description": "Menu della pressione lunga sul vuoto"
+  },
+  "menuAzioniPagina": "Azioni della pagina",
+  "@menuAzioniPagina": {
+    "description": "Menu della pressione lunga sul vuoto"
+  },
+  "menuScegliPagina": "Sposta nella pagina",
+  "@menuScegliPagina": {
+    "description": "Titolo della scelta della pagina"
+  },
+  "menuPaginaNumero": "Pagina {n}",
+  "@menuPaginaNumero": {
+    "description": "Una pagina nella scelta",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "panoramicaAiuto": "Tocca per andare alla pagina · trascina per riordinare · tieni premuto per le azioni",
+  "@panoramicaAiuto": {
+    "description": "Panoramica: come si usa"
+  },
+  "panoramicaPagina": "Pagina {n}, trascina per spostarla",
+  "@panoramicaPagina": {
+    "description": "Panoramica: etichetta di una pagina",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "anteprimaChiudi": "Chiudi l'anteprima",
+  "@anteprimaChiudi": {
+    "description": "Anteprima: pulsante di chiusura"
+  },
+  "anteprimaPagina": "Pagina {n} di {tot}",
+  "@anteprimaPagina": {
+    "description": "Anteprima: pagina corrente",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      },
+      "tot": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "strumentoCronologia": "Cronologia",
+  "@strumentoCronologia": {
+    "description": "Nome del pannello Cronologia"
+  },
+  "cronEtichetta": "Passaggio {n}: {nome}",
+  "@cronEtichetta": {
+    "description": "Cronologia: etichetta di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      },
+      "nome": {
+        "type": "String",
+        "example": "Esempio"
+      }
+    }
+  },
+  "cronAttuale": "Attuale",
+  "@cronAttuale": {
+    "description": "Cronologia: il passaggio dove si è"
+  },
+  "cambAperto": "Progetto aperto",
+  "@cambAperto": {
+    "description": "Primo passaggio della cronologia"
+  },
+  "cambPaginaDuplicata": "Pagina duplicata",
+  "@cambPaginaDuplicata": {
+    "description": "Nome di un passaggio"
+  },
+  "cambPaginaAggiunta": "Pagina aggiunta",
+  "@cambPaginaAggiunta": {
+    "description": "Nome di un passaggio"
+  },
+  "cambPaginaEliminata": "Pagina eliminata",
+  "@cambPaginaEliminata": {
+    "description": "Nome di un passaggio"
+  },
+  "cambFotoSostituite": "Foto sostituite",
+  "@cambFotoSostituite": {
+    "description": "Nome di un passaggio"
+  },
+  "cambElementiCambiati": "Elementi cambiati",
+  "@cambElementiCambiati": {
+    "description": "Nome di un passaggio"
+  },
+  "cambFotoAggiunte": "{n, plural, =1{Foto aggiunta} other{{n} foto aggiunte}}",
+  "@cambFotoAggiunte": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambTestiAggiunti": "{n, plural, =1{Testo aggiunto} other{{n} testi aggiunti}}",
+  "@cambTestiAggiunti": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambFormeAggiunte": "{n, plural, =1{Forma aggiunta} other{{n} forme aggiunte}}",
+  "@cambFormeAggiunte": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambElementiAggiunti": "{n} elementi aggiunti",
+  "@cambElementiAggiunti": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambFotoEliminate": "{n, plural, =1{Foto eliminata} other{{n} foto eliminate}}",
+  "@cambFotoEliminate": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambTestiEliminati": "{n, plural, =1{Testo eliminato} other{{n} testi eliminati}}",
+  "@cambTestiEliminati": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambFormeEliminate": "{n, plural, =1{Forma eliminata} other{{n} forme eliminate}}",
+  "@cambFormeEliminate": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambElementiEliminati": "{n} elementi eliminati",
+  "@cambElementiEliminati": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambPagine": "Pagine: {da} → {a}",
+  "@cambPagine": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "da": {
+        "type": "int",
+        "example": "3"
+      },
+      "a": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambFormatoPagina": "Formato della pagina",
+  "@cambFormatoPagina": {
+    "description": "Nome di un passaggio"
+  },
+  "cambDisposizione": "Disposizione: {nome}",
+  "@cambDisposizione": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "nome": {
+        "type": "String",
+        "example": "Esempio"
+      }
+    }
+  },
+  "cambStileMosaico": "Stile mosaico",
+  "@cambStileMosaico": {
+    "description": "Nome di un passaggio"
+  },
+  "cambFotoRimescolate": "Foto rimescolate",
+  "@cambFotoRimescolate": {
+    "description": "Nome di un passaggio"
+  },
+  "cambLucchettoPagine": "Lucchetto delle pagine",
+  "@cambLucchettoPagine": {
+    "description": "Nome di un passaggio"
+  },
+  "cambPagineACavallo": "Pagine a cavallo",
+  "@cambPagineACavallo": {
+    "description": "Nome di un passaggio"
+  },
+  "cambDisposizionePagina": "Disposizione della pagina",
+  "@cambDisposizionePagina": {
+    "description": "Nome di un passaggio"
+  },
+  "cambFotoPerPagina": "Foto per pagina",
+  "@cambFotoPerPagina": {
+    "description": "Nome di un passaggio"
+  },
+  "cambSpaziatura": "Spaziatura",
+  "@cambSpaziatura": {
+    "description": "Nome di un passaggio"
+  },
+  "cambMargine": "Margine",
+  "@cambMargine": {
+    "description": "Nome di un passaggio"
+  },
+  "cambSfondo": "Sfondo",
+  "@cambSfondo": {
+    "description": "Nome di un passaggio"
+  },
+  "cambNumeriPagina": "Numeri di pagina",
+  "@cambNumeriPagina": {
+    "description": "Nome di un passaggio"
+  },
+  "cambScorri": "Indicatore «scorri»",
+  "@cambScorri": {
+    "description": "Nome di un passaggio"
+  },
+  "cambNomeFile": "Nome dei file",
+  "@cambNomeFile": {
+    "description": "Nome di un passaggio"
+  },
+  "cambModifica": "Modifica",
+  "@cambModifica": {
+    "description": "Nome di un passaggio"
+  },
+  "cambRaggruppati": "Elementi raggruppati",
+  "@cambRaggruppati": {
+    "description": "Nome di un passaggio"
+  },
+  "cambSeparati": "Gruppo separato",
+  "@cambSeparati": {
+    "description": "Nome di un passaggio"
+  },
+  "cambOrdineFoto": "Ordine delle foto",
+  "@cambOrdineFoto": {
+    "description": "Nome di un passaggio"
+  },
+  "cambLivello": "Livello cambiato",
+  "@cambLivello": {
+    "description": "Nome di un passaggio"
+  },
+  "cambBloccoPosizione": "Blocco della posizione",
+  "@cambBloccoPosizione": {
+    "description": "Nome di un passaggio"
+  },
+  "cambNSpostati": "{n} elementi spostati",
+  "@cambNSpostati": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambDispAggiornata": "Disposizione aggiornata",
+  "@cambDispAggiornata": {
+    "description": "Nome di un passaggio"
+  },
+  "cambNModificati": "{n} elementi modificati",
+  "@cambNModificati": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambSpostato": "{tipo, select, photo{Foto spostata} text{Testo spostato} shape{Forma spostata} other{Elemento spostato}}",
+  "@cambSpostato": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "tipo": {
+        "type": "String",
+        "example": "Esempio"
+      }
+    }
+  },
+  "cambRidimensionato": "{tipo, select, photo{Foto ridimensionata} text{Testo ridimensionato} shape{Forma ridimensionata} other{Elemento ridimensionato}}",
+  "@cambRidimensionato": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "tipo": {
+        "type": "String",
+        "example": "Esempio"
+      }
+    }
+  },
+  "cambRuotato": "{tipo, select, photo{Foto ruotata} text{Testo ruotato} shape{Forma ruotata} other{Elemento ruotato}}",
+  "@cambRuotato": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "tipo": {
+        "type": "String",
+        "example": "Esempio"
+      }
+    }
+  },
+  "cambStile": "{tipo, select, photo{Stile della foto} text{Stile del testo} shape{Stile della forma} other{Stile}}",
+  "@cambStile": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "tipo": {
+        "type": "String",
+        "example": "Esempio"
+      }
+    }
+  },
+  "cambTestoModificato": "Testo modificato",
+  "@cambTestoModificato": {
+    "description": "Nome di un passaggio"
+  },
+  "cambColoriFoto": "Colori della foto",
+  "@cambColoriFoto": {
+    "description": "Nome di un passaggio"
+  },
+  "cambTaglioVideo": "Taglio del video",
+  "@cambTaglioVideo": {
+    "description": "Nome di un passaggio"
+  },
+  "cambCopertinaVideo": "Copertina del video",
+  "@cambCopertinaVideo": {
+    "description": "Nome di un passaggio"
+  },
+  "cambAudioVideo": "Audio del video",
+  "@cambAudioVideo": {
+    "description": "Nome di un passaggio"
+  },
+  "cambInquadratura": "Inquadratura della foto",
+  "@cambInquadratura": {
+    "description": "Nome di un passaggio"
+  },
+  "cambFotoLibera": "Foto libera",
+  "@cambFotoLibera": {
+    "description": "Nome di un passaggio"
+  },
+  "cambFotoInDisposizione": "Foto nella disposizione",
+  "@cambFotoInDisposizione": {
+    "description": "Nome di un passaggio"
+  },
+  "avvisoPaginaDuplicata": "Pagina duplicata: la copia è la pagina {n}",
+  "@avvisoPaginaDuplicata": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoPaginaEliminata": "Pagina {n} eliminata",
+  "@avvisoPaginaEliminata": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoPaginaSpostata": "Pagina spostata in posizione {n}",
+  "@avvisoPaginaSpostata": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoPaginaBloccata": "Pagina {n} bloccata",
+  "@avvisoPaginaBloccata": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoPaginaSbloccata": "Pagina {n} sbloccata",
+  "@avvisoPaginaSbloccata": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoPaginaUnita": "Pagina {n} unita alla successiva «a cavallo»",
+  "@avvisoPaginaUnita": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoPaginaSeparata": "Pagina {n} separata dalla successiva",
+  "@avvisoPaginaSeparata": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoPagineRiordinate": "Pagine riordinate",
+  "@avvisoPagineRiordinate": {
+    "description": "Messaggio breve"
+  },
+  "avvisoRaggruppati": "{n} elementi raggruppati: si spostano insieme",
+  "@avvisoRaggruppati": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoSeparati": "Gruppo separato: ora gli elementi si spostano uno per uno",
+  "@avvisoSeparati": {
+    "description": "Messaggio breve"
+  },
+  "avvisoServeDue": "Seleziona almeno 2 elementi da raggruppare",
+  "@avvisoServeDue": {
+    "description": "Messaggio breve"
+  },
+  "avvisoServeTre": "Seleziona almeno 3 elementi per distribuirli",
+  "@avvisoServeTre": {
+    "description": "Messaggio breve"
+  },
+  "avvisoNessunGruppo": "Nessun gruppo selezionato",
+  "@avvisoNessunGruppo": {
+    "description": "Messaggio breve"
+  },
+  "avvisoPosizioneBloccata": "Posizione bloccata",
+  "@avvisoPosizioneBloccata": {
+    "description": "Messaggio breve"
+  },
+  "avvisoPosizioneSbloccata": "Posizione sbloccata",
+  "@avvisoPosizioneSbloccata": {
+    "description": "Messaggio breve"
+  },
+  "avvisoPortatoDavanti": "Portato davanti",
+  "@avvisoPortatoDavanti": {
+    "description": "Messaggio breve"
+  },
+  "avvisoMandatoDietro": "Mandato dietro",
+  "@avvisoMandatoDietro": {
+    "description": "Messaggio breve"
+  },
+  "avvisoCopiati": "{n, plural, =1{1 elemento copiato} other{{n} elementi copiati}}",
+  "@avvisoCopiati": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoTagliati": "{n, plural, =1{1 elemento tagliato} other{{n} elementi tagliati}}",
+  "@avvisoTagliati": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoIncollati": "{n, plural, =1{1 elemento incollato} other{{n} elementi incollati}}",
+  "@avvisoIncollati": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoNienteDaIncollare": "Non c'è niente da incollare: copia prima foto, testi o forme",
+  "@avvisoNienteDaIncollare": {
+    "description": "Messaggio breve"
+  },
+  "avvisoFotoSpostate": "Foto spostate nella pagina {n}",
+  "@avvisoFotoSpostate": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
   }
 }

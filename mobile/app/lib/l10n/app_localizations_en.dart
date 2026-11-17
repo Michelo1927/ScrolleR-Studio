@@ -964,4 +964,656 @@ class TestiEn extends Testi {
 
   @override
   String get avvisoFormaAggiunta => 'Shape added';
+
+  @override
+  String get pagAggiungiPrima => 'Add before';
+
+  @override
+  String get pagAggiungiDopo => 'Add after';
+
+  @override
+  String get pagDuplica => 'Duplicate';
+
+  @override
+  String get pagSpostaIndietro => 'Move left';
+
+  @override
+  String get pagSpostaAvanti => 'Move right';
+
+  @override
+  String get pagBlocca => 'Lock';
+
+  @override
+  String get pagSblocca => 'Unlock';
+
+  @override
+  String get pagUnisci => 'Join across';
+
+  @override
+  String get pagSepara => 'Split';
+
+  @override
+  String get pagEsporta => 'Export this';
+
+  @override
+  String get pagElimina => 'Delete';
+
+  @override
+  String get pagFormato => 'Format';
+
+  @override
+  String get pagRiordina => 'Reorder';
+
+  @override
+  String get pagAzioni => 'Actions';
+
+  @override
+  String get pagMisure => 'Size';
+
+  @override
+  String get pagFormatoBloccato =>
+      'The format can\'t change while pages are locked';
+
+  @override
+  String get stileSfondo => 'Background';
+
+  @override
+  String get stileNumeri => 'Page numbers';
+
+  @override
+  String get stileScorri => '“Swipe” hint';
+
+  @override
+  String get stileGuide => 'Guides';
+
+  @override
+  String get stileAggancio => 'Snap';
+
+  @override
+  String get sfTinta => 'Solid';
+
+  @override
+  String get sfSfumatura => 'Gradient';
+
+  @override
+  String get sfFotoSfocata => 'Blurred photo';
+
+  @override
+  String get sfColoreIniziale => 'Start colour';
+
+  @override
+  String get sfColoreFinale => 'End colour';
+
+  @override
+  String get sfDirVerticale => 'Top down';
+
+  @override
+  String get sfDirOrizzontale => 'Left to right';
+
+  @override
+  String get sfDirDiagonale => 'Diagonal';
+
+  @override
+  String get sfFoto => 'Photo';
+
+  @override
+  String get sfSfocatura => 'Blur';
+
+  @override
+  String get sfScurisci => 'Darken';
+
+  @override
+  String get sfSenzaFoto => 'Add photos to the library first';
+
+  @override
+  String get numAcceso => 'Page number';
+
+  @override
+  String get numFormato => 'Format';
+
+  @override
+  String get numPosizione => 'Position';
+
+  @override
+  String get numStile => 'Style';
+
+  @override
+  String get numFormatoDi => '1 of 5';
+
+  @override
+  String get numDuePagine =>
+      'The number shows when the carousel has at least 2 pages';
+
+  @override
+  String get posBassoCentro => 'Bottom centre';
+
+  @override
+  String get posBassoDestra => 'Bottom right';
+
+  @override
+  String get posBassoSinistra => 'Bottom left';
+
+  @override
+  String get posAltoCentro => 'Top centre';
+
+  @override
+  String get posAltoDestra => 'Top right';
+
+  @override
+  String get posAltoSinistra => 'Top left';
+
+  @override
+  String get posCentroDestra => 'Middle right';
+
+  @override
+  String get ovScuro => 'Dark label';
+
+  @override
+  String get ovChiaro => 'Light label';
+
+  @override
+  String get ovSoloTesto => 'Text only';
+
+  @override
+  String get scorriAcceso => 'Hint';
+
+  @override
+  String get scorriTesto => 'Text';
+
+  @override
+  String get scorriTestoEtichetta => 'Hint text';
+
+  @override
+  String get strAllinea => 'Align';
+
+  @override
+  String get strDistribuisci => 'Distribute';
+
+  @override
+  String get strRaggruppa => 'Group';
+
+  @override
+  String get strSepara => 'Ungroup';
+
+  @override
+  String get strScambia => 'Swap';
+
+  @override
+  String get strBlocca => 'Lock';
+
+  @override
+  String get strSblocca => 'Unlock';
+
+  @override
+  String get strDisponi => 'Arrange';
+
+  @override
+  String get selezionaPiuAiuto => 'Tap the elements to pick';
+
+  @override
+  String get allSinistra => 'Left';
+
+  @override
+  String get allCentroOrizz => 'Centre horizontally';
+
+  @override
+  String get allDestra => 'Right';
+
+  @override
+  String get allAlto => 'Top';
+
+  @override
+  String get allCentroVert => 'Centre vertically';
+
+  @override
+  String get allBasso => 'Bottom';
+
+  @override
+  String get distOrizzontale => 'Equal gaps across';
+
+  @override
+  String get distVerticale => 'Equal gaps down';
+
+  @override
+  String get dispLivello => 'Level';
+
+  @override
+  String get dispSposta => 'Nudge';
+
+  @override
+  String get dispDavanti => 'Bring to front';
+
+  @override
+  String get dispDietro => 'Send to back';
+
+  @override
+  String passoPx(int n) {
+    return '$n px';
+  }
+
+  @override
+  String get frecciaSu => 'Up';
+
+  @override
+  String get frecciaGiu => 'Down';
+
+  @override
+  String get frecciaSinistra => 'Left';
+
+  @override
+  String get frecciaDestra => 'Right';
+
+  @override
+  String get menuCopia => 'Copy';
+
+  @override
+  String get menuTaglia => 'Cut';
+
+  @override
+  String get menuIncolla => 'Paste here';
+
+  @override
+  String get menuSelezionaPiu => 'Select more';
+
+  @override
+  String get menuSelezionaTutto => 'Select all';
+
+  @override
+  String get menuSpostaInPagina => 'Move to page…';
+
+  @override
+  String get menuAggiungiTesto => 'Add text here';
+
+  @override
+  String get menuAggiungiForma => 'Add shape here';
+
+  @override
+  String get menuAzioniPagina => 'Page actions';
+
+  @override
+  String get menuScegliPagina => 'Move to page';
+
+  @override
+  String menuPaginaNumero(int n) {
+    return 'Page $n';
+  }
+
+  @override
+  String get panoramicaAiuto =>
+      'Tap to open a page · drag to reorder · hold for actions';
+
+  @override
+  String panoramicaPagina(int n) {
+    return 'Page $n, drag to move it';
+  }
+
+  @override
+  String get anteprimaChiudi => 'Close the preview';
+
+  @override
+  String anteprimaPagina(int n, int tot) {
+    return 'Page $n of $tot';
+  }
+
+  @override
+  String get strumentoCronologia => 'History';
+
+  @override
+  String cronEtichetta(int n, String nome) {
+    return 'Step $n: $nome';
+  }
+
+  @override
+  String get cronAttuale => 'Current';
+
+  @override
+  String get cambAperto => 'Project opened';
+
+  @override
+  String get cambPaginaDuplicata => 'Page duplicated';
+
+  @override
+  String get cambPaginaAggiunta => 'Page added';
+
+  @override
+  String get cambPaginaEliminata => 'Page deleted';
+
+  @override
+  String get cambFotoSostituite => 'Photos replaced';
+
+  @override
+  String get cambElementiCambiati => 'Elements changed';
+
+  @override
+  String cambFotoAggiunte(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n photos added',
+      one: 'Photo added',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambTestiAggiunti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n texts added',
+      one: 'Text added',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambFormeAggiunte(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n shapes added',
+      one: 'Shape added',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambElementiAggiunti(int n) {
+    return '$n elements added';
+  }
+
+  @override
+  String cambFotoEliminate(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n photos deleted',
+      one: 'Photo deleted',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambTestiEliminati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n texts deleted',
+      one: 'Text deleted',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambFormeEliminate(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n shapes deleted',
+      one: 'Shape deleted',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambElementiEliminati(int n) {
+    return '$n elements deleted';
+  }
+
+  @override
+  String cambPagine(int da, int a) {
+    return 'Pages: $da → $a';
+  }
+
+  @override
+  String get cambFormatoPagina => 'Page format';
+
+  @override
+  String cambDisposizione(String nome) {
+    return 'Layout: $nome';
+  }
+
+  @override
+  String get cambStileMosaico => 'Mosaic style';
+
+  @override
+  String get cambFotoRimescolate => 'Photos shuffled';
+
+  @override
+  String get cambLucchettoPagine => 'Page locks';
+
+  @override
+  String get cambPagineACavallo => 'Pages across';
+
+  @override
+  String get cambDisposizionePagina => 'Page layout';
+
+  @override
+  String get cambFotoPerPagina => 'Photos per page';
+
+  @override
+  String get cambSpaziatura => 'Spacing';
+
+  @override
+  String get cambMargine => 'Margin';
+
+  @override
+  String get cambSfondo => 'Background';
+
+  @override
+  String get cambNumeriPagina => 'Page numbers';
+
+  @override
+  String get cambScorri => '“Swipe” hint';
+
+  @override
+  String get cambNomeFile => 'File names';
+
+  @override
+  String get cambModifica => 'Change';
+
+  @override
+  String get cambRaggruppati => 'Elements grouped';
+
+  @override
+  String get cambSeparati => 'Group split';
+
+  @override
+  String get cambOrdineFoto => 'Photo order';
+
+  @override
+  String get cambLivello => 'Level changed';
+
+  @override
+  String get cambBloccoPosizione => 'Position lock';
+
+  @override
+  String cambNSpostati(int n) {
+    return '$n elements moved';
+  }
+
+  @override
+  String get cambDispAggiornata => 'Layout updated';
+
+  @override
+  String cambNModificati(int n) {
+    return '$n elements changed';
+  }
+
+  @override
+  String cambSpostato(String tipo) {
+    String _temp0 = intl.Intl.selectLogic(tipo, {
+      'photo': 'Photo moved',
+      'text': 'Text moved',
+      'shape': 'Shape moved',
+      'other': 'Element moved',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String cambRidimensionato(String tipo) {
+    String _temp0 = intl.Intl.selectLogic(tipo, {
+      'photo': 'Photo resized',
+      'text': 'Text resized',
+      'shape': 'Shape resized',
+      'other': 'Element resized',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String cambRuotato(String tipo) {
+    String _temp0 = intl.Intl.selectLogic(tipo, {
+      'photo': 'Photo rotated',
+      'text': 'Text rotated',
+      'shape': 'Shape rotated',
+      'other': 'Element rotated',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String cambStile(String tipo) {
+    String _temp0 = intl.Intl.selectLogic(tipo, {
+      'photo': 'Photo style',
+      'text': 'Text style',
+      'shape': 'Shape style',
+      'other': 'Style',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get cambTestoModificato => 'Text edited';
+
+  @override
+  String get cambColoriFoto => 'Photo colours';
+
+  @override
+  String get cambTaglioVideo => 'Video trim';
+
+  @override
+  String get cambCopertinaVideo => 'Video cover';
+
+  @override
+  String get cambAudioVideo => 'Video audio';
+
+  @override
+  String get cambInquadratura => 'Photo framing';
+
+  @override
+  String get cambFotoLibera => 'Free photo';
+
+  @override
+  String get cambFotoInDisposizione => 'Photo in layout';
+
+  @override
+  String avvisoPaginaDuplicata(int n) {
+    return 'Page duplicated: the copy is page $n';
+  }
+
+  @override
+  String avvisoPaginaEliminata(int n) {
+    return 'Page $n deleted';
+  }
+
+  @override
+  String avvisoPaginaSpostata(int n) {
+    return 'Page moved to position $n';
+  }
+
+  @override
+  String avvisoPaginaBloccata(int n) {
+    return 'Page $n locked';
+  }
+
+  @override
+  String avvisoPaginaSbloccata(int n) {
+    return 'Page $n unlocked';
+  }
+
+  @override
+  String avvisoPaginaUnita(int n) {
+    return 'Page $n joined to the next one';
+  }
+
+  @override
+  String avvisoPaginaSeparata(int n) {
+    return 'Page $n split from the next one';
+  }
+
+  @override
+  String get avvisoPagineRiordinate => 'Pages reordered';
+
+  @override
+  String avvisoRaggruppati(int n) {
+    return '$n elements grouped: they move together';
+  }
+
+  @override
+  String get avvisoSeparati => 'Group split: the elements now move one by one';
+
+  @override
+  String get avvisoServeDue => 'Select at least 2 elements to group';
+
+  @override
+  String get avvisoServeTre => 'Select at least 3 elements to distribute';
+
+  @override
+  String get avvisoNessunGruppo => 'No group selected';
+
+  @override
+  String get avvisoPosizioneBloccata => 'Position locked';
+
+  @override
+  String get avvisoPosizioneSbloccata => 'Position unlocked';
+
+  @override
+  String get avvisoPortatoDavanti => 'Brought to front';
+
+  @override
+  String get avvisoMandatoDietro => 'Sent to back';
+
+  @override
+  String avvisoCopiati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n elements copied',
+      one: '1 element copied',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String avvisoTagliati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n elements cut',
+      one: '1 element cut',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String avvisoIncollati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n elements pasted',
+      one: '1 element pasted',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get avvisoNienteDaIncollare =>
+      'Nothing to paste: copy photos, texts or shapes first';
+
+  @override
+  String avvisoFotoSpostate(int n) {
+    return 'Photos moved to page $n';
+  }
 }

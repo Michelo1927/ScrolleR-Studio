@@ -209,6 +209,7 @@ ChangeLabel describeChange(Snapshot sa, Snapshot sb) {
         'bg_color2',
         'bg_direction',
         'bg_blur_path',
+        'bg_blur_asset',
         'bg_blur_amount',
         'bg_dim',
       },

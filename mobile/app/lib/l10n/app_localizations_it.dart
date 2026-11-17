@@ -966,4 +966,657 @@ class TestiIt extends Testi {
 
   @override
   String get avvisoFormaAggiunta => 'Forma aggiunta';
+
+  @override
+  String get pagAggiungiPrima => 'Aggiungi prima';
+
+  @override
+  String get pagAggiungiDopo => 'Aggiungi dopo';
+
+  @override
+  String get pagDuplica => 'Duplica';
+
+  @override
+  String get pagSpostaIndietro => 'Sposta a sinistra';
+
+  @override
+  String get pagSpostaAvanti => 'Sposta a destra';
+
+  @override
+  String get pagBlocca => 'Blocca';
+
+  @override
+  String get pagSblocca => 'Sblocca';
+
+  @override
+  String get pagUnisci => 'Unisci a cavallo';
+
+  @override
+  String get pagSepara => 'Separa';
+
+  @override
+  String get pagEsporta => 'Esporta questa';
+
+  @override
+  String get pagElimina => 'Elimina';
+
+  @override
+  String get pagFormato => 'Formato';
+
+  @override
+  String get pagRiordina => 'Riordina';
+
+  @override
+  String get pagAzioni => 'Azioni';
+
+  @override
+  String get pagMisure => 'Misure';
+
+  @override
+  String get pagFormatoBloccato =>
+      'Con pagine bloccate il formato non si cambia';
+
+  @override
+  String get stileSfondo => 'Sfondo';
+
+  @override
+  String get stileNumeri => 'Numeri di pagina';
+
+  @override
+  String get stileScorri => 'Indicatore «scorri»';
+
+  @override
+  String get stileGuide => 'Guide';
+
+  @override
+  String get stileAggancio => 'Aggancio';
+
+  @override
+  String get sfTinta => 'Tinta';
+
+  @override
+  String get sfSfumatura => 'Sfumatura';
+
+  @override
+  String get sfFotoSfocata => 'Foto sfocata';
+
+  @override
+  String get sfColoreIniziale => 'Colore iniziale';
+
+  @override
+  String get sfColoreFinale => 'Colore finale';
+
+  @override
+  String get sfDirVerticale => 'Dall\'alto';
+
+  @override
+  String get sfDirOrizzontale => 'Da sinistra';
+
+  @override
+  String get sfDirDiagonale => 'In diagonale';
+
+  @override
+  String get sfFoto => 'Foto';
+
+  @override
+  String get sfSfocatura => 'Sfocatura';
+
+  @override
+  String get sfScurisci => 'Scurisci';
+
+  @override
+  String get sfSenzaFoto => 'Aggiungi prima delle foto alla libreria';
+
+  @override
+  String get numAcceso => 'Numero di pagina';
+
+  @override
+  String get numFormato => 'Formato';
+
+  @override
+  String get numPosizione => 'Posizione';
+
+  @override
+  String get numStile => 'Stile';
+
+  @override
+  String get numFormatoDi => '1 di 5';
+
+  @override
+  String get numDuePagine =>
+      'Il numero compare quando il carosello ha almeno 2 pagine';
+
+  @override
+  String get posBassoCentro => 'In basso al centro';
+
+  @override
+  String get posBassoDestra => 'In basso a destra';
+
+  @override
+  String get posBassoSinistra => 'In basso a sinistra';
+
+  @override
+  String get posAltoCentro => 'In alto al centro';
+
+  @override
+  String get posAltoDestra => 'In alto a destra';
+
+  @override
+  String get posAltoSinistra => 'In alto a sinistra';
+
+  @override
+  String get posCentroDestra => 'Al centro a destra';
+
+  @override
+  String get ovScuro => 'Etichetta scura';
+
+  @override
+  String get ovChiaro => 'Etichetta chiara';
+
+  @override
+  String get ovSoloTesto => 'Solo testo';
+
+  @override
+  String get scorriAcceso => 'Indicatore';
+
+  @override
+  String get scorriTesto => 'Testo';
+
+  @override
+  String get scorriTestoEtichetta => 'Testo dell\'indicatore';
+
+  @override
+  String get strAllinea => 'Allinea';
+
+  @override
+  String get strDistribuisci => 'Distribuisci';
+
+  @override
+  String get strRaggruppa => 'Raggruppa';
+
+  @override
+  String get strSepara => 'Separa';
+
+  @override
+  String get strScambia => 'Scambia';
+
+  @override
+  String get strBlocca => 'Blocca';
+
+  @override
+  String get strSblocca => 'Sblocca';
+
+  @override
+  String get strDisponi => 'Disponi';
+
+  @override
+  String get selezionaPiuAiuto => 'Tocca gli elementi da scegliere';
+
+  @override
+  String get allSinistra => 'A sinistra';
+
+  @override
+  String get allCentroOrizz => 'Centro orizzontale';
+
+  @override
+  String get allDestra => 'A destra';
+
+  @override
+  String get allAlto => 'In alto';
+
+  @override
+  String get allCentroVert => 'Centro verticale';
+
+  @override
+  String get allBasso => 'In basso';
+
+  @override
+  String get distOrizzontale => 'Spazi uguali in orizzontale';
+
+  @override
+  String get distVerticale => 'Spazi uguali in verticale';
+
+  @override
+  String get dispLivello => 'Livello';
+
+  @override
+  String get dispSposta => 'Sposta';
+
+  @override
+  String get dispDavanti => 'Porta davanti';
+
+  @override
+  String get dispDietro => 'Manda dietro';
+
+  @override
+  String passoPx(int n) {
+    return '$n px';
+  }
+
+  @override
+  String get frecciaSu => 'Su';
+
+  @override
+  String get frecciaGiu => 'Giù';
+
+  @override
+  String get frecciaSinistra => 'Sinistra';
+
+  @override
+  String get frecciaDestra => 'Destra';
+
+  @override
+  String get menuCopia => 'Copia';
+
+  @override
+  String get menuTaglia => 'Taglia';
+
+  @override
+  String get menuIncolla => 'Incolla qui';
+
+  @override
+  String get menuSelezionaPiu => 'Seleziona più';
+
+  @override
+  String get menuSelezionaTutto => 'Seleziona tutto';
+
+  @override
+  String get menuSpostaInPagina => 'Sposta in pagina…';
+
+  @override
+  String get menuAggiungiTesto => 'Aggiungi testo qui';
+
+  @override
+  String get menuAggiungiForma => 'Aggiungi forma qui';
+
+  @override
+  String get menuAzioniPagina => 'Azioni della pagina';
+
+  @override
+  String get menuScegliPagina => 'Sposta nella pagina';
+
+  @override
+  String menuPaginaNumero(int n) {
+    return 'Pagina $n';
+  }
+
+  @override
+  String get panoramicaAiuto =>
+      'Tocca per andare alla pagina · trascina per riordinare · tieni premuto per le azioni';
+
+  @override
+  String panoramicaPagina(int n) {
+    return 'Pagina $n, trascina per spostarla';
+  }
+
+  @override
+  String get anteprimaChiudi => 'Chiudi l\'anteprima';
+
+  @override
+  String anteprimaPagina(int n, int tot) {
+    return 'Pagina $n di $tot';
+  }
+
+  @override
+  String get strumentoCronologia => 'Cronologia';
+
+  @override
+  String cronEtichetta(int n, String nome) {
+    return 'Passaggio $n: $nome';
+  }
+
+  @override
+  String get cronAttuale => 'Attuale';
+
+  @override
+  String get cambAperto => 'Progetto aperto';
+
+  @override
+  String get cambPaginaDuplicata => 'Pagina duplicata';
+
+  @override
+  String get cambPaginaAggiunta => 'Pagina aggiunta';
+
+  @override
+  String get cambPaginaEliminata => 'Pagina eliminata';
+
+  @override
+  String get cambFotoSostituite => 'Foto sostituite';
+
+  @override
+  String get cambElementiCambiati => 'Elementi cambiati';
+
+  @override
+  String cambFotoAggiunte(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n foto aggiunte',
+      one: 'Foto aggiunta',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambTestiAggiunti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n testi aggiunti',
+      one: 'Testo aggiunto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambFormeAggiunte(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n forme aggiunte',
+      one: 'Forma aggiunta',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambElementiAggiunti(int n) {
+    return '$n elementi aggiunti';
+  }
+
+  @override
+  String cambFotoEliminate(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n foto eliminate',
+      one: 'Foto eliminata',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambTestiEliminati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n testi eliminati',
+      one: 'Testo eliminato',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambFormeEliminate(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n forme eliminate',
+      one: 'Forma eliminata',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambElementiEliminati(int n) {
+    return '$n elementi eliminati';
+  }
+
+  @override
+  String cambPagine(int da, int a) {
+    return 'Pagine: $da → $a';
+  }
+
+  @override
+  String get cambFormatoPagina => 'Formato della pagina';
+
+  @override
+  String cambDisposizione(String nome) {
+    return 'Disposizione: $nome';
+  }
+
+  @override
+  String get cambStileMosaico => 'Stile mosaico';
+
+  @override
+  String get cambFotoRimescolate => 'Foto rimescolate';
+
+  @override
+  String get cambLucchettoPagine => 'Lucchetto delle pagine';
+
+  @override
+  String get cambPagineACavallo => 'Pagine a cavallo';
+
+  @override
+  String get cambDisposizionePagina => 'Disposizione della pagina';
+
+  @override
+  String get cambFotoPerPagina => 'Foto per pagina';
+
+  @override
+  String get cambSpaziatura => 'Spaziatura';
+
+  @override
+  String get cambMargine => 'Margine';
+
+  @override
+  String get cambSfondo => 'Sfondo';
+
+  @override
+  String get cambNumeriPagina => 'Numeri di pagina';
+
+  @override
+  String get cambScorri => 'Indicatore «scorri»';
+
+  @override
+  String get cambNomeFile => 'Nome dei file';
+
+  @override
+  String get cambModifica => 'Modifica';
+
+  @override
+  String get cambRaggruppati => 'Elementi raggruppati';
+
+  @override
+  String get cambSeparati => 'Gruppo separato';
+
+  @override
+  String get cambOrdineFoto => 'Ordine delle foto';
+
+  @override
+  String get cambLivello => 'Livello cambiato';
+
+  @override
+  String get cambBloccoPosizione => 'Blocco della posizione';
+
+  @override
+  String cambNSpostati(int n) {
+    return '$n elementi spostati';
+  }
+
+  @override
+  String get cambDispAggiornata => 'Disposizione aggiornata';
+
+  @override
+  String cambNModificati(int n) {
+    return '$n elementi modificati';
+  }
+
+  @override
+  String cambSpostato(String tipo) {
+    String _temp0 = intl.Intl.selectLogic(tipo, {
+      'photo': 'Foto spostata',
+      'text': 'Testo spostato',
+      'shape': 'Forma spostata',
+      'other': 'Elemento spostato',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String cambRidimensionato(String tipo) {
+    String _temp0 = intl.Intl.selectLogic(tipo, {
+      'photo': 'Foto ridimensionata',
+      'text': 'Testo ridimensionato',
+      'shape': 'Forma ridimensionata',
+      'other': 'Elemento ridimensionato',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String cambRuotato(String tipo) {
+    String _temp0 = intl.Intl.selectLogic(tipo, {
+      'photo': 'Foto ruotata',
+      'text': 'Testo ruotato',
+      'shape': 'Forma ruotata',
+      'other': 'Elemento ruotato',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String cambStile(String tipo) {
+    String _temp0 = intl.Intl.selectLogic(tipo, {
+      'photo': 'Stile della foto',
+      'text': 'Stile del testo',
+      'shape': 'Stile della forma',
+      'other': 'Stile',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get cambTestoModificato => 'Testo modificato';
+
+  @override
+  String get cambColoriFoto => 'Colori della foto';
+
+  @override
+  String get cambTaglioVideo => 'Taglio del video';
+
+  @override
+  String get cambCopertinaVideo => 'Copertina del video';
+
+  @override
+  String get cambAudioVideo => 'Audio del video';
+
+  @override
+  String get cambInquadratura => 'Inquadratura della foto';
+
+  @override
+  String get cambFotoLibera => 'Foto libera';
+
+  @override
+  String get cambFotoInDisposizione => 'Foto nella disposizione';
+
+  @override
+  String avvisoPaginaDuplicata(int n) {
+    return 'Pagina duplicata: la copia è la pagina $n';
+  }
+
+  @override
+  String avvisoPaginaEliminata(int n) {
+    return 'Pagina $n eliminata';
+  }
+
+  @override
+  String avvisoPaginaSpostata(int n) {
+    return 'Pagina spostata in posizione $n';
+  }
+
+  @override
+  String avvisoPaginaBloccata(int n) {
+    return 'Pagina $n bloccata';
+  }
+
+  @override
+  String avvisoPaginaSbloccata(int n) {
+    return 'Pagina $n sbloccata';
+  }
+
+  @override
+  String avvisoPaginaUnita(int n) {
+    return 'Pagina $n unita alla successiva «a cavallo»';
+  }
+
+  @override
+  String avvisoPaginaSeparata(int n) {
+    return 'Pagina $n separata dalla successiva';
+  }
+
+  @override
+  String get avvisoPagineRiordinate => 'Pagine riordinate';
+
+  @override
+  String avvisoRaggruppati(int n) {
+    return '$n elementi raggruppati: si spostano insieme';
+  }
+
+  @override
+  String get avvisoSeparati =>
+      'Gruppo separato: ora gli elementi si spostano uno per uno';
+
+  @override
+  String get avvisoServeDue => 'Seleziona almeno 2 elementi da raggruppare';
+
+  @override
+  String get avvisoServeTre => 'Seleziona almeno 3 elementi per distribuirli';
+
+  @override
+  String get avvisoNessunGruppo => 'Nessun gruppo selezionato';
+
+  @override
+  String get avvisoPosizioneBloccata => 'Posizione bloccata';
+
+  @override
+  String get avvisoPosizioneSbloccata => 'Posizione sbloccata';
+
+  @override
+  String get avvisoPortatoDavanti => 'Portato davanti';
+
+  @override
+  String get avvisoMandatoDietro => 'Mandato dietro';
+
+  @override
+  String avvisoCopiati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n elementi copiati',
+      one: '1 elemento copiato',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String avvisoTagliati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n elementi tagliati',
+      one: '1 elemento tagliato',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String avvisoIncollati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n elementi incollati',
+      one: '1 elemento incollato',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get avvisoNienteDaIncollare =>
+      'Non c\'è niente da incollare: copia prima foto, testi o forme';
+
+  @override
+  String avvisoFotoSpostate(int n) {
+    return 'Foto spostate nella pagina $n';
+  }
 }

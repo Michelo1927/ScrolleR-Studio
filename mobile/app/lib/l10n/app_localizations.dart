@@ -1752,6 +1752,1014 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Forma aggiunta'**
   String get avvisoFormaAggiunta;
+
+  /// Pagine: aggiunge una pagina vuota prima della corrente
+  ///
+  /// In it, this message translates to:
+  /// **'Aggiungi prima'**
+  String get pagAggiungiPrima;
+
+  /// Pagine: aggiunge una pagina vuota dopo la corrente
+  ///
+  /// In it, this message translates to:
+  /// **'Aggiungi dopo'**
+  String get pagAggiungiDopo;
+
+  /// Pagine: duplica la pagina corrente
+  ///
+  /// In it, this message translates to:
+  /// **'Duplica'**
+  String get pagDuplica;
+
+  /// Pagine: sposta la pagina di un posto indietro
+  ///
+  /// In it, this message translates to:
+  /// **'Sposta a sinistra'**
+  String get pagSpostaIndietro;
+
+  /// Pagine: sposta la pagina di un posto avanti
+  ///
+  /// In it, this message translates to:
+  /// **'Sposta a destra'**
+  String get pagSpostaAvanti;
+
+  /// Pagine: blocca la pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Blocca'**
+  String get pagBlocca;
+
+  /// Pagine: sblocca la pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Sblocca'**
+  String get pagSblocca;
+
+  /// Pagine: unisce la pagina alla successiva «a cavallo»
+  ///
+  /// In it, this message translates to:
+  /// **'Unisci a cavallo'**
+  String get pagUnisci;
+
+  /// Pagine: separa la pagina dalla successiva
+  ///
+  /// In it, this message translates to:
+  /// **'Separa'**
+  String get pagSepara;
+
+  /// Pagine: esporta la pagina corrente
+  ///
+  /// In it, this message translates to:
+  /// **'Esporta questa'**
+  String get pagEsporta;
+
+  /// Pagine: elimina la pagina corrente
+  ///
+  /// In it, this message translates to:
+  /// **'Elimina'**
+  String get pagElimina;
+
+  /// Pagine: formato del carosello
+  ///
+  /// In it, this message translates to:
+  /// **'Formato'**
+  String get pagFormato;
+
+  /// Pagine: apre la Panoramica per riordinare
+  ///
+  /// In it, this message translates to:
+  /// **'Riordina'**
+  String get pagRiordina;
+
+  /// Pagine: scheda delle azioni di pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Azioni'**
+  String get pagAzioni;
+
+  /// Pagine: misure del formato personalizzato
+  ///
+  /// In it, this message translates to:
+  /// **'Misure'**
+  String get pagMisure;
+
+  /// Pagine: avviso sul formato
+  ///
+  /// In it, this message translates to:
+  /// **'Con pagine bloccate il formato non si cambia'**
+  String get pagFormatoBloccato;
+
+  /// Stile: sfondo del carosello
+  ///
+  /// In it, this message translates to:
+  /// **'Sfondo'**
+  String get stileSfondo;
+
+  /// Stile: numeri di pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Numeri di pagina'**
+  String get stileNumeri;
+
+  /// Stile: indicatore «scorri»
+  ///
+  /// In it, this message translates to:
+  /// **'Indicatore «scorri»'**
+  String get stileScorri;
+
+  /// Stile: guide di centro sulla pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Guide'**
+  String get stileGuide;
+
+  /// Stile: aggancio degli elementi
+  ///
+  /// In it, this message translates to:
+  /// **'Aggancio'**
+  String get stileAggancio;
+
+  /// Sfondo: tinta unita
+  ///
+  /// In it, this message translates to:
+  /// **'Tinta'**
+  String get sfTinta;
+
+  /// Sfondo: sfumatura tra due colori
+  ///
+  /// In it, this message translates to:
+  /// **'Sfumatura'**
+  String get sfSfumatura;
+
+  /// Sfondo: foto sfocata
+  ///
+  /// In it, this message translates to:
+  /// **'Foto sfocata'**
+  String get sfFotoSfocata;
+
+  /// Sfondo: primo colore della sfumatura
+  ///
+  /// In it, this message translates to:
+  /// **'Colore iniziale'**
+  String get sfColoreIniziale;
+
+  /// Sfondo: secondo colore della sfumatura
+  ///
+  /// In it, this message translates to:
+  /// **'Colore finale'**
+  String get sfColoreFinale;
+
+  /// Sfondo: sfumatura verticale
+  ///
+  /// In it, this message translates to:
+  /// **'Dall\'alto'**
+  String get sfDirVerticale;
+
+  /// Sfondo: sfumatura orizzontale
+  ///
+  /// In it, this message translates to:
+  /// **'Da sinistra'**
+  String get sfDirOrizzontale;
+
+  /// Sfondo: sfumatura diagonale
+  ///
+  /// In it, this message translates to:
+  /// **'In diagonale'**
+  String get sfDirDiagonale;
+
+  /// Sfondo: scelta della foto sfocata
+  ///
+  /// In it, this message translates to:
+  /// **'Foto'**
+  String get sfFoto;
+
+  /// Sfondo: quanto è sfocata la foto
+  ///
+  /// In it, this message translates to:
+  /// **'Sfocatura'**
+  String get sfSfocatura;
+
+  /// Sfondo: quanto si scurisce la foto
+  ///
+  /// In it, this message translates to:
+  /// **'Scurisci'**
+  String get sfScurisci;
+
+  /// Sfondo: non ci sono foto per lo sfondo sfocato
+  ///
+  /// In it, this message translates to:
+  /// **'Aggiungi prima delle foto alla libreria'**
+  String get sfSenzaFoto;
+
+  /// Numeri di pagina: interruttore
+  ///
+  /// In it, this message translates to:
+  /// **'Numero di pagina'**
+  String get numAcceso;
+
+  /// Numeri di pagina: come si scrive il numero
+  ///
+  /// In it, this message translates to:
+  /// **'Formato'**
+  String get numFormato;
+
+  /// Numeri di pagina e indicatore: dove va
+  ///
+  /// In it, this message translates to:
+  /// **'Posizione'**
+  String get numPosizione;
+
+  /// Numeri di pagina: aspetto dell'etichetta
+  ///
+  /// In it, this message translates to:
+  /// **'Stile'**
+  String get numStile;
+
+  /// Numeri di pagina: formato «1 di 5»
+  ///
+  /// In it, this message translates to:
+  /// **'1 di 5'**
+  String get numFormatoDi;
+
+  /// Numeri di pagina: promemoria
+  ///
+  /// In it, this message translates to:
+  /// **'Il numero compare quando il carosello ha almeno 2 pagine'**
+  String get numDuePagine;
+
+  /// Posizione
+  ///
+  /// In it, this message translates to:
+  /// **'In basso al centro'**
+  String get posBassoCentro;
+
+  /// Posizione
+  ///
+  /// In it, this message translates to:
+  /// **'In basso a destra'**
+  String get posBassoDestra;
+
+  /// Posizione
+  ///
+  /// In it, this message translates to:
+  /// **'In basso a sinistra'**
+  String get posBassoSinistra;
+
+  /// Posizione
+  ///
+  /// In it, this message translates to:
+  /// **'In alto al centro'**
+  String get posAltoCentro;
+
+  /// Posizione
+  ///
+  /// In it, this message translates to:
+  /// **'In alto a destra'**
+  String get posAltoDestra;
+
+  /// Posizione
+  ///
+  /// In it, this message translates to:
+  /// **'In alto a sinistra'**
+  String get posAltoSinistra;
+
+  /// Posizione dell'indicatore «scorri»
+  ///
+  /// In it, this message translates to:
+  /// **'Al centro a destra'**
+  String get posCentroDestra;
+
+  /// Stile dell'etichetta
+  ///
+  /// In it, this message translates to:
+  /// **'Etichetta scura'**
+  String get ovScuro;
+
+  /// Stile dell'etichetta
+  ///
+  /// In it, this message translates to:
+  /// **'Etichetta chiara'**
+  String get ovChiaro;
+
+  /// Stile dell'etichetta
+  ///
+  /// In it, this message translates to:
+  /// **'Solo testo'**
+  String get ovSoloTesto;
+
+  /// Indicatore «scorri»: interruttore
+  ///
+  /// In it, this message translates to:
+  /// **'Indicatore'**
+  String get scorriAcceso;
+
+  /// Indicatore «scorri»: il testo
+  ///
+  /// In it, this message translates to:
+  /// **'Testo'**
+  String get scorriTesto;
+
+  /// Indicatore «scorri»: campo di testo
+  ///
+  /// In it, this message translates to:
+  /// **'Testo dell\'indicatore'**
+  String get scorriTestoEtichetta;
+
+  /// Strumento Allinea
+  ///
+  /// In it, this message translates to:
+  /// **'Allinea'**
+  String get strAllinea;
+
+  /// Strumento Distribuisci
+  ///
+  /// In it, this message translates to:
+  /// **'Distribuisci'**
+  String get strDistribuisci;
+
+  /// Raggruppa gli elementi scelti
+  ///
+  /// In it, this message translates to:
+  /// **'Raggruppa'**
+  String get strRaggruppa;
+
+  /// Separa il gruppo
+  ///
+  /// In it, this message translates to:
+  /// **'Separa'**
+  String get strSepara;
+
+  /// Scambia due foto
+  ///
+  /// In it, this message translates to:
+  /// **'Scambia'**
+  String get strScambia;
+
+  /// Blocca posizione e dimensioni
+  ///
+  /// In it, this message translates to:
+  /// **'Blocca'**
+  String get strBlocca;
+
+  /// Sblocca posizione e dimensioni
+  ///
+  /// In it, this message translates to:
+  /// **'Sblocca'**
+  String get strSblocca;
+
+  /// Strumento Disponi: livello, blocco e frecce
+  ///
+  /// In it, this message translates to:
+  /// **'Disponi'**
+  String get strDisponi;
+
+  /// Aiuto della selezione multipla vuota
+  ///
+  /// In it, this message translates to:
+  /// **'Tocca gli elementi da scegliere'**
+  String get selezionaPiuAiuto;
+
+  /// Allinea a sinistra
+  ///
+  /// In it, this message translates to:
+  /// **'A sinistra'**
+  String get allSinistra;
+
+  /// Allinea al centro in orizzontale
+  ///
+  /// In it, this message translates to:
+  /// **'Centro orizzontale'**
+  String get allCentroOrizz;
+
+  /// Allinea a destra
+  ///
+  /// In it, this message translates to:
+  /// **'A destra'**
+  String get allDestra;
+
+  /// Allinea in alto
+  ///
+  /// In it, this message translates to:
+  /// **'In alto'**
+  String get allAlto;
+
+  /// Allinea al centro in verticale
+  ///
+  /// In it, this message translates to:
+  /// **'Centro verticale'**
+  String get allCentroVert;
+
+  /// Allinea in basso
+  ///
+  /// In it, this message translates to:
+  /// **'In basso'**
+  String get allBasso;
+
+  /// Distribuisci in orizzontale
+  ///
+  /// In it, this message translates to:
+  /// **'Spazi uguali in orizzontale'**
+  String get distOrizzontale;
+
+  /// Distribuisci in verticale
+  ///
+  /// In it, this message translates to:
+  /// **'Spazi uguali in verticale'**
+  String get distVerticale;
+
+  /// Disponi: scheda del livello
+  ///
+  /// In it, this message translates to:
+  /// **'Livello'**
+  String get dispLivello;
+
+  /// Disponi: scheda delle frecce
+  ///
+  /// In it, this message translates to:
+  /// **'Sposta'**
+  String get dispSposta;
+
+  /// Disponi: davanti a tutto
+  ///
+  /// In it, this message translates to:
+  /// **'Porta davanti'**
+  String get dispDavanti;
+
+  /// Disponi: dietro a tutto
+  ///
+  /// In it, this message translates to:
+  /// **'Manda dietro'**
+  String get dispDietro;
+
+  /// Passo delle frecce di Disponi
+  ///
+  /// In it, this message translates to:
+  /// **'{n} px'**
+  String passoPx(int n);
+
+  /// Freccia di Disponi
+  ///
+  /// In it, this message translates to:
+  /// **'Su'**
+  String get frecciaSu;
+
+  /// Freccia di Disponi
+  ///
+  /// In it, this message translates to:
+  /// **'Giù'**
+  String get frecciaGiu;
+
+  /// Freccia di Disponi
+  ///
+  /// In it, this message translates to:
+  /// **'Sinistra'**
+  String get frecciaSinistra;
+
+  /// Freccia di Disponi
+  ///
+  /// In it, this message translates to:
+  /// **'Destra'**
+  String get frecciaDestra;
+
+  /// Menu della pressione lunga
+  ///
+  /// In it, this message translates to:
+  /// **'Copia'**
+  String get menuCopia;
+
+  /// Menu della pressione lunga
+  ///
+  /// In it, this message translates to:
+  /// **'Taglia'**
+  String get menuTaglia;
+
+  /// Menu della pressione lunga sul vuoto
+  ///
+  /// In it, this message translates to:
+  /// **'Incolla qui'**
+  String get menuIncolla;
+
+  /// Menu della pressione lunga: modalità selezione multipla
+  ///
+  /// In it, this message translates to:
+  /// **'Seleziona più'**
+  String get menuSelezionaPiu;
+
+  /// Menu della pressione lunga sul vuoto
+  ///
+  /// In it, this message translates to:
+  /// **'Seleziona tutto'**
+  String get menuSelezionaTutto;
+
+  /// Menu della pressione lunga su una foto
+  ///
+  /// In it, this message translates to:
+  /// **'Sposta in pagina…'**
+  String get menuSpostaInPagina;
+
+  /// Menu della pressione lunga sul vuoto
+  ///
+  /// In it, this message translates to:
+  /// **'Aggiungi testo qui'**
+  String get menuAggiungiTesto;
+
+  /// Menu della pressione lunga sul vuoto
+  ///
+  /// In it, this message translates to:
+  /// **'Aggiungi forma qui'**
+  String get menuAggiungiForma;
+
+  /// Menu della pressione lunga sul vuoto
+  ///
+  /// In it, this message translates to:
+  /// **'Azioni della pagina'**
+  String get menuAzioniPagina;
+
+  /// Titolo della scelta della pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Sposta nella pagina'**
+  String get menuScegliPagina;
+
+  /// Una pagina nella scelta
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {n}'**
+  String menuPaginaNumero(int n);
+
+  /// Panoramica: come si usa
+  ///
+  /// In it, this message translates to:
+  /// **'Tocca per andare alla pagina · trascina per riordinare · tieni premuto per le azioni'**
+  String get panoramicaAiuto;
+
+  /// Panoramica: etichetta di una pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {n}, trascina per spostarla'**
+  String panoramicaPagina(int n);
+
+  /// Anteprima: pulsante di chiusura
+  ///
+  /// In it, this message translates to:
+  /// **'Chiudi l\'anteprima'**
+  String get anteprimaChiudi;
+
+  /// Anteprima: pagina corrente
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {n} di {tot}'**
+  String anteprimaPagina(int n, int tot);
+
+  /// Nome del pannello Cronologia
+  ///
+  /// In it, this message translates to:
+  /// **'Cronologia'**
+  String get strumentoCronologia;
+
+  /// Cronologia: etichetta di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Passaggio {n}: {nome}'**
+  String cronEtichetta(int n, String nome);
+
+  /// Cronologia: il passaggio dove si è
+  ///
+  /// In it, this message translates to:
+  /// **'Attuale'**
+  String get cronAttuale;
+
+  /// Primo passaggio della cronologia
+  ///
+  /// In it, this message translates to:
+  /// **'Progetto aperto'**
+  String get cambAperto;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina duplicata'**
+  String get cambPaginaDuplicata;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina aggiunta'**
+  String get cambPaginaAggiunta;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina eliminata'**
+  String get cambPaginaEliminata;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Foto sostituite'**
+  String get cambFotoSostituite;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Elementi cambiati'**
+  String get cambElementiCambiati;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Foto aggiunta} other{{n} foto aggiunte}}'**
+  String cambFotoAggiunte(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Testo aggiunto} other{{n} testi aggiunti}}'**
+  String cambTestiAggiunti(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Forma aggiunta} other{{n} forme aggiunte}}'**
+  String cambFormeAggiunte(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n} elementi aggiunti'**
+  String cambElementiAggiunti(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Foto eliminata} other{{n} foto eliminate}}'**
+  String cambFotoEliminate(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Testo eliminato} other{{n} testi eliminati}}'**
+  String cambTestiEliminati(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Forma eliminata} other{{n} forme eliminate}}'**
+  String cambFormeEliminate(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n} elementi eliminati'**
+  String cambElementiEliminati(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Pagine: {da} → {a}'**
+  String cambPagine(int da, int a);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Formato della pagina'**
+  String get cambFormatoPagina;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Disposizione: {nome}'**
+  String cambDisposizione(String nome);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Stile mosaico'**
+  String get cambStileMosaico;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Foto rimescolate'**
+  String get cambFotoRimescolate;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Lucchetto delle pagine'**
+  String get cambLucchettoPagine;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Pagine a cavallo'**
+  String get cambPagineACavallo;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Disposizione della pagina'**
+  String get cambDisposizionePagina;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Foto per pagina'**
+  String get cambFotoPerPagina;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Spaziatura'**
+  String get cambSpaziatura;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Margine'**
+  String get cambMargine;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Sfondo'**
+  String get cambSfondo;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Numeri di pagina'**
+  String get cambNumeriPagina;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Indicatore «scorri»'**
+  String get cambScorri;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Nome dei file'**
+  String get cambNomeFile;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Modifica'**
+  String get cambModifica;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Elementi raggruppati'**
+  String get cambRaggruppati;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Gruppo separato'**
+  String get cambSeparati;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Ordine delle foto'**
+  String get cambOrdineFoto;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Livello cambiato'**
+  String get cambLivello;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Blocco della posizione'**
+  String get cambBloccoPosizione;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n} elementi spostati'**
+  String cambNSpostati(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Disposizione aggiornata'**
+  String get cambDispAggiornata;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n} elementi modificati'**
+  String cambNModificati(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{tipo, select, photo{Foto spostata} text{Testo spostato} shape{Forma spostata} other{Elemento spostato}}'**
+  String cambSpostato(String tipo);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{tipo, select, photo{Foto ridimensionata} text{Testo ridimensionato} shape{Forma ridimensionata} other{Elemento ridimensionato}}'**
+  String cambRidimensionato(String tipo);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{tipo, select, photo{Foto ruotata} text{Testo ruotato} shape{Forma ruotata} other{Elemento ruotato}}'**
+  String cambRuotato(String tipo);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{tipo, select, photo{Stile della foto} text{Stile del testo} shape{Stile della forma} other{Stile}}'**
+  String cambStile(String tipo);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Testo modificato'**
+  String get cambTestoModificato;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Colori della foto'**
+  String get cambColoriFoto;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Taglio del video'**
+  String get cambTaglioVideo;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Copertina del video'**
+  String get cambCopertinaVideo;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Audio del video'**
+  String get cambAudioVideo;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Inquadratura della foto'**
+  String get cambInquadratura;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Foto libera'**
+  String get cambFotoLibera;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Foto nella disposizione'**
+  String get cambFotoInDisposizione;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina duplicata: la copia è la pagina {n}'**
+  String avvisoPaginaDuplicata(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {n} eliminata'**
+  String avvisoPaginaEliminata(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina spostata in posizione {n}'**
+  String avvisoPaginaSpostata(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {n} bloccata'**
+  String avvisoPaginaBloccata(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {n} sbloccata'**
+  String avvisoPaginaSbloccata(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {n} unita alla successiva «a cavallo»'**
+  String avvisoPaginaUnita(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {n} separata dalla successiva'**
+  String avvisoPaginaSeparata(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Pagine riordinate'**
+  String get avvisoPagineRiordinate;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'{n} elementi raggruppati: si spostano insieme'**
+  String avvisoRaggruppati(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Gruppo separato: ora gli elementi si spostano uno per uno'**
+  String get avvisoSeparati;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Seleziona almeno 2 elementi da raggruppare'**
+  String get avvisoServeDue;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Seleziona almeno 3 elementi per distribuirli'**
+  String get avvisoServeTre;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Nessun gruppo selezionato'**
+  String get avvisoNessunGruppo;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Posizione bloccata'**
+  String get avvisoPosizioneBloccata;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Posizione sbloccata'**
+  String get avvisoPosizioneSbloccata;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Portato davanti'**
+  String get avvisoPortatoDavanti;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Mandato dietro'**
+  String get avvisoMandatoDietro;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 elemento copiato} other{{n} elementi copiati}}'**
+  String avvisoCopiati(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 elemento tagliato} other{{n} elementi tagliati}}'**
+  String avvisoTagliati(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 elemento incollato} other{{n} elementi incollati}}'**
+  String avvisoIncollati(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Non c\'è niente da incollare: copia prima foto, testi o forme'**
+  String get avvisoNienteDaIncollare;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Foto spostate nella pagina {n}'**
+  String avvisoFotoSpostate(int n);
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

@@ -232,24 +232,30 @@ EngineResult deletePage(Snapshot s, int k, EngineContext ctx) {
   return EngineResult.done(sc);
 }
 
-/// `_move_page`: sposta la pagina [k] di un posto ([direction] −1 o +1); una pagina «a cavallo» si
-/// sposta con tutto il suo gruppo.
-EngineResult movePage(Snapshot s, int k, int direction, EngineContext ctx) {
-  final sc = Scene(s, ctx);
-  final groups = sc.seamGroups();
+/// Nuovo ordine delle pagine dopo `_move_page`: la pagina [k] (con tutto il suo gruppo «a cavallo») di un posto
+/// ([direction] −1 o +1); `order[nuova posizione] = vecchia posizione`. Null se è già al bordo.
+List<int>? ordineSpostaPagina(CanvasState c, int k, int direction) {
+  final groups = c.seamGroups();
   final g = groups.indexWhere((x) => x.$1 <= k && k <= x.$2);
   final h = g < 0 ? -1 : g + direction;
-  if (g < 0 || !(0 <= h && h < groups.length)) {
-    sc.notice(NoticeKind.pageAtEdge);
-    return EngineResult.refused(s, sc);
-  }
+  if (g < 0 || !(0 <= h && h < groups.length)) return null;
   final t = groups[g];
   groups[g] = groups[h];
   groups[h] = t;
-  final order = [
+  return [
     for (final (a, b) in groups)
       for (var p = a; p <= b; p++) p,
   ];
+}
+
+/// `_move_page`: sposta la pagina [k] di un posto ([direction] −1 o +1); una pagina «a cavallo» si
+/// sposta con tutto il suo gruppo.
+EngineResult movePage(Snapshot s, int k, int direction, EngineContext ctx) {
+  final order = ordineSpostaPagina(s.canvas, k, direction);
+  if (order == null) {
+    final sc = Scene(s, ctx)..notice(NoticeKind.pageAtEdge);
+    return EngineResult.refused(s, sc);
+  }
   return reorderPages(s, order, ctx);
 }
 

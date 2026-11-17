@@ -218,7 +218,7 @@ class _Miniatura extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _ImmagineVoce(sessione: sessione, voce: voce),
+                ImmagineVoce(sessione: sessione, voce: voce),
                 if (scelta)
                   DecoratedBox(
                     decoration: BoxDecoration(
@@ -266,17 +266,18 @@ class _Miniatura extends StatelessWidget {
   }
 }
 
-class _ImmagineVoce extends StatefulWidget {
-  const _ImmagineVoce({required this.sessione, required this.voce});
+/// Miniatura di una voce della libreria (carica la sua miniatura dalla cache).
+class ImmagineVoce extends StatefulWidget {
+  const ImmagineVoce({super.key, required this.sessione, required this.voce});
 
   final SessioneEditor sessione;
   final LibraryEntry voce;
 
   @override
-  State<_ImmagineVoce> createState() => _ImmagineVoceState();
+  State<ImmagineVoce> createState() => _ImmagineVoceState();
 }
 
-class _ImmagineVoceState extends State<_ImmagineVoce> {
+class _ImmagineVoceState extends State<ImmagineVoce> {
   late final Future<ImmagineMedia?> _immagine = widget.sessione.cache.carica(
     widget.sessione.sorgenteVoce(widget.voce),
     Dettaglio.miniatura,
