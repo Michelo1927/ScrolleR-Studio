@@ -9,9 +9,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
-import '../home/nuovo_progetto.dart' show nomeFormato;
+import '../home/nuovo_progetto.dart' show nomeFormato, ordineFormati;
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
+import 'intelaiatura.dart';
 import 'stato.dart';
 import 'widget_comuni.dart';
 
@@ -106,8 +107,6 @@ List<AzionePagina> azioniPagina(
   ];
 }
 
-enum _Scheda { azioni, formato, misure }
-
 class PannelloPagine extends ConsumerStatefulWidget {
   const PannelloPagine({
     super.key,
@@ -126,7 +125,6 @@ class PannelloPagine extends ConsumerStatefulWidget {
 }
 
 class _PannelloPagineState extends ConsumerState<PannelloPagine> {
-  _Scheda _scheda = _Scheda.azioni;
   final _larghezza = TextEditingController();
   final _altezza = TextEditingController();
 
@@ -145,147 +143,179 @@ class _PannelloPagineState extends ConsumerState<PannelloPagine> {
     final stato = ref.watch(editorProvider);
     final s = stato.snapshot;
     final c = s.canvas;
+    final k = stato.pagina;
     final personalizzato = c.ratioIndex == ratioPersonalizzato;
-    // La scheda delle misure ha senso solo col formato Personalizzato
-    final scheda = _scheda == _Scheda.misure && !personalizzato
-        ? _Scheda.formato
-        : _scheda;
-    return PannelloBasso(
-      onScarta: _ctrl.chiudiStrumento,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: MisureScrl.spazioPiccolo),
-          SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                horizontal: MisureScrl.spazio,
-              ),
-              children: [
-                _chip(t.pagAzioni, _Scheda.azioni, scheda),
-                _chip(t.pagFormato, _Scheda.formato, scheda),
-                if (personalizzato) _chip(t.pagMisure, _Scheda.misure, scheda),
+    final azioni = [
+      ...azioniPagina(t, s, _ctrl, k, onEsporta: widget.onEsporta),
+      AzionePagina(
+        chiave: 'riordina',
+        icona: Icons.grid_view_rounded,
+        etichetta: t.pagRiordina,
+        onTap: () {
+          _ctrl.chiudiStrumento();
+          widget.onApriPanoramica();
+        },
+      ),
+    ];
+    return Intelaiatura(
+      nome: t.barraPagine,
+      // Le azioni agiscono subito (ognuna è già un passo di cronologia): ✓ e ✕ chiudono soltanto
+      onConferma: _ctrl.chiudiStrumento,
+      schede: [
+        SchedaStrumento(
+          etichetta: t.pagAzioni,
+          chiave: const ValueKey('pagine-scheda-azioni'),
+          altezza: 2 * 60 + MisureScrl.spazioPiccolo,
+          contenuto: _GrigliaAzioni(azioni: azioni),
+        ),
+        SchedaStrumento(
+          etichetta: t.pagFormato,
+          chiave: const ValueKey('pagine-scheda-formato'),
+          contenuto: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
+            children: [
+              for (final i in ordineFormati)
                 Padding(
-                  padding: const EdgeInsets.only(
-                    right: MisureScrl.spazioPiccolo,
-                  ),
-                  child: Center(
-                    child: ChipParametro(
-                      etichetta: t.pagRiordina,
-                      attivo: false,
-                      onTap: () {
-                        _ctrl.chiudiStrumento();
-                        widget.onApriPanoramica();
-                      },
+                  padding: const EdgeInsets.only(right: 8),
+                  child: TesseraScelta(
+                    key: ValueKey('formato-$i'),
+                    disegno: _Sagoma(
+                      proporzione: _proporzione(c, i),
+                      scelta: c.ratioIndex == i,
                     ),
+                    etichetta: nomeFormato(t, i),
+                    scelta: c.ratioIndex == i,
+                    larghezza: 96,
+                    altezza: 84,
+                    onTap: () => _ctrl.impostaFormato(i),
                   ),
                 ),
-              ],
+            ],
+          ),
+        ),
+        if (personalizzato)
+          SchedaStrumento(
+            etichetta: t.pagMisure,
+            chiave: const ValueKey('pagine-scheda-misure'),
+            contenuto: _misure(t, c),
+          ),
+      ],
+    );
+  }
+
+  Widget _misure(Testi t, CanvasState c) {
+    if (_larghezza.text.isEmpty) _larghezza.text = '${c.customW}';
+    if (_altezza.text.isEmpty) _altezza.text = '${c.customH}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
+      child: Row(
+        children: [
+          Expanded(child: _Campo(t.larghezzaPixel, _larghezza)),
+          const SizedBox(width: MisureScrl.spazio),
+          Expanded(child: _Campo(t.altezzaPixel, _altezza)),
+          const SizedBox(width: MisureScrl.spazio),
+          FilledButton(
+            onPressed: () => _ctrl.impostaMisure(
+              int.tryParse(_larghezza.text) ?? c.customW,
+              int.tryParse(_altezza.text) ?? c.customH,
             ),
+            child: Text(t.conferma),
           ),
-          const SizedBox(height: MisureScrl.spazioPiccolo),
-          SizedBox(height: 88, child: _contenuto(t, s, stato.pagina, scheda)),
-          PiedeStrumento(
-            nome: t.barraPagine,
-            etichettaAnnulla: t.chiudi,
-            etichettaConferma: t.conferma,
-            onAnnulla: _ctrl.chiudiStrumento,
-            onConferma: _ctrl.chiudiStrumento,
-          ),
-          SizedBox(height: MediaQuery.paddingOf(context).bottom),
         ],
       ),
     );
   }
 
-  Widget _chip(String nome, _Scheda s, _Scheda attuale) => Padding(
-    padding: const EdgeInsets.only(right: MisureScrl.spazioPiccolo),
-    child: Center(
-      child: ChipParametro(
-        etichetta: nome,
-        attivo: attuale == s,
-        onTap: () => setState(() => _scheda = s),
-      ),
-    ),
-  );
-
-  Widget _contenuto(Testi t, Snapshot s, int k, _Scheda scheda) {
-    final c = s.canvas;
-    switch (scheda) {
-      case _Scheda.azioni:
-        return ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-          children: [
-            for (final a in azioniPagina(
-              t,
-              s,
-              _ctrl,
-              k,
-              onEsporta: widget.onEsporta,
-            ))
-              TesseraVoce(
-                key: ValueKey('azione-${a.chiave}'),
-                icona: a.icona,
-                etichetta: a.etichetta,
-                onTap: a.onTap,
-                spenta: a.spenta,
-                colore: a.pericolo ? ColoriScrl.pericolo : null,
-              ),
-          ],
-        );
-      case _Scheda.formato:
-        return ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-          children: [
-            for (var i = 0; i < aspectRatios.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: TesseraScelta(
-                  key: ValueKey('formato-$i'),
-                  disegno: _Sagoma(
-                    proporzione: _proporzione(c, i),
-                    scelta: c.ratioIndex == i,
-                  ),
-                  etichetta: nomeFormato(t, i),
-                  scelta: c.ratioIndex == i,
-                  larghezza: 96,
-                  altezza: 84,
-                  onTap: () => _ctrl.impostaFormato(i),
-                ),
-              ),
-          ],
-        );
-      case _Scheda.misure:
-        if (_larghezza.text.isEmpty) _larghezza.text = '${c.customW}';
-        if (_altezza.text.isEmpty) _altezza.text = '${c.customH}';
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-          child: Row(
-            children: [
-              Expanded(child: _Campo(t.larghezzaPixel, _larghezza)),
-              const SizedBox(width: MisureScrl.spazio),
-              Expanded(child: _Campo(t.altezzaPixel, _altezza)),
-              const SizedBox(width: MisureScrl.spazio),
-              FilledButton(
-                onPressed: () => _ctrl.impostaMisure(
-                  int.tryParse(_larghezza.text) ?? c.customW,
-                  int.tryParse(_altezza.text) ?? c.customH,
-                ),
-                child: Text(t.conferma),
-              ),
-            ],
-          ),
-        );
-    }
-  }
-
   double _proporzione(CanvasState c, int i) {
     final m = aspectRatios[i];
     return m != null ? m.$1 / m.$2 : c.customW / c.customH;
+  }
+}
+
+/// Le azioni di pagina in due righe di cinque, tutte nello schermo: icona e nome (su due righe se serve).
+class _GrigliaAzioni extends StatelessWidget {
+  const _GrigliaAzioni({required this.azioni});
+
+  final List<AzionePagina> azioni;
+
+  @override
+  Widget build(BuildContext context) {
+    const colonne = 5;
+    final righe = (azioni.length / colonne).ceil();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazioPiccolo),
+      child: Column(
+        children: [
+          for (var r = 0; r < righe; r++) ...[
+            if (r > 0) const SizedBox(height: MisureScrl.spazioPiccolo),
+            Expanded(
+              child: Row(
+                children: [
+                  for (var c = 0; c < colonne; c++)
+                    Expanded(
+                      child: r * colonne + c < azioni.length
+                          ? _VoceAzionePagina(azione: azioni[r * colonne + c])
+                          : const SizedBox.shrink(),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VoceAzionePagina extends StatelessWidget {
+  const _VoceAzionePagina({required this.azione});
+
+  final AzionePagina azione;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = azione;
+    final colore = a.spenta
+        ? ColoriScrl.testoSpento
+        : a.pericolo
+        ? ColoriScrl.pericoloTesto
+        : ColoriScrl.testo;
+    return Semantics(
+      button: true,
+      label: a.etichetta,
+      excludeSemantics: true,
+      child: InkWell(
+        key: ValueKey('azione-${a.chiave}'),
+        borderRadius: BorderRadius.circular(MisureScrl.angoloTessera),
+        onTap: a.onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(a.icona, size: 22, color: colore),
+              const SizedBox(height: 4),
+              Flexible(
+                child: Text(
+                  a.etichetta,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  textScaler: MediaQuery.textScalerOf(context)
+                      .clamp(maxScaleFactor: 1.1),
+                  style: TextStyle(
+                    fontSize: TestoScrl.piccolo,
+                    height: 1.15,
+                    color: colore,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

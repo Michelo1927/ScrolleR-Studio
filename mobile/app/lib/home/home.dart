@@ -14,6 +14,8 @@ import '../editor/widget_comuni.dart';
 import '../l10n/app_localizations.dart';
 import '../project/archivio.dart';
 import '../project/provider.dart';
+import '../settings/aggiornamenti.dart';
+import '../settings/impostazioni_page.dart';
 import '../theme/tokens.dart';
 import 'nuovo_progetto.dart';
 import 'prove.dart';
@@ -58,6 +60,14 @@ class HomePage extends ConsumerWidget {
             etichetta: t.importaProgetto,
             onTap: () => unawaited(scegliEImporta(context, ref)),
           ),
+          PulsanteIcona(
+            key: const ValueKey('home-impostazioni'),
+            icona: Icons.settings_outlined,
+            etichetta: t.impostazioni,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ImpostazioniPage()),
+            ),
+          ),
           // Le prove della Fase 2 restano solo nelle build di sviluppo
           if (kDebugMode)
             TextButton(
@@ -69,16 +79,23 @@ class HomePage extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: progetti.when(
-          data: (l) => l.isEmpty
-              ? const _StatoVuoto()
-              : _Griglia(
-                  progetti: l,
-                  onApri: (p) => _apri(context, ref, p.cartella),
-                  onLungo: (p) => _azioni(context, ref, p),
-                ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => const _StatoVuoto(),
+        child: Column(
+          children: [
+            const _AvvisoAggiornamento(),
+            Expanded(
+              child: progetti.when(
+                data: (l) => l.isEmpty
+                    ? const _StatoVuoto()
+                    : _Griglia(
+                        progetti: l,
+                        onApri: (p) => _apri(context, ref, p.cartella),
+                        onLungo: (p) => _azioni(context, ref, p),
+                      ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, _) => const _StatoVuoto(),
+              ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -100,21 +117,18 @@ class HomePage extends ConsumerWidget {
     WidgetRef ref,
     InfoProgetto p,
   ) async {
+    // Lo spazio si calcola mentre il foglio sale: le azioni si possono già toccare
+    final spazio = ref.read(archivioProvider).spazioOccupato(p.cartella);
     final scelta = await showModalBottomSheet<_Azione>(
       context: context,
+      sheetAnimationStyle: MotoScrl.foglio(context),
       builder: (context) {
         final t = Testi.of(context);
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(MisureScrl.spazio),
-                child: Text(
-                  p.nome,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
+              _TestataProgetto(nome: p.nome, spazio: spazio),
               _VoceAzione(Icons.edit_rounded, t.rinomina, _Azione.rinomina),
               _VoceAzione(Icons.copy_rounded, t.duplica, _Azione.duplica),
               _VoceAzione(
@@ -126,7 +140,7 @@ class HomePage extends ConsumerWidget {
                 Icons.delete_outline_rounded,
                 t.elimina,
                 _Azione.elimina,
-                colore: ColoriScrl.pericolo,
+                colore: ColoriScrl.pericoloTesto,
               ),
             ],
           ),
@@ -157,6 +171,7 @@ class HomePage extends ConsumerWidget {
   Future<String?> _chiediNome(BuildContext context, String attuale) {
     return showModalBottomSheet<String>(
       context: context,
+      sheetAnimationStyle: MotoScrl.foglio(context),
       isScrollControlled: true,
       builder: (context) => _FoglioNome(attuale),
     );
@@ -165,6 +180,7 @@ class HomePage extends ConsumerWidget {
   Future<bool?> _confermaElimina(BuildContext context, String nome) {
     return showModalBottomSheet<bool>(
       context: context,
+      sheetAnimationStyle: MotoScrl.foglio(context),
       builder: (context) {
         final t = Testi.of(context);
         return SafeArea(
@@ -196,7 +212,7 @@ class HomePage extends ConsumerWidget {
                     Expanded(
                       child: FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: ColoriScrl.pericolo,
+                          backgroundColor: ColoriScrl.pericoloPieno,
                         ),
                         onPressed: () => Navigator.of(context).pop(true),
                         child: Text(t.elimina),
@@ -214,6 +230,65 @@ class HomePage extends ConsumerWidget {
 }
 
 enum _Azione { rinomina, duplica, condividi, elimina }
+
+/// Testata del foglio delle azioni: il nome del progetto e quanto spazio occupa sul telefono.
+class _TestataProgetto extends StatelessWidget {
+  const _TestataProgetto({required this.nome, required this.spazio});
+
+  final String nome;
+  final Future<int> spazio;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Testi.of(context);
+    final stili = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MisureScrl.spazio,
+        MisureScrl.spazio,
+        MisureScrl.spazio,
+        MisureScrl.spazioPiccolo,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(nome, style: stili.titleMedium),
+          const SizedBox(height: 4),
+          FutureBuilder<int>(
+            future: spazio,
+            builder: (context, s) {
+              final byte = s.data;
+              return Row(
+                children: [
+                  const Icon(
+                    Icons.sd_storage_outlined,
+                    size: 16,
+                    color: ColoriScrl.testoSecondario,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      byte == null
+                          ? t.pesoCalcolo
+                          : t.pesoProgetto(formatoDimensione(t, byte)),
+                      key: const ValueKey('progetto-peso'),
+                      style: const TextStyle(
+                        fontSize: TestoScrl.normale,
+                        color: ColoriScrl.testo,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 2),
+          Text(t.pesoNota, style: stili.bodySmall),
+        ],
+      ),
+    );
+  }
+}
 
 class _VoceAzione extends StatelessWidget {
   const _VoceAzione(this.icona, this.testo, this.azione, {this.colore});
@@ -417,6 +492,91 @@ class _Tessera extends ConsumerWidget {
               style: stili.bodySmall,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Avviso «È disponibile la versione X» in cima alla Home: «Scarica» apre la pagina della release nel browser,
+/// ✕ lo nasconde (quella versione non si riannuncia). Senza versione nuova, o con il controllo spento, non c'è.
+class _AvvisoAggiornamento extends ConsumerStatefulWidget {
+  const _AvvisoAggiornamento();
+
+  @override
+  ConsumerState<_AvvisoAggiornamento> createState() =>
+      _AvvisoAggiornamentoState();
+}
+
+class _AvvisoAggiornamentoState extends ConsumerState<_AvvisoAggiornamento> {
+  bool _nascosto = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final nuova = ref.watch(aggiornamentoDisponibileProvider).value;
+    if (nuova == null || _nascosto) return const SizedBox.shrink();
+    final t = Testi.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MisureScrl.spazio,
+        MisureScrl.spazioPiccolo,
+        MisureScrl.spazio,
+        0,
+      ),
+      child: Semantics(
+        liveRegion: true,
+        container: true,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: ColoriScrl.rilievo,
+            borderRadius: BorderRadius.circular(MisureScrl.angoloTessera),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: MisureScrl.spazio),
+              const Icon(Icons.system_update_rounded, color: ColoriScrl.testo),
+              const SizedBox(width: MisureScrl.spazioPiccolo + 4),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: MisureScrl.spazioPiccolo,
+                  ),
+                  child: Text(
+                    t.aggDisponibile(nuova.versione),
+                    style: const TextStyle(
+                      fontSize: TestoScrl.normale,
+                      color: ColoriScrl.testo,
+                    ),
+                  ),
+                ),
+              ),
+              TextButton(
+                key: const ValueKey('home-aggiornamento-scarica'),
+                onPressed: () async {
+                  final ok = await ref.read(apriIndirizzoProvider)(
+                    nuova.indirizzo,
+                  );
+                  if (!ok && context.mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(t.aggNonApribile)));
+                  }
+                },
+                child: Text(t.aggScarica),
+              ),
+              PulsanteIcona(
+                key: const ValueKey('home-aggiornamento-nascondi'),
+                icona: Icons.close_rounded,
+                etichetta: t.aggChiudi,
+                onTap: () {
+                  setState(() => _nascosto = true);
+                  unawaited(
+                    ref.read(controlloAggiornamentiProvider).ignora(nuova),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

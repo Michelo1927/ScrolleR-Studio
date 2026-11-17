@@ -7,7 +7,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 import 'package:scrollr_studio/editor/editor_page.dart';
 import 'package:scrollr_studio/editor/geometria_tela.dart';
-import 'package:scrollr_studio/editor/pannello_disposizione.dart';
 import 'package:scrollr_studio/editor/sessione.dart';
 import 'package:scrollr_studio/editor/stato.dart';
 import 'package:scrollr_studio/editor/tela.dart';
@@ -20,6 +19,8 @@ import 'package:scrollr_studio/project/archivio.dart';
 import 'package:scrollr_studio/project/crea_progetto.dart';
 import 'package:scrollr_studio/project/provider.dart';
 import 'package:scrollr_studio/theme/tema.dart';
+
+import 'aiuto_barra.dart';
 
 FotoScelta _foto(int i) => (
   voce: LibraryEntry(path: 'foto$i.jpg', rel: 'media/foto$i.jpg'),
@@ -136,18 +137,6 @@ class _Banco {
   PhotoItem foto(int uid) => snapshot.items.firstWhere((p) => p.uid == uid);
 }
 
-/// La striscia di strumenti scorre in orizzontale: porta in vista la voce [testo] (ormai sono più di quante ne stanno).
-Future<void> _vediVoce(WidgetTester tester, String testo) async {
-  final lista = find
-      .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
-      .first;
-  // Si riparte dall'inizio della striscia: una voce già superata non è più costruita
-  await tester.drag(lista, const Offset(10000, 0));
-  await tester.pump();
-  await tester.scrollUntilVisible(find.text(testo), 120, scrollable: lista);
-  await tester.pump();
-}
-
 /// Aspetta che il salvataggio finisca: i file si scrivono davvero (tempo reale), mentre le continuazioni
 /// dei Future vivono nel tempo finto del test e avanzano a ogni `pump`.
 Future<void> _attendiDisco(WidgetTester tester) async {
@@ -170,17 +159,15 @@ void main() {
     await tester.pump();
     expect(b.stato.selezione, {(tipo: ElementKind.photo, uid: 1)});
     // Con un elemento selezionato la barra diventa la striscia di strumenti
-    await _vediVoce(tester, 'Duplica');
-    expect(find.text('Duplica'), findsOneWidget);
-    await _vediVoce(tester, 'Elimina');
-    expect(find.text('Elimina'), findsOneWidget);
+    final voci = await vociBarra(tester);
+    expect(voci, containsAll(['Duplica', 'Elimina']));
     // Sul fondo, tra il bordo dello schermo e la pagina
     await tester.tapAt(
       tester.getTopLeft(find.byType(TelaEditor)) + const Offset(8, 700),
     );
     await tester.pump();
     expect(b.stato.selezione, isEmpty);
-    expect(find.text('Disposizione'), findsOneWidget); // La barra è tornata
+    expect(find.text('Impagina'), findsOneWidget); // La barra è tornata
   });
 
   testWidgets('trascinare sul vuoto non sposta niente e cambia pagina', (
@@ -336,19 +323,150 @@ void main() {
     },
   );
 
+  testWidgets('Impagina apre il menu con tutte le impostazioni', (
+    tester,
+  ) async {
+    final b = _Banco(tester);
+    await b.apri(foto: 6);
+    await tester.tap(find.text('Impagina'));
+    await tester.pumpAndSettle();
+    expect(b.stato.strumento, Strumento.disposizione);
+    for (final k in [
+      'disp-scheda-disposizione',
+      'disp-scheda-mosaico',
+      'disp-scheda-pagine',
+      'disp-scheda-foto-per-pagina',
+      'disp-scheda-spaziatura',
+      'disp-scheda-margine',
+    ]) {
+      expect(find.byKey(ValueKey(k)), findsOneWidget, reason: k);
+    }
+    expect(find.byKey(const ValueKey('scheda-indietro')), findsNothing);
+    // Il cursore segue il dito: niente passi (lo Slider li animerebbe, restando indietro)
+    await tester.tap(find.byKey(const ValueKey('disp-scheda-spaziatura')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Slider>(find.byType(Slider)).divisions, isNull);
+  });
+
+  testWidgets(
+    'pizzico sulla tela: ingrandisce la vista senza toccare il documento, «Centra» la rimette',
+    (tester) async {
+      final b = _Banco(tester);
+      await b.apri(foto: 4);
+      // Il pizzico si fa sopra la foto 1 (non selezionata: si ingrandisce la vista, la foto non cambia)
+      final centro = b.centroFoto(1);
+      // Senza zoom: la foto sotto quel punto
+      await tester.tapAt(centro);
+      await tester.pump();
+      final alCentro = b.stato.selezione;
+      expect(alCentro, hasLength(1));
+      b.controllo.deseleziona();
+      await tester.pump();
+      final passi = b.passi;
+      final prima = b.snapshot;
+
+      expect(find.byKey(const ValueKey('tela-centra')), findsNothing);
+      final a = await tester.startGesture(centro - const Offset(40, 0));
+      final c = await tester.startGesture(centro + const Offset(40, 0));
+      for (var i = 0; i < 6; i++) {
+        await a.moveBy(const Offset(-20, 0));
+        await c.moveBy(const Offset(20, 0));
+        await tester.pump();
+      }
+      await a.up();
+      await c.up();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('tela-centra')), findsOneWidget);
+      expect(b.snapshot, prima, reason: 'lo zoom è solo della vista');
+      expect(b.passi, passi);
+      expect(b.stato.selezione, isEmpty);
+
+      // Con lo zoom il tocco trova ancora la foto giusta (il centro del pizzico resta fermo)
+      await tester.tapAt(centro);
+      await tester.pump();
+      expect(b.stato.selezione, alCentro);
+      b.controllo.deseleziona();
+      await tester.pump();
+
+      // Ingrandita, un dito sposta la vista invece di cambiare pagina
+      await tester.dragFrom(centro, const Offset(-60, 0));
+      await tester.pumpAndSettle();
+      expect(b.stato.pagina, 0);
+      expect(b.snapshot, prima);
+
+      await tester.tap(find.byKey(const ValueKey('tela-centra')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('tela-centra')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'pizzico sulla tela: alzando un dito alla volta la vista non salta',
+    (tester) async {
+      final b = _Banco(tester);
+      await b.apri(foto: 4);
+      // Il riquadro della foto 1 sullo schermo (il nodo per i lettori di schermo segue zoom e spostamento)
+      final nodo = find
+          .descendant(
+            of: find.byType(TelaEditor),
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is Semantics &&
+                  (w.properties.label?.startsWith('Foto 1') ?? false),
+            ),
+          )
+          .first;
+      Rect foto() => tester.getRect(nodo);
+      final centro = b.centroFoto(1);
+      final a = await tester.startGesture(centro - const Offset(30, 10));
+      final c = await tester.startGesture(centro + const Offset(30, 10));
+      for (var i = 0; i < 8; i++) {
+        await a.moveBy(const Offset(-12, -4));
+        await c.moveBy(const Offset(12, 4));
+        await tester.pump();
+      }
+      final ingrandita = foto();
+      expect(ingrandita.width, greaterThan(b.geo().scala * b.foto(1).w * 1.5));
+
+      // Si alza il primo dito: niente salto
+      await a.up();
+      await tester.pump();
+      expect(foto().topLeft, offsetMoreOrLessEquals(ingrandita.topLeft));
+      // Il dito rimasto sposta la vista di quanto si muove (meno il piccolo tratto prima che il gesto riparta)
+      for (var i = 0; i < 10; i++) {
+        await c.moveBy(const Offset(-6, 0));
+        await tester.pump();
+      }
+      final spostata = foto();
+      expect(spostata.width, closeTo(ingrandita.width, 0.5));
+      expect(spostata.top, closeTo(ingrandita.top, 0.5));
+      expect(spostata.left - ingrandita.left, inInclusiveRange(-60, -30));
+      // Alzato anche l'ultimo dito: la vista resta dov'è (lo zoom è ben sopra 1)
+      await c.up();
+      await tester.pumpAndSettle();
+      expect(foto().topLeft, offsetMoreOrLessEquals(spostata.topLeft));
+      expect(find.byKey(const ValueKey('tela-centra')), findsOneWidget);
+    },
+  );
+
   testWidgets('Disposizione: ✕ scarta, ✓ conferma come un solo passo', (
     tester,
   ) async {
     final b = _Banco(tester);
     await b.apri(foto: 6);
     expect(b.snapshot.canvas.layoutMode, LayoutModes.grid);
-    await tester.tap(find.text('Disposizione'));
+    await tester.tap(find.text('Impagina'));
     await tester.pumpAndSettle();
     // La pagina resta visibile con il pannello aperto
     expect(b.stato.strumento, Strumento.disposizione);
     expect(find.byType(TelaEditor), findsOneWidget);
     expect(tester.getSize(find.byType(TelaEditor)).height, greaterThan(300));
 
+    await toccaNelPannello(
+      tester,
+      find.byKey(const ValueKey('disp-scheda-disposizione')),
+      settle: false,
+    );
     await tester.tap(find.text('Righe'));
     await tester.pump();
     expect(b.snapshot.canvas.layoutMode, LayoutModes.stripsH);
@@ -358,24 +476,20 @@ void main() {
     expect(b.snapshot.canvas.layoutMode, LayoutModes.grid);
     expect(b.stato.strumento, Strumento.nessuno);
 
-    await tester.tap(find.text('Disposizione'));
+    await tester.tap(find.text('Impagina'));
     await tester.pumpAndSettle();
+    await toccaNelPannello(
+      tester,
+      find.byKey(const ValueKey('disp-scheda-disposizione')),
+      settle: false,
+    );
     await tester.tap(find.text('Colonne'));
     await tester.pump();
-    await tester.scrollUntilVisible(
-      find.textContaining('Spaziatura  '),
-      100,
-      scrollable: find
-          .descendant(
-            of: find.byType(PannelloDisposizione),
-            matching: find.byType(Scrollable),
-          )
-          .first,
+    await toccaNelPannello(
+      tester,
+      find.byKey(const ValueKey('disp-scheda-spaziatura')),
+      settle: false,
     );
-    await tester.ensureVisible(find.textContaining('Spaziatura  '));
-    await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('Spaziatura  '));
-    await tester.pump();
     await tester.drag(find.byType(Slider), const Offset(-100, 0));
     await tester.pump();
     expect(
@@ -383,8 +497,11 @@ void main() {
       isNot(16),
       reason: 'il cursore agisce subito',
     );
-    await tester.tap(find.textContaining('Margine  '));
-    await tester.pump();
+    await toccaNelPannello(
+      tester,
+      find.byKey(const ValueKey('disp-scheda-margine')),
+      settle: false,
+    );
     await tester.tap(find.byIcon(Icons.check_rounded));
     await tester.pumpAndSettle();
     expect(b.snapshot.canvas.layoutMode, LayoutModes.stripsV);
@@ -400,10 +517,13 @@ void main() {
   ) async {
     final b = _Banco(tester);
     await b.apri(foto: 6);
-    await tester.tap(find.text('Disposizione'));
+    await tester.tap(find.text('Impagina'));
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('Pagine  '));
-    await tester.pump();
+    await toccaNelPannello(
+      tester,
+      find.byKey(const ValueKey('disp-scheda-pagine')),
+      settle: false,
+    );
     await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pump();
     await tester.tap(find.byIcon(Icons.add_rounded));
@@ -461,22 +581,16 @@ void main() {
     await b.apri(foto: 4);
     await tester.tapAt(b.centroFoto(2));
     await tester.pump();
-    await _vediVoce(tester, 'Duplica');
-    await tester.tap(find.text('Duplica'));
-    await tester.pump();
+    await toccaVoceBarra(tester, 'Duplica', settle: false);
     expect(b.snapshot.items.length, 5);
     expect(b.stato.selezione.length, 1);
-    await _vediVoce(tester, 'Libera');
-    await tester.tap(find.text('Libera'));
-    await tester.pump();
+    await toccaVoceBarra(tester, 'Libera', settle: false);
     expect(
       b.stato.elementiSelezionati.whereType<PhotoItem>().single.free,
       isTrue,
     );
     expect(find.text('In disposizione'), findsOneWidget);
-    await _vediVoce(tester, 'Elimina');
-    await tester.tap(find.text('Elimina'));
-    await tester.pump();
+    await toccaVoceBarra(tester, 'Elimina', settle: false);
     expect(b.snapshot.items.length, 4);
     expect(b.stato.selezione, isEmpty);
     expect(b.passi, 4);
@@ -517,9 +631,7 @@ void main() {
     await b.apri(foto: 4);
     await tester.tapAt(b.centroFoto(3));
     await tester.pump();
-    await _vediVoce(tester, 'Elimina');
-    await tester.tap(find.text('Elimina'));
-    await tester.pump();
+    await toccaVoceBarra(tester, 'Elimina', settle: false);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     await _attendiDisco(tester);
     final salvato = await tester.runAsync(() => b.archivio.carica(b.cartella));
@@ -642,16 +754,22 @@ void mainPercorso() {
       expect(contenitore.read(editorProvider).snapshot.items.length, 12);
 
       // 5 pagine, poi il mosaico
-      await tester.tap(find.text('Disposizione'));
+      await tester.tap(find.text('Impagina'));
       await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Pagine  '));
-      await tester.pump();
+      await toccaNelPannello(
+        tester,
+        find.byKey(const ValueKey('disp-scheda-pagine')),
+        settle: false,
+      );
       for (var i = 0; i < 4; i++) {
         await tester.tap(find.byIcon(Icons.add_rounded));
         await tester.pump();
       }
-      await tester.tap(find.widgetWithText(ChipParametro, 'Disposizione'));
-      await tester.pump();
+      await toccaNelPannello(
+        tester,
+        find.byKey(const ValueKey('disp-scheda-disposizione')),
+        settle: false,
+      );
       await tester.tap(find.widgetWithText(TesseraScelta, 'Mosaico'));
       await tester.pump();
       await tester.tap(find.byIcon(Icons.check_rounded));
@@ -662,13 +780,19 @@ void mainPercorso() {
       expect(fatto.items.length, 12);
       expect(contenitore.read(editorProvider).cronologia.states.length, 2);
 
-      // Esce: il salvataggio parte subito
+      // Esce: il salvataggio parte subito. Altri «indietro» mentre si salva (freccia e gesto di sistema) non
+      // devono chiudere anche la Home (resterebbe uno schermo nero)
       await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-      for (var i = 0; i < 12; i++) {
+      await tester.pump();
+      await tester.binding.handlePopRoute();
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      // A piccoli passi: i salvataggi in più finirebbero durante l'animazione di chiusura dell'editor
+      for (var i = 0; i < 60; i++) {
         await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 40)),
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
         );
-        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(const Duration(milliseconds: 16));
       }
       await _finoA(tester, find.text('Viaggio'));
       await tester.pumpAndSettle();
@@ -709,7 +833,7 @@ void mainPercorso() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       final b = _Banco(tester);
       await b.apriSenzaVista(foto: 6, pagine: 2);
-      for (final voce in ['Foto', 'Disposizione', 'Aggiungi']) {
+      for (final voce in ['Foto', 'Impagina', 'Aggiungi']) {
         await tester.tap(find.text(voce).last);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: voce);

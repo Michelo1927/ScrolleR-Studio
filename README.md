@@ -17,6 +17,37 @@ Open the [latest release](https://github.com/Michelo1927/ScrolleR-Studio/release
   ScrolleR Studio into Applications. The app is not signed by Apple, so the first time macOS blocks it:
   open **System Settings → Privacy & Security** and click **Open Anyway**.
 
+## Mobile app (Android)
+
+ScrolleR Studio Mobile is the phone version, built with Flutter in [`mobile/`](mobile/). It uses the same
+`.scrlproj` project format as the desktop app, so a project made on either one opens on the other
+(**Share project** on the phone writes a `.zip` the desktop opens; the desktop's "Collect project" zip opens on the phone).
+
+- One page at a time, tools that rise from the bottom; photos from the gallery are linked, never copied or deleted.
+- Layouts, photo tools, texts and shapes, videos, page and carousel actions, export to PNG / JPG / MP4: the same
+  results as the desktop app.
+- Accessible: labels for screen readers (TalkBack) on every command, AA contrast, text that follows the system size up to 1.3×,
+  and it respects "remove animations". **Settings → Gestures** explains the gestures.
+- No ads, no tracking, no accounts. The network is only used to look for a new version once a day (it can be turned off in
+  Settings). Unexpected errors go to a local log that is only shared if you choose to.
+
+**Download:** on the [Releases](https://github.com/Michelo1927/ScrolleR-Studio/releases) page, pick the release tagged
+`mobile-v<version>` ("ScrolleR Studio Mobile <version>") and install `ScrolleR-Studio-Mobile-<version>.apk`.
+Mobile releases are never marked as "latest", so the **latest release** above stays the desktop one and the desktop app's
+update check is not affected; the mobile app only looks at `mobile-v*` tags. An iPhone version is not available yet.
+
+```
+cd mobile/app
+flutter pub get
+flutter run
+```
+
+Checks before a commit: `flutter analyze --fatal-infos` and `flutter test` in `mobile/app` (plus `dart analyze` and
+`dart test` in `mobile/packages/scrl_engine`). The app icon is drawn from the desktop logo:
+`python mobile/tools/genera_icona.py`. Mobile releases use their own workflow, `.github/workflows/mobile.yml`, which runs only on `mobile-v*`
+tags; write the release notes (in Italian) in `release-notes/mobile-v<version>.md` before tagging. The full plan is in
+[`docs/piano-app-mobile.md`](docs/piano-app-mobile.md).
+
 ## Running from source
 
 ```
@@ -64,6 +95,8 @@ Do not change the `AppId` in `packaging/scrl_studio.iss`: Windows updates rely o
 main.py                 quick launcher (F5 in VS Code)
 .github/workflows/      automatic Windows + Mac builds and releases
 packaging/              app build (PyInstaller; Inno Setup installer on Windows, .dmg on Mac)
+mobile/                 Flutter app for Android (and iOS): app/ (UI), packages/scrl_engine (pure-Dart engine),
+                        packages/scrl_video (video plugin), tools/ (reference data and icon generated from the desktop)
 scrollr/
   __main__.py           creates the QApplication and the window, opens double-clicked projects
   config.py             supported extensions, project format, optional HEIC

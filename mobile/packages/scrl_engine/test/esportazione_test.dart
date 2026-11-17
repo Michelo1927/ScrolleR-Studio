@@ -8,12 +8,15 @@ void main() {
       expect(pulisciNomeFile('..viaggio..'), 'viaggio');
       expect(pulisciNomeFile('a\u0001b'), 'ab');
     });
-    test('toglie l\'estensione dell\'immagine, senza badare alle maiuscole', () {
-      expect(pulisciNomeFile('viaggio.PNG'), 'viaggio');
-      expect(pulisciNomeFile('viaggio.jpeg'), 'viaggio');
-      expect(pulisciNomeFile('viaggio.jpg '), 'viaggio');
-      expect(pulisciNomeFile('mare.estate'), 'mare.estate');
-    });
+    test(
+      'toglie l\'estensione dell\'immagine, senza badare alle maiuscole',
+      () {
+        expect(pulisciNomeFile('viaggio.PNG'), 'viaggio');
+        expect(pulisciNomeFile('viaggio.jpeg'), 'viaggio');
+        expect(pulisciNomeFile('viaggio.jpg '), 'viaggio');
+        expect(pulisciNomeFile('mare.estate'), 'mare.estate');
+      },
+    );
     test('vuoto resta vuoto', () {
       expect(pulisciNomeFile('   '), '');
       expect(pulisciNomeFile('...'), '');
@@ -31,8 +34,14 @@ void main() {
       expect(nomeFilePagina('x', 99, '.png'), 'x_100.png');
     });
     test('collage: nome scelto o descrizione con le misure', () {
-      expect(nomeFileCollage('', c, 2, '.png'), 'collage_1080x1350_3pagine_6480x2700.png');
-      expect(nomeFileCollage('', c, 1, '.jpg'), 'collage_1080x1350_3pagine_3240x1350.jpg');
+      expect(
+        nomeFileCollage('', c, 2, '.png'),
+        'collage_1080x1350_3pagine_6480x2700.png',
+      );
+      expect(
+        nomeFileCollage('', c, 1, '.jpg'),
+        'collage_1080x1350_3pagine_3240x1350.jpg',
+      );
       expect(nomeFileCollage('mare', c, 2, '.jpg'), 'mare.jpg');
       expect(
         nomeFileCollage('', c.copyWith(numFrames: 1), 1, '.png'),

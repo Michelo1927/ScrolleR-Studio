@@ -20,7 +20,8 @@ import 'widget_comuni.dart';
 
 // ---------------------------------------------------------------- Menu Stile
 
-/// «Stile»: Sfondo, Numeri di pagina, Indicatore «scorri», Guide, Aggancio.
+/// «Stile»: Sfondo, Numeri di pagina, Indicatore «scorri», Guide, Aggancio. Le cinque voci stanno tutte nello
+/// schermo; ✕ chiude il menu. Gli strumenti che si aprono da qui (Sfondo, Numeri, «scorri») tornano qui con ✓ e ✕.
 class PannelloStile extends ConsumerWidget {
   const PannelloStile({super.key});
 
@@ -30,51 +31,71 @@ class PannelloStile extends ConsumerWidget {
     final ctrl = ref.read(editorProvider.notifier);
     final guide = ref.watch(editorProvider.select((s) => s.mostraGuide));
     final aggancio = ref.watch(editorProvider.select((s) => s.aggancioAttivo));
+    Widget voce(
+      String chiave,
+      IconData icona,
+      String etichetta,
+      VoidCallback onTap, {
+      bool attiva = false,
+    }) => TesseraVoce(
+      key: ValueKey(chiave),
+      icona: icona,
+      etichetta: etichetta,
+      attiva: attiva,
+      larghezza: null,
+      margine: false,
+      onTap: onTap,
+    );
     return PannelloBasso(
       onScarta: ctrl.chiudiStrumento,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            height: MisureScrl.barraInferiore + 24,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(MisureScrl.spazio),
-              children: [
-                TesseraVoce(
-                  key: const ValueKey('stile-sfondo'),
-                  icona: Icons.wallpaper_rounded,
-                  etichetta: t.stileSfondo,
-                  onTap: () => ctrl.apriStrumento(Strumento.sfondo),
-                ),
-                TesseraVoce(
-                  key: const ValueKey('stile-numeri'),
-                  icona: Icons.pin_outlined,
-                  etichetta: t.stileNumeri,
-                  onTap: () => ctrl.apriStrumento(Strumento.numeriPagina),
-                ),
-                TesseraVoce(
-                  key: const ValueKey('stile-scorri'),
-                  icona: Icons.swipe_rounded,
-                  etichetta: t.stileScorri,
-                  onTap: () => ctrl.apriStrumento(Strumento.scorri),
-                ),
-                TesseraVoce(
-                  key: const ValueKey('stile-guide'),
-                  icona: Icons.grid_3x3_rounded,
-                  etichetta: t.stileGuide,
-                  attiva: guide,
-                  onTap: ctrl.alternaGuide,
-                ),
-                TesseraVoce(
-                  key: const ValueKey('stile-aggancio'),
-                  icona: Icons.border_style_rounded,
-                  etichetta: t.stileAggancio,
-                  attiva: aggancio,
-                  onTap: ctrl.alternaAggancio,
-                ),
-              ],
-            ),
+          const SizedBox(height: MisureScrl.spazio),
+          RigaTessere(
+            altezza: MisureScrl.barraInferiore + 8,
+            children: [
+              voce(
+                'stile-sfondo',
+                Icons.wallpaper_rounded,
+                t.stileSfondo,
+                () => ctrl.apriStrumento(Strumento.sfondo),
+              ),
+              voce(
+                'stile-numeri',
+                Icons.pin_outlined,
+                t.stileNumeri,
+                () => ctrl.apriStrumento(Strumento.numeriPagina),
+              ),
+              voce(
+                'stile-scorri',
+                Icons.swipe_rounded,
+                t.stileScorri,
+                () => ctrl.apriStrumento(Strumento.scorri),
+              ),
+              voce(
+                'stile-guide',
+                Icons.grid_3x3_rounded,
+                t.stileGuide,
+                ctrl.alternaGuide,
+                attiva: guide,
+              ),
+              voce(
+                'stile-aggancio',
+                Icons.border_style_rounded,
+                t.stileAggancio,
+                ctrl.alternaAggancio,
+                attiva: aggancio,
+              ),
+            ],
+          ),
+          const SizedBox(height: MisureScrl.spazioPiccolo),
+          PiedeStrumento(
+            nome: t.barraStile,
+            etichettaAnnulla: t.chiudi,
+            etichettaConferma: t.conferma,
+            onAnnulla: ctrl.chiudiStrumento,
+            onConferma: null,
           ),
           SizedBox(height: MediaQuery.paddingOf(context).bottom),
         ],
@@ -84,8 +105,6 @@ class PannelloStile extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------- Sfondo
-
-enum _Param { foto, sfocatura, scurisci }
 
 /// Sfondo: tre schede (Tinta, Sfumatura con due colori e direzione, Foto sfocata con scelta della foto, Sfocatura
 /// 0–100 e Scurisci 0–80). Portato da `BackgroundDialog` e `_apply_background` del desktop.
@@ -97,10 +116,6 @@ class PannelloSfondo extends ConsumerStatefulWidget {
 }
 
 class _PannelloSfondoState extends ConsumerState<PannelloSfondo> {
-  /// Quale dei due colori della sfumatura si sta scegliendo.
-  bool _secondo = false;
-  _Param _param = _Param.foto;
-
   SessioneEditor get _s => ref.read(sessioneProvider);
   ControlloEditor get _ctrl => ref.read(editorProvider.notifier);
 
@@ -155,118 +170,124 @@ class _PannelloSfondoState extends ConsumerState<PannelloSfondo> {
       'blur' => 'blur',
       _ => 'solid',
     };
-    final schede = [
-      for (final (m, nome) in [
-        ('solid', t.sfTinta),
-        ('gradient', t.sfSfumatura),
-        ('blur', t.sfFotoSfocata),
-      ])
-        ChipParametro(
-          key: ValueKey('sfondo-$m'),
-          etichetta: nome,
-          attivo: modo == m,
-          // La foto sfocata ha bisogno di almeno una foto
-          onTap: () {
-            if (m == 'blur' && _fotoPredefinita(stato) == null) {
-              _ctrl.messaggio(MessaggioEditor.sfondoSenzaFoto);
-              return;
-            }
-            _scegliScheda(m, stato);
-          },
-        ),
-    ];
-    switch (modo) {
-      case 'gradient':
-        return PannelloColore(
-          key: const ValueKey('sfondo-colore-sfumatura'),
-          nome: t.stileSfondo,
-          colore: _secondo ? c.bgColor2 : c.bgColor,
-          onColore: (v) => _modifica(
-            (c) => _secondo
-                ? c.copyWith(bgMode: 'gradient', bgColor2: v)
-                : c.copyWith(bgMode: 'gradient', bgColor: v),
+    Widget tesseraTipo(String m, IconData icona, String nome) => TesseraVoce(
+      key: ValueKey('sfondo-$m'),
+      icona: icona,
+      etichetta: nome,
+      attiva: modo == m,
+      larghezza: null,
+      margine: false,
+      // La foto sfocata ha bisogno di almeno una foto
+      onTap: () {
+        if (m == 'blur' && _fotoPredefinita(stato) == null) {
+          _ctrl.messaggio(MessaggioEditor.sfondoSenzaFoto);
+          return;
+        }
+        _scegliScheda(m, stato);
+      },
+    );
+    final tipo = SchedaStrumento(
+      etichetta: t.strTipo,
+      chiave: const ValueKey('sfondo-scheda-tipo'),
+      contenuto: RigaTessere(
+        children: [
+          tesseraTipo('solid', Icons.format_color_fill_rounded, t.sfTinta),
+          tesseraTipo('gradient', Icons.gradient_rounded, t.sfSfumatura),
+          tesseraTipo('blur', Icons.blur_on_rounded, t.sfFotoSfocata),
+        ],
+      ),
+    );
+    final List<SchedaStrumento> proprie = switch (modo) {
+      'gradient' => [
+        SchedaStrumento(
+          etichetta: t.sfColoreIniziale,
+          chiave: const ValueKey('sfondo-colore1'),
+          contenuto: SelettoreColore(
+            key: const ValueKey('sfondo-colore-iniziale'),
+            colore: c.bgColor,
+            onColore: (v) =>
+                _modifica((c) => c.copyWith(bgMode: 'gradient', bgColor: v)),
           ),
-          chipsPrima: [
-            ...schede,
-            ChipParametro(
-              key: const ValueKey('sfondo-colore1'),
-              etichetta: t.sfColoreIniziale,
-              attivo: !_secondo,
-              onTap: () => setState(() => _secondo = false),
-            ),
-            ChipParametro(
-              key: const ValueKey('sfondo-colore2'),
-              etichetta: t.sfColoreFinale,
-              attivo: _secondo,
-              onTap: () => setState(() => _secondo = true),
-            ),
-            for (final (d, nome) in [
-              ('vertical', t.sfDirVerticale),
-              ('horizontal', t.sfDirOrizzontale),
-              ('diagonal', t.sfDirDiagonale),
-            ])
-              ChipParametro(
-                key: ValueKey('sfondo-dir-$d'),
-                etichetta: nome,
-                attivo: c.bgDirection == d,
-                onTap: () => _modifica((c) => c.copyWith(bgDirection: d)),
-              ),
-          ],
-        );
-      case 'blur':
-        return Intelaiatura(
-          nome: t.stileSfondo,
-          chips: [
-            ...schede,
-            ChipParametro(
-              etichetta: t.sfFoto,
-              attivo: _param == _Param.foto,
-              onTap: () => setState(() => _param = _Param.foto),
-            ),
-            ChipParametro(
-              etichetta: t.sfSfocatura,
-              valore: '${c.bgBlurAmount}',
-              attivo: _param == _Param.sfocatura,
-              onTap: () => setState(() => _param = _Param.sfocatura),
-            ),
-            ChipParametro(
-              etichetta: t.sfScurisci,
-              valore: '${c.bgDim}',
-              attivo: _param == _Param.scurisci,
-              onTap: () => setState(() => _param = _Param.scurisci),
-            ),
-          ],
-          contenuto: switch (_param) {
-            _Param.foto => _elencoFoto(stato),
-            _Param.sfocatura => _cursore(
-              t.sfSfocatura,
-              c.bgBlurAmount,
-              0,
-              100,
-              50,
-              (v) => _modifica((c) => c.copyWith(bgBlurAmount: v)),
-            ),
-            _Param.scurisci => _cursore(
-              t.sfScurisci,
-              c.bgDim,
-              0,
-              80,
-              15,
-              (v) => _modifica((c) => c.copyWith(bgDim: v)),
-              unita: '%',
-            ),
-          },
-        );
-      default:
-        return PannelloColore(
-          key: const ValueKey('sfondo-colore-tinta'),
-          nome: t.stileSfondo,
-          colore: c.bgColor,
-          onColore: (v) =>
-              _modifica((c) => c.copyWith(bgMode: 'solid', bgColor: v)),
-          chipsPrima: schede,
-        );
-    }
+        ),
+        SchedaStrumento(
+          etichetta: t.sfColoreFinale,
+          chiave: const ValueKey('sfondo-colore2'),
+          contenuto: SelettoreColore(
+            key: const ValueKey('sfondo-colore-finale'),
+            colore: c.bgColor2,
+            onColore: (v) =>
+                _modifica((c) => c.copyWith(bgMode: 'gradient', bgColor2: v)),
+          ),
+        ),
+        SchedaStrumento(
+          etichetta: t.sfDirezione,
+          chiave: const ValueKey('sfondo-scheda-direzione'),
+          contenuto: RigaTessere(
+            children: [
+              for (final (d, nome, icona) in [
+                ('vertical', t.sfDirVerticale, Icons.south_rounded),
+                ('horizontal', t.sfDirOrizzontale, Icons.east_rounded),
+                ('diagonal', t.sfDirDiagonale, Icons.south_east_rounded),
+              ])
+                TesseraVoce(
+                  key: ValueKey('sfondo-dir-$d'),
+                  icona: icona,
+                  etichetta: nome,
+                  attiva: c.bgDirection == d,
+                  larghezza: null,
+                  margine: false,
+                  onTap: () => _modifica((c) => c.copyWith(bgDirection: d)),
+                ),
+            ],
+          ),
+        ),
+      ],
+      'blur' => [
+        SchedaStrumento(
+          etichetta: t.sfFoto,
+          chiave: const ValueKey('sfondo-scheda-foto'),
+          contenuto: _elencoFoto(stato),
+        ),
+        SchedaStrumento(
+          etichetta: t.sfSfocatura,
+          chiave: const ValueKey('sfondo-scheda-sfocatura'),
+          contenuto: _cursore(
+            t.sfSfocatura,
+            c.bgBlurAmount,
+            0,
+            100,
+            50,
+            (v) => _modifica((c) => c.copyWith(bgBlurAmount: v)),
+          ),
+        ),
+        SchedaStrumento(
+          etichetta: t.sfScurisci,
+          chiave: const ValueKey('sfondo-scheda-scurisci'),
+          contenuto: _cursore(
+            t.sfScurisci,
+            c.bgDim,
+            0,
+            80,
+            15,
+            (v) => _modifica((c) => c.copyWith(bgDim: v)),
+            unita: '%',
+          ),
+        ),
+      ],
+      _ => [
+        SchedaStrumento(
+          etichetta: t.parColore,
+          chiave: const ValueKey('sfondo-scheda-colore'),
+          contenuto: SelettoreColore(
+            key: const ValueKey('sfondo-colore-tinta'),
+            colore: c.bgColor,
+            onColore: (v) =>
+                _modifica((c) => c.copyWith(bgMode: 'solid', bgColor: v)),
+          ),
+        ),
+      ],
+    };
+    return Intelaiatura(nome: t.stileSfondo, schede: [tipo, ...proprie]);
   }
 
   Widget _cursore(
@@ -349,8 +370,6 @@ class _PannelloSfondoState extends ConsumerState<PannelloSfondo> {
 }
 
 // ---------------------------------------------------------------- Numeri di pagina e «scorri»
-
-enum _ParamNumeri { formato, posizione, stile }
 
 /// Mini pagina con un'etichetta nella posizione [pos] (vert + oriz: `b`/`t`/`c` e `l`/`c`/`r`).
 class _IconaPosizione extends StatelessWidget {
@@ -457,8 +476,6 @@ class PannelloNumeriPagina extends ConsumerStatefulWidget {
 }
 
 class _PannelloNumeriPaginaState extends ConsumerState<PannelloNumeriPagina> {
-  _ParamNumeri _param = _ParamNumeri.formato;
-
   ControlloEditor get _ctrl => ref.read(editorProvider.notifier);
 
   void _modifica(CanvasState Function(CanvasState) f) => _ctrl.modificaTela(f);
@@ -467,86 +484,82 @@ class _PannelloNumeriPaginaState extends ConsumerState<PannelloNumeriPagina> {
   Widget build(BuildContext context) {
     final t = Testi.of(context);
     final c = ref.watch(editorProvider.select((s) => s.snapshot.canvas));
-    final Widget contenuto;
-    if (c.pageNumbers && c.numFrames < 2) {
-      contenuto = Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-          child: Text(
-            t.numDuePagine,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ),
-      );
-    } else {
-      contenuto = switch (_param) {
-        _ParamNumeri.formato => _tessere<String>(
-          const ['slash', 'of', 'padded', 'plain'],
-          c.pageNumberFormat,
-          (f) => switch (f) {
-            'of' => t.numFormatoDi,
-            'padded' => '01/05',
-            'plain' => '1',
-            _ => '1/5',
-          },
-          (f) => _testoTessera(switch (f) {
-            'of' => t.numFormatoDi,
-            'padded' => '01/05',
-            'plain' => '1',
-            _ => '1/5',
-          }),
-          (f) => _modifica((c) => c.copyWith(pageNumberFormat: f)),
-        ),
-        _ParamNumeri.posizione => _tessere<String>(
-          const ['bc', 'br', 'bl', 'tc', 'tr', 'tl'],
-          c.pageNumberPos,
-          (p) => _nomePosizione(t, p),
-          _IconaPosizione.new,
-          (p) => _modifica((c) => c.copyWith(pageNumberPos: p)),
-          larghezza: 104,
-        ),
-        _ParamNumeri.stile => _tessere<String>(
-          _stiliEtichetta,
-          c.overlayStyle,
-          (s) => _nomeStileEtichetta(t, s),
-          (s) => _testoTessera('1/5'),
-          (s) => _modifica((c) => c.copyWith(overlayStyle: s)),
-        ),
-      };
-    }
+    // Con una pagina sola i numeri non si vedono: lo si dice al posto delle scelte
+    final soloUna = c.pageNumbers && c.numFrames < 2;
+    Widget o(Widget w) => soloUna
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MisureScrl.spazio,
+              ),
+              child: Text(
+                t.numDuePagine,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          )
+        : w;
+    String formato(String f) => switch (f) {
+      'of' => t.numFormatoDi,
+      'padded' => '01/05',
+      'plain' => '1',
+      _ => '1/5',
+    };
     return Intelaiatura(
       nome: t.stileNumeri,
-      chips: [
-        ChipParametro(
-          key: const ValueKey('numeri-acceso'),
+      azioni: [
+        AzioneStrumento(
+          chiave: const ValueKey('numeri-acceso'),
+          icona: Icons.pin_outlined,
           etichetta: t.numAcceso,
-          attivo: c.pageNumbers,
+          attiva: c.pageNumbers,
           onTap: () =>
               _modifica((c) => c.copyWith(pageNumbers: !c.pageNumbers)),
         ),
-        ChipParametro(
+      ],
+      schede: [
+        SchedaStrumento(
           etichetta: t.numFormato,
-          attivo: _param == _ParamNumeri.formato,
-          onTap: () => setState(() => _param = _ParamNumeri.formato),
+          contenuto: o(
+            _tessere<String>(
+              const ['slash', 'of', 'padded', 'plain'],
+              c.pageNumberFormat,
+              formato,
+              (f) => _testoTessera(formato(f)),
+              (f) => _modifica((c) => c.copyWith(pageNumberFormat: f)),
+            ),
+          ),
         ),
-        ChipParametro(
+        SchedaStrumento(
           etichetta: t.numPosizione,
-          attivo: _param == _ParamNumeri.posizione,
-          onTap: () => setState(() => _param = _ParamNumeri.posizione),
+          contenuto: o(
+            _tessere<String>(
+              const ['bc', 'br', 'bl', 'tc', 'tr', 'tl'],
+              c.pageNumberPos,
+              (p) => _nomePosizione(t, p),
+              _IconaPosizione.new,
+              (p) => _modifica((c) => c.copyWith(pageNumberPos: p)),
+              larghezza: 104,
+            ),
+          ),
         ),
-        ChipParametro(
+        SchedaStrumento(
           etichetta: t.numStile,
-          attivo: _param == _ParamNumeri.stile,
-          onTap: () => setState(() => _param = _ParamNumeri.stile),
+          contenuto: o(
+            _tessere<String>(
+              _stiliEtichetta,
+              c.overlayStyle,
+              (s) => _nomeStileEtichetta(t, s),
+              (s) => _testoTessera('1/5'),
+              (s) => _modifica((c) => c.copyWith(overlayStyle: s)),
+            ),
+          ),
         ),
       ],
-      contenuto: contenuto,
     );
   }
 }
-
-enum _ParamScorri { testo, posizione, stile }
 
 /// Indicatore «scorri»: interruttore, testo (come «Scorri →»), posizione (2) e stile dell'etichetta (3, lo stesso dei
 /// numeri di pagina).
@@ -558,7 +571,6 @@ class PannelloScorri extends ConsumerStatefulWidget {
 }
 
 class _PannelloScorriState extends ConsumerState<PannelloScorri> {
-  _ParamScorri _param = _ParamScorri.testo;
   late final TextEditingController _testo = TextEditingController(
     text: ref.read(editorProvider).snapshot.canvas.swipeText,
   );
@@ -577,60 +589,54 @@ class _PannelloScorriState extends ConsumerState<PannelloScorri> {
   Widget build(BuildContext context) {
     final t = Testi.of(context);
     final c = ref.watch(editorProvider.select((s) => s.snapshot.canvas));
-    final contenuto = switch (_param) {
-      _ParamScorri.testo => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-        child: Center(
-          child: TextField(
-            key: const ValueKey('scorri-testo'),
-            controller: _testo,
-            decoration: InputDecoration(labelText: t.scorriTestoEtichetta),
-            onChanged: (v) => _modifica((c) => c.copyWith(swipeText: v)),
-          ),
-        ),
-      ),
-      _ParamScorri.posizione => _tessere<String>(
-        const ['br', 'cr'],
-        c.swipePos,
-        (p) => _nomePosizione(t, p),
-        _IconaPosizione.new,
-        (p) => _modifica((c) => c.copyWith(swipePos: p)),
-        larghezza: 104,
-      ),
-      _ParamScorri.stile => _tessere<String>(
-        _stiliEtichetta,
-        c.overlayStyle,
-        (s) => _nomeStileEtichetta(t, s),
-        (s) => _testoTessera(c.swipeText.isEmpty ? '→' : c.swipeText),
-        (s) => _modifica((c) => c.copyWith(overlayStyle: s)),
-      ),
-    };
     return Intelaiatura(
       nome: t.stileScorri,
-      chips: [
-        ChipParametro(
-          key: const ValueKey('scorri-acceso'),
+      azioni: [
+        AzioneStrumento(
+          chiave: const ValueKey('scorri-acceso'),
+          icona: Icons.swipe_rounded,
           etichetta: t.scorriAcceso,
-          attivo: c.swipeHint,
+          attiva: c.swipeHint,
           onTap: () => _modifica((c) => c.copyWith(swipeHint: !c.swipeHint)),
         ),
-        ChipParametro(
+      ],
+      schede: [
+        SchedaStrumento(
           etichetta: t.scorriTesto,
-          attivo: _param == _ParamScorri.testo,
-          onTap: () => setState(() => _param = _ParamScorri.testo),
+          contenuto: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
+            child: Center(
+              child: TextField(
+                key: const ValueKey('scorri-testo'),
+                controller: _testo,
+                decoration: InputDecoration(labelText: t.scorriTestoEtichetta),
+                onChanged: (v) => _modifica((c) => c.copyWith(swipeText: v)),
+              ),
+            ),
+          ),
         ),
-        ChipParametro(
+        SchedaStrumento(
           etichetta: t.numPosizione,
-          attivo: _param == _ParamScorri.posizione,
-          onTap: () => setState(() => _param = _ParamScorri.posizione),
+          contenuto: _tessere<String>(
+            const ['br', 'cr'],
+            c.swipePos,
+            (p) => _nomePosizione(t, p),
+            _IconaPosizione.new,
+            (p) => _modifica((c) => c.copyWith(swipePos: p)),
+            larghezza: 104,
+          ),
         ),
-        ChipParametro(
+        SchedaStrumento(
           etichetta: t.numStile,
-          attivo: _param == _ParamScorri.stile,
-          onTap: () => setState(() => _param = _ParamScorri.stile),
+          contenuto: _tessere<String>(
+            _stiliEtichetta,
+            c.overlayStyle,
+            (s) => _nomeStileEtichetta(t, s),
+            (s) => _testoTessera(c.swipeText.isEmpty ? '→' : c.swipeText),
+            (s) => _modifica((c) => c.copyWith(overlayStyle: s)),
+          ),
         ),
       ],
-      contenuto: contenuto,
     );
   }
 }

@@ -13,6 +13,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrl_engine/scrl_engine.dart';
 
+import '../media/cache_media.dart' show chiaveMedia;
 import '../media/mancanti.dart' show Ritrovata;
 import '../render/caratteri.dart';
 import 'sessione.dart';
@@ -91,6 +92,13 @@ enum Strumento {
   /// Lo stile scelto con questo strumento diventa quello delle prossime forme (`_remember_shape_style`).
   bool get ricordaStileForma =>
       this == formaRiempimento || this == formaBordo || this == formaAngoli;
+
+  /// Il menu da cui si apre lo strumento: ✓ e ✕ (e il gesto «indietro») ci tornano, invece di chiudere tutto.
+  Strumento get genitore => switch (this) {
+    sfondo || numeriPagina || scorri => stile,
+    formaNuova => aggiungi,
+    _ => nessuno,
+  };
 
   /// Strumento che cambia i colori: ha il confronto prima/dopo `◐`.
   bool get eColore =>
@@ -365,6 +373,11 @@ class ControlloEditor extends Notifier<StatoEditor> {
     if (await _s.completaMisure(state.snapshot, state.libreria)) {
       _programmaSalvataggio();
     }
+    // Poi, senza fretta, via le anteprime su disco di foto che nel progetto non ci sono più
+    await _s.cache.pulisciOrfane([
+      for (final p in state.snapshot.items) chiaveMedia(p),
+      for (final e in state.libreria) _s.chiaveVoce(e),
+    ]);
   }
 
   // ---------- Selezione e pagina ----------
@@ -407,9 +420,9 @@ class ControlloEditor extends Notifier<StatoEditor> {
       if (elementoDi(s, r) != null) r,
   };
 
-  /// ✕: scarta la bozza e chiude il pannello.
+  /// ✕: scarta la bozza e chiude il pannello (si torna al menu da cui lo strumento si è aperto, se c'è).
   void chiudiStrumento() => state = state.copia(
-    strumento: Strumento.nessuno,
+    strumento: state.strumento.genitore,
     selezione: _selezioneIn(state.cronologia.current),
     bozza: () => null,
     deforma: false,
@@ -427,7 +440,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
       _scartata = b;
       _baseScartata = state.cronologia.current;
       state = state.copia(
-        strumento: Strumento.nessuno,
+        strumento: state.strumento.genitore,
         selezione: _selezioneIn(state.cronologia.current),
         bozza: () => null,
         deforma: false,
@@ -474,7 +487,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
     final ricorda = state.strumento.ricordaStileForma;
     if (b != null) _commit(b, notice: notice);
     state = state.copia(
-      strumento: Strumento.nessuno,
+      strumento: state.strumento.genitore,
       deforma: false,
       contagocce: false,
     );

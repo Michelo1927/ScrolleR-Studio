@@ -2160,4 +2160,321 @@ class TestiEn extends Testi {
 
   @override
   String get strRicollega => 'Relink';
+
+  @override
+  String get suggerimentoTocca => 'Tap a photo to select it';
+
+  @override
+  String get suggerimentoPremuto =>
+      'Press and hold an item to copy, lock or delete it';
+
+  @override
+  String get suggerimentoScorri => 'Swipe sideways to change page';
+
+  @override
+  String get suggerimentoChiudi => 'Tap to dismiss';
+
+  @override
+  String get impostazioni => 'Settings';
+
+  @override
+  String get impAiuto => 'Help';
+
+  @override
+  String get impAggiornamenti => 'Updates';
+
+  @override
+  String get impRegistro => 'Error log';
+
+  @override
+  String get impInfo => 'About';
+
+  @override
+  String get impGesti => 'Gestures';
+
+  @override
+  String get impGestiAiuto => 'How to use the canvas and the panels';
+
+  @override
+  String get impSuggerimenti => 'Show the tips again';
+
+  @override
+  String get impSuggerimentiAiuto =>
+      'The three first-run tips will show again in the editor';
+
+  @override
+  String get impSuggerimentiRimessi => 'The tips will show again in the editor';
+
+  @override
+  String impVersione(String versione) {
+    return 'Version $versione';
+  }
+
+  @override
+  String get impLicenze => 'Licenses';
+
+  @override
+  String get impLicenzeAiuto => 'Included components and fonts';
+
+  @override
+  String get impPrivacy =>
+      'No ads, no tracking, no accounts. The network is only used to look for updates.';
+
+  @override
+  String get gestiTitolo => 'Gestures';
+
+  @override
+  String get gestiSulla => 'On the canvas';
+
+  @override
+  String get gestiNeiPannelli => 'In panels and bars';
+
+  @override
+  String get gestiNellePagine => 'Pages and Overview';
+
+  @override
+  String get gestoTocca => 'Tap';
+
+  @override
+  String get gestoToccaDesc =>
+      'Selects a photo, a text or a shape. Tap the empty area to deselect.';
+
+  @override
+  String get gestoDoppio => 'Double tap on a text';
+
+  @override
+  String get gestoDoppioDesc => 'Opens the keyboard to type.';
+
+  @override
+  String get gestoPremuto => 'Press and hold an item';
+
+  @override
+  String get gestoPremutoDesc =>
+      'Copy, cut, duplicate, lock, bring forward or send back, move to another page, delete.';
+
+  @override
+  String get gestoPremutoVuoto => 'Press and hold the empty area';
+
+  @override
+  String get gestoPremutoVuotoDesc =>
+      'Paste here, add a text or a shape, select all and the page actions.';
+
+  @override
+  String get gestoTrascina => 'Drag an item';
+
+  @override
+  String get gestoTrascinaDesc =>
+      'Moves it and snaps to the lines of the others. Near the screen edge it goes to the next page.';
+
+  @override
+  String get gestoManiglie => 'Drag a handle';
+
+  @override
+  String get gestoManiglieDesc => 'Resizes the selected photo or shape.';
+
+  @override
+  String get gestoPizzica => 'Pinch with two fingers';
+
+  @override
+  String get gestoPizzicaDesc =>
+      'Scales the item; twisting your fingers rotates it, with small detents at the common angles.';
+
+  @override
+  String get gestoScorri => 'Swipe sideways';
+
+  @override
+  String get gestoScorriDesc => 'Changes page, one at a time.';
+
+  @override
+  String get gestoCursore => 'Double tap a slider';
+
+  @override
+  String get gestoCursoreDesc => 'Resets the value to its default.';
+
+  @override
+  String get gestoPannello => 'Drag the panel down';
+
+  @override
+  String get gestoPannelloDesc => 'Closes the tool without applying, like ✕.';
+
+  @override
+  String get gestoConfronto => 'Press and hold ◐';
+
+  @override
+  String get gestoConfrontoDesc =>
+      'Shows the photo as it was before; release to see your edits again.';
+
+  @override
+  String get gestoIndietro => 'The phone\'s back gesture';
+
+  @override
+  String get gestoIndietroDesc =>
+      'Goes back one level in a menu or a tool, then closes the tool, then deselects, then leaves the project.';
+
+  @override
+  String get gestoAnnullaLungo => 'Press and hold Undo';
+
+  @override
+  String get gestoAnnullaLungoDesc => 'Opens the History.';
+
+  @override
+  String get gestoPanoramica => 'Overview: tap, drag, press and hold';
+
+  @override
+  String get gestoPanoramicaDesc =>
+      'Tap to go to the page, drag to reorder, press and hold for the actions.';
+
+  @override
+  String get gestoPuntini => 'Page dots';
+
+  @override
+  String get gestoPuntiniDesc => 'Tap one to jump to that page.';
+
+  @override
+  String get aggControlla => 'Look for new versions';
+
+  @override
+  String get aggControllaAiuto =>
+      'Once a day, when the app opens. It is the only use of the network and sends no personal data.';
+
+  @override
+  String get aggControllaOra => 'Check now';
+
+  @override
+  String get aggInCorso => 'Checking…';
+
+  @override
+  String get aggAggiornato => 'The app is up to date';
+
+  @override
+  String aggDisponibile(String versione) {
+    return 'Version $versione is available';
+  }
+
+  @override
+  String get aggErrore => 'Could not check: an Internet connection is needed';
+
+  @override
+  String get aggScarica => 'Download';
+
+  @override
+  String get aggNonApribile => 'Could not open the browser';
+
+  @override
+  String get aggChiudi => 'Hide the notice';
+
+  @override
+  String get regAiuto =>
+      'Unexpected errors are only noted on this phone. The file is never sent by itself: share it if you want to report a problem. Folder and photo paths are already removed.';
+
+  @override
+  String get regCondividi => 'Share the log';
+
+  @override
+  String get regVuoto => 'No errors recorded';
+
+  @override
+  String get regPieno => 'Errors have been recorded';
+
+  @override
+  String get regCancella => 'Clear the log';
+
+  @override
+  String get regCancellaChiede => 'Clear the error log?';
+
+  @override
+  String get regCancellato => 'Log cleared';
+
+  @override
+  String get regNonCondiviso => 'Could not share the log';
+
+  @override
+  String telaPagina(int pagina, int totale) {
+    return 'Page $pagina of $totale';
+  }
+
+  @override
+  String telaFoto(int n) {
+    return 'Photo $n';
+  }
+
+  @override
+  String telaVideo(int n) {
+    return 'Video $n';
+  }
+
+  @override
+  String telaTesto(String testo) {
+    return 'Text: $testo';
+  }
+
+  @override
+  String telaForma(int n) {
+    return 'Shape $n';
+  }
+
+  @override
+  String telaBloccato(String nome) {
+    return '$nome, locked';
+  }
+
+  @override
+  String get telaApriMenu => 'Actions';
+
+  @override
+  String espPagineScelte(int n, int tot) {
+    return '$n of $tot pages';
+  }
+
+  @override
+  String get tutteLeOpzioni => 'All options';
+
+  @override
+  String get sfDirezione => 'Direction';
+
+  @override
+  String get catAspetto => 'Look';
+
+  @override
+  String get catAltro => 'More';
+
+  @override
+  String get catGruppo => 'Group';
+
+  @override
+  String get catVideo => 'Video';
+
+  @override
+  String get formatiPiuUsati => 'Most used';
+
+  @override
+  String get formatiPiuUsatiDesc =>
+      'Instagram formats for posts, stories and reels';
+
+  @override
+  String get formatiAltri => 'Other formats';
+
+  @override
+  String get usoFormato45 => 'Feed post';
+
+  @override
+  String get usoFormato916 => 'Stories and Reels';
+
+  @override
+  String get usoFormato34 => 'Profile grid';
+
+  @override
+  String get vistaCentra => 'Center the page';
+
+  @override
+  String pesoProgetto(String peso) {
+    return 'Uses $peso on this phone';
+  }
+
+  @override
+  String get pesoCalcolo => 'Working out the size…';
+
+  @override
+  String get pesoNota =>
+      'Gallery photos are not counted: they stay in the gallery, the project links to them.';
 }

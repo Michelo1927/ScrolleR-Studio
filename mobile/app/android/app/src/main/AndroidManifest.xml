@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Rete: solo per cercare gli aggiornamenti (release GitHub «mobile-v*»). È un permesso «normale»: non
+         compare nessuna richiesta all'utente. Niente pubblicità né tracciamento (piano §14). -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Galleria (piano §9): lettura di foto e video, chiesta solo al primo «Aggiungi foto».
          READ_MEDIA_VISUAL_USER_SELECTED = accesso parziale di Android 14+ («solo le foto selezionate»). -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
@@ -89,6 +92,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- «Scarica» nell'avviso di nuova versione apre la pagina della release nel browser -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
         </intent>
     </queries>
 </manifest>

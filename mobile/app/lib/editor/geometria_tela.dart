@@ -91,6 +91,26 @@ class GeometriaTela {
     pos: p,
   );
 
+  /// La stessa vista ingrandita di [zoom] attorno al centro della pagina, spostato di [pan] dp. Disegno, tocchi e
+  /// gesti passano tutti di qui, così restano d'accordo a ogni zoom.
+  GeometriaTela conVista(double zoom, Offset pan) {
+    if (zoom == 1 && pan == Offset.zero) return this;
+    final cx = x0 + pw / 2 + pan.dx, cy = y0 + ph / 2 + pan.dy;
+    final w = pw * zoom, h = ph * zoom;
+    return GeometriaTela._(
+      larghezza: larghezza,
+      altezza: altezza,
+      frameW: frameW,
+      frameH: frameH,
+      scala: scala * zoom,
+      x0: cx - w / 2,
+      y0: cy - h / 2,
+      pw: w,
+      ph: h,
+      pos: pos,
+    );
+  }
+
   /// Lato sinistro sullo schermo della pagina [i].
   double sinistraPagina(int i) => x0 + (i - pos) * passo;
 

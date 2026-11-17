@@ -80,12 +80,13 @@ class _PaginaRitaglioState extends State<PaginaRitaglio> {
     Navigator.of(context).pop(RisultatoRitaglio(m.ritaglio, _adatta));
   }
 
-  String _etichetta(Testi t, ModelloRitaglio m, String chiave) => switch (chiave) {
-    'free' => t.ritLibera,
-    'original' => t.ritOriginale,
-    'cell' => t.ritRiquadro,
-    _ => m.etichettaProporzione(chiave),
-  };
+  String _etichetta(Testi t, ModelloRitaglio m, String chiave) =>
+      switch (chiave) {
+        'free' => t.ritLibera,
+        'original' => t.ritOriginale,
+        'cell' => t.ritRiquadro,
+        _ => m.etichettaProporzione(chiave),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +163,8 @@ class _PaginaRitaglioState extends State<PaginaRitaglio> {
               ),
               _Piede(
                 modello: m,
-                misura: widget.sessione.misuraDi(widget.foto) ??
+                misura:
+                    widget.sessione.misuraDi(widget.foto) ??
                     (w: img.width, h: img.height),
                 adatta: _adatta,
                 onAdatta: (v) => setState(() => _adatta = v),

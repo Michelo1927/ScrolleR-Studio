@@ -27,6 +27,7 @@ Future<void> _foglio(
   final contenitore = ProviderScope.containerOf(context);
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: MotoScrl.foglio(context),
     backgroundColor: ColoriScrl.pannello,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
@@ -81,7 +82,7 @@ Widget _voce(
     etichetta: etichetta,
     attiva: attiva,
     spenta: spenta,
-    colore: pericolo ? ColoriScrl.pericolo : null,
+    colore: pericolo ? ColoriScrl.pericoloTesto : null,
     onTap: () {
       Navigator.of(context).pop();
       azione();

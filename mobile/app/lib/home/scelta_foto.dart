@@ -355,7 +355,7 @@ class _TesseraGalleriaState extends State<_TesseraGalleria> {
                 right: 6,
                 child: CircleAvatar(
                   radius: 11,
-                  backgroundColor: ColoriScrl.accento,
+                  backgroundColor: ColoriScrl.accentoPieno,
                   child: Text(
                     '${widget.numero}',
                     style: const TextStyle(

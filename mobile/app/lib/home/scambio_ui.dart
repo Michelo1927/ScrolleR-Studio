@@ -8,6 +8,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart' show NumberFormat;
 import 'package:material_ui/material_ui.dart';
 import 'package:scrl_engine/scrl_engine.dart' show ProjectFormatException;
 import 'package:share_plus/share_plus.dart';
@@ -67,9 +68,11 @@ final condivisioneProgettoProvider =
       },
     );
 
-/// Peso leggibile: «3,2 MB», «840 KB».
-String formatoDimensione(int byte) {
-  if (byte >= 1 << 20) return '${(byte / (1 << 20)).toStringAsFixed(1)} MB';
+/// Peso leggibile, con la virgola o il punto della lingua: «3,2 MB», «840 KB», «1,4 GB».
+String formatoDimensione(Testi t, int byte) {
+  final numero = NumberFormat('#,##0.0', t.localeName);
+  if (byte >= 1 << 30) return '${numero.format(byte / (1 << 30))} GB';
+  if (byte >= 1 << 20) return '${numero.format(byte / (1 << 20))} MB';
   return '${(byte / 1024).ceil()} KB';
 }
 
@@ -146,7 +149,7 @@ Future<void> condividiProgetto(
         titolo: t.zipPronto,
         testo: t.zipPronto2(
           piano.copiati + piano.soloAnteprima.length,
-          formatoDimensione(piano.byteTotali),
+          formatoDimensione(t, piano.byteTotali),
         ),
       );
     },

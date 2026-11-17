@@ -47,6 +47,22 @@ abstract final class ColoriScrl {
   /// Azioni distruttive.
   static const Color pericolo = Color(0xFFE34850);
 
+  // Tinte derivate per il contrasto AA (4,5:1 sul testo piccolo, piano §4.7). L'accento resta uno solo, `accento`:
+  // selezioni, cursori, bordi e icone. Queste sono la stessa tinta schiarita o scurita quanto basta, e servono
+  // solo dove c'è del TESTO: testo colorato sui pannelli e testo bianco su un riempimento.
+
+  /// Accento schiarito: testo e icone colorati con l'accento sui pannelli e sulle tessere (≥ 4,5:1 fino a `premuto`).
+  static const Color accentoTesto = Color(0xFF8CBCFA);
+
+  /// Accento scurito: riempimento (pulsanti, pillole) con testo bianco `suAccento` (≥ 4,5:1).
+  static const Color accentoPieno = Color(0xFF1F6FD0);
+
+  /// Pericolo schiarito, per testo e icone di azioni distruttive sui pannelli.
+  static const Color pericoloTesto = Color(0xFFFF868C);
+
+  /// Pericolo scurito, per i pulsanti distruttivi con testo bianco.
+  static const Color pericoloPieno = Color(0xFFC4333C);
+
   /// Guide di centro.
   static const Color guida = Color(0xFF29D5F5);
 
@@ -100,6 +116,16 @@ abstract final class MotoScrl {
   static const Duration pannello = Duration(milliseconds: 220);
   static const Duration breve = Duration(milliseconds: 150);
   static const Curve curva = Curves.easeOutCubic;
+
+  /// [d] oppure zero se il sistema chiede «riduci animazioni» (piano §4.7).
+  static Duration durata(BuildContext context, Duration d) =>
+      MediaQuery.disableAnimationsOf(context) ? Duration.zero : d;
+
+  /// Animazione dei fogli dal basso: nessuna se il sistema chiede di ridurre il movimento.
+  static AnimationStyle? foglio(BuildContext context) =>
+      MediaQuery.disableAnimationsOf(context)
+      ? AnimationStyle.noAnimation
+      : null;
 }
 
 /// Colori rapidi per i contenuti del collage (bordi, forme, testi): `SWATCHES` del desktop. Non sono colori

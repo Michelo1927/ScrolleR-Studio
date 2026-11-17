@@ -85,6 +85,7 @@ class _PaginaPanoramicaState extends ConsumerState<PaginaPanoramica> {
     final contenitore = ProviderScope.containerOf(context);
     await showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: MotoScrl.foglio(context),
       backgroundColor: ColoriScrl.pannello,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -127,7 +128,9 @@ class _PaginaPanoramicaState extends ConsumerState<PaginaPanoramica> {
                               icona: a.icona,
                               etichetta: a.etichetta,
                               spenta: a.spenta,
-                              colore: a.pericolo ? ColoriScrl.pericolo : null,
+                              colore: a.pericolo
+                                  ? ColoriScrl.pericoloTesto
+                                  : null,
                               onTap: () {
                                 Navigator.of(sheet).pop();
                                 a.onTap();
@@ -366,7 +369,7 @@ class _Tessera extends StatelessWidget {
                 style: TextStyle(
                   fontSize: TestoScrl.normale,
                   fontWeight: corrente ? TestoScrl.marcato : TestoScrl.regolare,
-                  color: corrente ? ColoriScrl.accento : ColoriScrl.testo,
+                  color: corrente ? ColoriScrl.accentoTesto : ColoriScrl.testo,
                 ),
               ),
             ],

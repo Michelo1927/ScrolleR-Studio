@@ -20,6 +20,7 @@ Future<void> mostraCronologia(BuildContext context) {
   final contenitore = ProviderScope.containerOf(context);
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: MotoScrl.foglio(context),
     isScrollControlled: true,
     backgroundColor: ColoriScrl.pannello,
     shape: const RoundedRectangleBorder(
@@ -122,7 +123,7 @@ class FoglioCronologia extends ConsumerWidget {
                 final attuale = i == cron.index;
                 final futuro = i > cron.index;
                 final colore = attuale
-                    ? ColoriScrl.accento
+                    ? ColoriScrl.accentoTesto
                     : futuro
                     ? ColoriScrl.testoSpento
                     : ColoriScrl.testo;
@@ -166,7 +167,7 @@ class FoglioCronologia extends ConsumerWidget {
                               t.cronAttuale,
                               style: const TextStyle(
                                 fontSize: TestoScrl.piccolo,
-                                color: ColoriScrl.accento,
+                                color: ColoriScrl.accentoTesto,
                               ),
                             ),
                         ],

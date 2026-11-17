@@ -1,5 +1,5 @@
 /// Pannelli degli strumenti Video (piano §6 «Video», Fase 8): **Taglia** (Inizio e Fine) e **Copertina**, con la
-/// stessa anatomia degli strumenti Foto: pillole, un solo cursore, `✕` scarta, `✓` conferma (un passo di cronologia).
+/// stessa anatomia degli strumenti Foto: schede, un solo cursore, `✕` scarta, `✓` conferma (un passo di cronologia).
 /// Portati dalla sezione «Video» dell'inspector del desktop (`scrollr/window/video.py`). Le regole del taglio
 /// stanno in `scrl_engine` (`edit/video.dart`); la durata del video la legge l'app dal file.
 library;
@@ -109,26 +109,21 @@ abstract class _PannelloVideoState<T extends ConsumerStatefulWidget>
 }
 
 /// Riproduci / Pausa dentro i pannelli: si guarda il taglio mentre lo si cambia.
-class _ChipRiproduci extends ConsumerWidget {
-  const _ChipRiproduci();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = Testi.of(context);
-    final ctrl = ref.read(editorProvider.notifier);
-    final v = ref.watch(_videoPrincipale);
-    final gira = ref.watch(
-      editorProvider.select(
-        (s) => v != null && s.videoInRiproduzione.contains(v.uid),
-      ),
-    );
-    return ChipParametro(
-      key: const ValueKey('video-riproduci'),
-      etichetta: gira ? t.videoPausa : t.videoRiproduci,
-      attivo: gira,
-      onTap: ctrl.alternaRiproduzione,
-    );
-  }
+AzioneStrumento _azioneRiproduci(Testi t, WidgetRef ref) {
+  final ctrl = ref.read(editorProvider.notifier);
+  final v = ref.watch(_videoPrincipale);
+  final gira = ref.watch(
+    editorProvider.select(
+      (s) => v != null && s.videoInRiproduzione.contains(v.uid),
+    ),
+  );
+  return AzioneStrumento(
+    chiave: const ValueKey('video-riproduci'),
+    icona: gira ? Icons.pause_rounded : Icons.play_arrow_rounded,
+    etichetta: gira ? t.videoPausa : t.videoRiproduci,
+    attiva: gira,
+    onTap: ctrl.alternaRiproduzione,
+  );
 }
 
 // ---------------------------------------------------------------- Taglia
@@ -145,8 +140,6 @@ class PannelloTaglioVideo extends ConsumerStatefulWidget {
 
 class _PannelloTaglioVideoState
     extends _PannelloVideoState<PannelloTaglioVideo> {
-  int _attivo = 0; // 0 inizio, 1 fine
-
   @override
   Widget build(BuildContext context) {
     final t = Testi.of(context);
@@ -155,28 +148,25 @@ class _PannelloTaglioVideoState
     final durata = v == null ? 0.0 : _s.risorse.durataVideo(v);
     return Intelaiatura(
       nome: t.strTaglia,
-      chips: [
-        ChipParametro(
-          key: const ValueKey('video-inizio'),
+      azioni: [_azioneRiproduci(t, ref)],
+      schede: [
+        SchedaStrumento(
+          chiave: const ValueKey('video-inizio'),
           etichetta: t.parInizio,
           valore: v == null ? null : formatoTempo(v.trimStart),
-          attivo: _attivo == 0,
-          onTap: () => setState(() => _attivo = 0),
+          contenuto: v == null
+              ? const SizedBox.shrink()
+              : cursore(v, t.parInizio, v.trimStart, 0, conInizio),
         ),
-        ChipParametro(
-          key: const ValueKey('video-fine'),
+        SchedaStrumento(
+          chiave: const ValueKey('video-fine'),
           etichetta: t.parFine,
           valore: v == null ? null : formatoTempo(clipEnd(v, durata)),
-          attivo: _attivo == 1,
-          onTap: () => setState(() => _attivo = 1),
+          contenuto: v == null
+              ? const SizedBox.shrink()
+              : cursore(v, t.parFine, clipEnd(v, durata), durata, conFine),
         ),
-        const _ChipRiproduci(),
       ],
-      contenuto: v == null
-          ? null
-          : _attivo == 0
-          ? cursore(v, t.parInizio, v.trimStart, 0, conInizio)
-          : cursore(v, t.parFine, clipEnd(v, durata), durata, conFine),
     );
   }
 }
@@ -200,7 +190,6 @@ class _PannelloCopertinaVideoState
     final v = ref.watch(_videoPrincipale);
     return Intelaiatura(
       nome: t.strCopertina,
-      chips: const [],
       contenuto: v == null
           ? null
           : cursore(v, t.strCopertina, v.poster, 0, conCopertina),

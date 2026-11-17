@@ -2,8 +2,13 @@
 /// contagocce sulla pagina, il selettore completo (tinta, saturazione, luminosità, esadecimale) e la trasparenza
 /// dove serve (etichetta del testo). Per le forme il primo campione è «Nessuno».
 ///
-/// È un pannello intero (telaio di [Intelaiatura]): chi lo usa gli dà il colore attuale e riceve ogni nuovo colore
-/// come ARGB; la bozza e il ✓ sono quelli dello strumento che lo contiene.
+/// [SelettoreColore] è un contenuto (alto [altezzaContenuto]) da mettere in una scheda di uno strumento:
+/// - vista rapida: in testa alla fila il contagocce e «Altro» (il selettore completo), poi i campioni; con la
+///   trasparenza, sotto, il suo righello;
+/// - selettore completo: ‹ per tornare ai campioni (anche col gesto «indietro»), i segmenti Tinta · Saturazione ·
+///   Luminosità · # e, sotto, il righello o il campo esadecimale.
+/// Chi lo usa gli dà il colore attuale e riceve ogni nuovo colore come ARGB; la bozza e il ✓ sono quelli dello
+/// strumento che lo contiene. [PannelloColore] è lo strumento fatto solo di colore.
 library;
 
 import 'package:flutter/services.dart';
@@ -13,14 +18,16 @@ import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
+import 'indietro.dart';
 import 'intelaiatura.dart';
 import 'stato.dart';
 import 'widget_comuni.dart';
 
 /// Parametri del selettore completo.
-enum _Parametro { tinta, saturazione, luminosita, esadecimale, trasparenza }
+enum _Parametro { tinta, saturazione, luminosita, esadecimale }
 
-class PannelloColore extends ConsumerStatefulWidget {
+/// Strumento fatto solo di un colore (Colore del testo, Riempimento), con eventuali azioni sotto.
+class PannelloColore extends StatelessWidget {
   const PannelloColore({
     super.key,
     required this.nome,
@@ -28,11 +35,37 @@ class PannelloColore extends ConsumerStatefulWidget {
     required this.onColore,
     this.conNessuno = false,
     this.conAlfa = false,
-    this.chipsPrima = const [],
-    this.chipsDopo = const [],
+    this.azioni = const [],
   });
 
   final String nome;
+  final int colore;
+  final ValueChanged<int> onColore;
+  final bool conNessuno;
+  final bool conAlfa;
+  final List<AzioneStrumento> azioni;
+
+  @override
+  Widget build(BuildContext context) => Intelaiatura(
+    nome: nome,
+    azioni: azioni,
+    contenuto: SelettoreColore(
+      colore: colore,
+      onColore: onColore,
+      conNessuno: conNessuno,
+      conAlfa: conAlfa,
+    ),
+  );
+}
+
+class SelettoreColore extends ConsumerStatefulWidget {
+  const SelettoreColore({
+    super.key,
+    required this.colore,
+    required this.onColore,
+    this.conNessuno = false,
+    this.conAlfa = false,
+  });
 
   /// Il colore attuale, ARGB (con la sua trasparenza).
   final int colore;
@@ -43,18 +76,14 @@ class PannelloColore extends ConsumerStatefulWidget {
   /// Il primo campione è «Nessuno» (trasparente): per il riempimento delle forme.
   final bool conNessuno;
 
-  /// C'è il cursore «Trasparenza» (etichetta del testo).
+  /// C'è il righello «Opacità» (etichetta del testo).
   final bool conAlfa;
 
-  /// Pillole prima e dopo quelle del selettore (le schede dello strumento che lo contiene).
-  final List<Widget> chipsPrima;
-  final List<Widget> chipsDopo;
-
   @override
-  ConsumerState<PannelloColore> createState() => _PannelloColoreState();
+  ConsumerState<SelettoreColore> createState() => _SelettoreColoreState();
 }
 
-class _PannelloColoreState extends ConsumerState<PannelloColore> {
+class _SelettoreColoreState extends ConsumerState<SelettoreColore> {
   bool _completo = false;
   _Parametro _parametro = _Parametro.tinta;
   late Hsl _hsl = argbToHsl(widget.colore);
@@ -104,11 +133,14 @@ class _PannelloColoreState extends ConsumerState<PannelloColore> {
     });
     _sincronizza();
     return _completo
-        ? _costruisciCompleto(context)
+        ? RitornoLocale(
+            onIndietro: () => setState(() => _completo = false),
+            child: _costruisciCompleto(context),
+          )
         : _costruisciRapido(context);
   }
 
-  // ---------- Campioni, colori del progetto, contagocce ----------
+  // ---------- Contagocce, «Altro», campioni, colori del progetto ----------
   Widget _costruisciRapido(BuildContext context) {
     final t = Testi.of(context);
     final contagocce = ref.watch(editorProvider.select((s) => s.contagocce));
@@ -120,18 +152,20 @@ class _PannelloColoreState extends ConsumerState<PannelloColore> {
       etichetta: etichetta(argb),
       onTap: () => _emetti(argb),
     );
-    return Intelaiatura(
-      nome: widget.nome,
-      chips: [
-        ...widget.chipsPrima,
-        ChipParametro(
+    final fila = Row(
+      children: [
+        const SizedBox(width: MisureScrl.spazioPiccolo),
+        _Comando(
+          chiave: const ValueKey('colore-contagocce'),
+          icona: Icons.colorize_rounded,
           etichetta: t.azContagocce,
           attivo: contagocce,
           onTap: () => _ctrl.attivaContagocce(!contagocce),
         ),
-        ChipParametro(
+        _Comando(
+          chiave: const ValueKey('colore-altro'),
+          icona: Icons.palette_outlined,
           etichetta: t.azAltroColore,
-          attivo: false,
           onTap: () {
             _ctrl.attivaContagocce(false);
             setState(() {
@@ -140,54 +174,61 @@ class _PannelloColoreState extends ConsumerState<PannelloColore> {
             });
           },
         ),
-        if (widget.conAlfa)
-          ChipParametro(
-            etichetta: t.parOpacita,
-            valore: '${percentualeAlfa(c)}',
-            attivo: false,
-            onTap: () {
-              _ctrl.attivaContagocce(false);
-              setState(() {
-                _completo = true;
-                _parametro = _Parametro.trasparenza;
-              });
-            },
-          ),
-        ...widget.chipsDopo,
-      ],
-      contenuto: contagocce
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MisureScrl.spazio,
-                ),
-                child: Text(
-                  t.contagocceAiuto,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            )
-          : ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                horizontal: MisureScrl.spazio,
-              ),
-              children: [
-                if (widget.conNessuno)
-                  CampioneColore(
-                    colore: null,
-                    scelto: alfaDi(c) == 0,
-                    etichetta: t.nessuno,
-                    onTap: () => _emetti(0x00000000),
+        const _Separatore(),
+        Expanded(
+          child: contagocce
+              ? Padding(
+                  padding: const EdgeInsets.only(right: MisureScrl.spazio),
+                  child: Text(
+                    t.contagocceAiuto,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                for (final k in CampioniScrl.rapidi) campione(k.toARGB32()),
-                if (_delProgetto.isNotEmpty) ...[
-                  const _Separatore(),
-                  for (final k in _delProgetto) campione(k),
-                ],
-              ],
+                )
+              : ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(right: MisureScrl.spazio),
+                  children: [
+                    if (widget.conNessuno)
+                      CampioneColore(
+                        colore: null,
+                        scelto: alfaDi(c) == 0,
+                        etichetta: t.nessuno,
+                        onTap: () => _emetti(0x00000000),
+                      ),
+                    for (final k in CampioniScrl.rapidi) campione(k.toARGB32()),
+                    if (_delProgetto.isNotEmpty) ...[
+                      const _Separatore(),
+                      for (final k in _delProgetto) campione(k),
+                    ],
+                  ],
+                ),
+        ),
+      ],
+    );
+    if (!widget.conAlfa) {
+      return Center(
+        child: SizedBox(height: MisureScrl.tocco, child: fila),
+      );
+    }
+    return Column(
+      children: [
+        SizedBox(height: MisureScrl.tocco, child: fila),
+        Expanded(
+          child: righelloParametro(
+            ParametroCursore(
+              nome: t.parOpacita,
+              minimo: 0,
+              massimo: 100,
+              iniziale: 100,
+              valore: percentualeAlfa(c),
+              unita: '%',
+              onCambia: (v) => _emetti(conPercentualeAlfa(widget.colore, v)),
             ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -196,52 +237,63 @@ class _PannelloColoreState extends ConsumerState<PannelloColore> {
     final t = Testi.of(context);
     final c = widget.colore;
     final hex = formatEsadecimale(c);
-    ChipParametro pillola(_Parametro p, String nome, [String? valore]) =>
-        ChipParametro(
-          etichetta: nome,
-          valore: valore,
-          attivo: _parametro == p,
-          onTap: () => setState(() => _parametro = p),
-        );
-    final Widget contenuto = switch (_parametro) {
-      _Parametro.esadecimale => _CampoEsadecimale(
-        valore: hex,
-        onValido: (rgb) => _emetti(_conAlfaAttuale(rgb)),
-      ),
-      _ => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-        child: Center(child: _cursore(t)),
-      ),
-    };
-    return Intelaiatura(
-      nome: widget.nome,
-      chips: [
-        ChipParametro(
-          etichetta: '‹ ${t.azColori}',
-          attivo: false,
-          onTap: () => setState(() => _completo = false),
-        ),
-        _Anteprima(colore: c, etichetta: t.coloreEtichetta(hex)),
-        pillola(_Parametro.tinta, t.parTintaColore, '${_hsl.h.round() % 360}'),
-        pillola(
-          _Parametro.saturazione,
-          t.parSaturazione,
-          '${(_hsl.s * 100).round()}',
-        ),
-        pillola(
-          _Parametro.luminosita,
-          t.parLuminosita,
-          '${(_hsl.l * 100).round()}',
-        ),
-        pillola(_Parametro.esadecimale, t.parEsadecimale),
-        if (widget.conAlfa)
-          pillola(
-            _Parametro.trasparenza,
-            t.parOpacita,
-            '${percentualeAlfa(c)}',
+    return Column(
+      children: [
+        SizedBox(
+          height: MisureScrl.tocco,
+          child: Row(
+            children: [
+              PulsanteIcona(
+                key: const ValueKey('colore-indietro'),
+                icona: Icons.arrow_back_rounded,
+                etichetta: t.azColori,
+                onTap: () => setState(() => _completo = false),
+              ),
+              Expanded(
+                child: ControlloSegmentato<_Parametro>(
+                  voci: [
+                    VoceSegmento(
+                      valore: _Parametro.tinta,
+                      etichetta: t.parTintaColore,
+                    ),
+                    VoceSegmento(
+                      valore: _Parametro.saturazione,
+                      etichetta: t.parSaturazione,
+                    ),
+                    VoceSegmento(
+                      valore: _Parametro.luminosita,
+                      etichetta: t.parLuminosita,
+                    ),
+                    const VoceSegmento(
+                      valore: _Parametro.esadecimale,
+                      etichetta: '#',
+                      chiave: ValueKey('colore-esadecimale'),
+                    ),
+                  ],
+                  scelto: _parametro,
+                  onScelto: (p) => setState(() => _parametro = p),
+                ),
+              ),
+              const SizedBox(width: MisureScrl.spazioPiccolo),
+              _Anteprima(colore: c, etichetta: t.coloreEtichetta(hex)),
+              const SizedBox(width: MisureScrl.spazio),
+            ],
           ),
+        ),
+        Expanded(
+          child: _parametro == _Parametro.esadecimale
+              ? _CampoEsadecimale(
+                  valore: hex,
+                  onValido: (rgb) => _emetti(_conAlfaAttuale(rgb)),
+                )
+              : Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MisureScrl.spazio,
+                  ),
+                  child: Center(child: _cursore(t)),
+                ),
+        ),
       ],
-      contenuto: contenuto,
     );
   }
 
@@ -255,15 +307,6 @@ class _PannelloColoreState extends ConsumerState<PannelloColore> {
       unita,
       onCambia,
     ) = switch (_parametro) {
-      _Parametro.tinta => (
-        t.parTintaColore,
-        _hsl.h.round() % 360,
-        0,
-        359,
-        0,
-        '°',
-        (int v) => _perHsl(Hsl(v.toDouble(), _hsl.s, _hsl.l)),
-      ),
       _Parametro.saturazione => (
         t.parSaturazione,
         (_hsl.s * 100).round(),
@@ -283,13 +326,13 @@ class _PannelloColoreState extends ConsumerState<PannelloColore> {
         (int v) => _perHsl(Hsl(_hsl.h, _hsl.s, v / 100.0)),
       ),
       _ => (
-        t.parOpacita,
-        percentualeAlfa(widget.colore),
+        t.parTintaColore,
+        _hsl.h.round() % 360,
         0,
-        100,
-        100,
-        '%',
-        (int v) => _emetti(conPercentualeAlfa(widget.colore, v)),
+        359,
+        0,
+        '°',
+        (int v) => _perHsl(Hsl(v.toDouble(), _hsl.s, _hsl.l)),
       ),
     };
     return CursoreGrande(
@@ -306,18 +349,70 @@ class _PannelloColoreState extends ConsumerState<PannelloColore> {
   }
 }
 
-/// Filo sottile tra i campioni rapidi e i colori del progetto.
+/// Comando tondo in testa alla fila dei campioni (contagocce, «Altro»): stessa misura di un campione, con l'icona.
+class _Comando extends StatelessWidget {
+  const _Comando({
+    required this.icona,
+    required this.etichetta,
+    required this.onTap,
+    this.attivo = false,
+    this.chiave,
+  });
+
+  final IconData icona;
+  final String etichetta;
+  final VoidCallback onTap;
+  final bool attivo;
+  final Key? chiave;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    toggled: attivo ? true : null,
+    label: etichetta,
+    excludeSemantics: true,
+    child: GestureDetector(
+      key: chiave,
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: MisureScrl.tocco,
+        height: MisureScrl.tocco,
+        child: Center(
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: attivo ? ColoriScrl.accentoPieno : ColoriScrl.rilievo,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icona,
+              size: 20,
+              color: attivo ? ColoriScrl.suAccento : ColoriScrl.testo,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Filo sottile tra i comandi, i campioni rapidi e i colori del progetto.
 class _Separatore extends StatelessWidget {
   const _Separatore();
 
   @override
   Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: MisureScrl.spazioPiccolo),
+    padding: EdgeInsets.symmetric(
+      horizontal: MisureScrl.spazioPiccolo,
+      vertical: 10,
+    ),
     child: VerticalDivider(width: 1, thickness: 1, color: ColoriScrl.bordo),
   );
 }
 
-/// Il colore attuale, piccolo e tondo, accanto alle pillole del selettore completo.
+/// Il colore attuale, piccolo e tondo, accanto ai segmenti del selettore completo.
 class _Anteprima extends StatelessWidget {
   const _Anteprima({required this.colore, required this.etichetta});
 
@@ -385,34 +480,60 @@ class _CampoEsadecimaleState extends State<_CampoEsadecimale> {
   @override
   Widget build(BuildContext context) {
     final t = Testi.of(context);
-    return Center(
-      child: SizedBox(
-        width: 220,
-        child: TextField(
-          controller: _testo,
-          focusNode: _fuoco,
-          autocorrect: false,
-          enableSuggestions: false,
-          textCapitalization: TextCapitalization.characters,
-          maxLength: 7,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp('[0-9a-fA-F#]')),
+    // Il campo e, accanto, l'avviso se il testo non è valido: sotto non c'è spazio (il pannello resta basso)
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 160,
+            child: TextField(
+              key: const ValueKey('colore-campo-esadecimale'),
+              controller: _testo,
+              focusNode: _fuoco,
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 7,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp('[0-9a-fA-F#]')),
+              ],
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: TestoScrl.grande,
+                fontWeight: TestoScrl.marcato,
+                color: ColoriScrl.testo,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                prefixText: '#',
+                counterText: '',
+                hintText: 'RRGGBB',
+                // Bordo rosso; il testo dell'avviso sta accanto
+                error: _errore ? const SizedBox.shrink() : null,
+              ),
+              onChanged: _alCambio,
+            ),
+          ),
+          if (_errore) ...[
+            const SizedBox(width: MisureScrl.spazioPiccolo),
+            Flexible(
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  t.esadecimaleNonValido,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: TestoScrl.piccolo,
+                    color: ColoriScrl.pericoloTesto,
+                  ),
+                ),
+              ),
+            ),
           ],
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: TestoScrl.grande,
-            fontWeight: TestoScrl.marcato,
-            color: ColoriScrl.testo,
-          ),
-          decoration: InputDecoration(
-            prefixText: '#',
-            counterText: '',
-            hintText: 'RRGGBB',
-            labelText: t.parEsadecimale,
-            errorText: _errore ? t.esadecimaleNonValido : null,
-          ),
-          onChanged: _alCambio,
-        ),
+        ],
       ),
     );
   }

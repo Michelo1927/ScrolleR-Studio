@@ -22,9 +22,11 @@ import '../render/risorse_pagina.dart';
 import '../theme/tokens.dart';
 import 'geometria_tela.dart';
 import 'menu_pressione_lunga.dart';
+import 'semantica_tela.dart';
 import 'sessione.dart';
 import 'stato.dart';
 import 'vista_pagina.dart';
+import 'widget_comuni.dart';
 
 enum _Modo {
   nessuno,
@@ -34,7 +36,13 @@ enum _Modo {
   manigliaForma,
   pizzica,
   inquadra,
+
+  /// Zoom e spostamento della vista (non cambia il documento).
+  vista,
 }
+
+/// Ingrandimento massimo della vista con il pizzico.
+const double _zoomMassimo = 6;
 
 /// Distanza in dp tra il lato alto di una forma e il suo pallino di rotazione.
 const double _distanzaPallino = 32;
@@ -69,12 +77,34 @@ class TelaEditor extends ConsumerStatefulWidget {
 }
 
 class _TelaEditorState extends ConsumerState<TelaEditor>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _scorrimento;
+
+  /// Riporta la vista a zoom 1 e al centro (pulsante «Centra la pagina»).
+  late final AnimationController _animVista;
   late final SessioneEditor _sessione;
   late final RiproduzioneVideo _riproduzione;
   final ValueNotifier<Aggancio> _aggancio = ValueNotifier(Aggancio.nessuno);
   GeometriaTela? _geo;
+
+  /// La pagina intera nello spazio libero, prima dello zoom della vista.
+  GeometriaTela? _geoBase;
+
+  /// Zoom della vista (1 = pagina intera) e spostamento del centro della pagina, in dp.
+  double _zoom = 1;
+  Offset _pan = Offset.zero;
+  double _zoomRif = 1, _scalaVistaRif = 1;
+  Offset _panRif = Offset.zero, _focaleVistaRif = Offset.zero;
+  double _zoomDa = 1;
+  Offset _panDa = Offset.zero;
+
+  /// Il riferimento dello zoom si prende al primo aggiornamento: quando il riconoscitore parte, le dita si sono
+  /// già mosse (e la scala non vale più 1), e ancorarsi all'inizio farebbe saltare la vista.
+  bool _vistaDaAncorare = false;
+
+  /// Il gesto è ripartito con dita già appoggiate: Flutter chiude il gesto e ne apre un altro quando un dito si
+  /// alza o si aggiunge, e allora il punto giusto è quello delle dita di adesso, non quello del primo tocco.
+  bool _dopoRilascio = false;
   Timer? _timerPrepara;
   Timer? _timerBordo;
 
@@ -126,6 +156,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       vsync: this,
       value: _stato.pagina.toDouble(),
     )..addListener(_alloScorrimento);
+    _animVista = AnimationController(vsync: this)..addListener(_alPassoVista);
     WidgetsBinding.instance.addPostFrameCallback((_) => _prepara());
     _sessione.risorse.ripristinaQualita = _prepara;
     _riproduzione = RiproduzioneVideo(
@@ -146,6 +177,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     _timerPrepara?.cancel();
     _timerBordo?.cancel();
     _scorrimento.dispose();
+    _animVista.dispose();
     _aggancio.dispose();
     super.dispose();
   }
@@ -399,7 +431,10 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     if (_geo == null) return;
     _scorrimento.stop();
     _punti = d.pointerCount;
-    final punto = d.pointerCount == 1 ? _posGiu : d.localFocalPoint;
+    final punto = d.pointerCount == 1 && !_dopoRilascio
+        ? _posGiu
+        : d.localFocalPoint;
+    _dopoRilascio = false;
     _focaleUltima = punto;
     _paginaInizio = _pos.round();
     _base = _stato.snapshot;
@@ -407,7 +442,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     _bordoArmato = true;
     // Col contagocce acceso un trascinamento serve solo a cambiare pagina: niente si sposta
     if (_stato.contagocce) {
-      _modo = _Modo.scorri;
+      _scorriOVista(d.pointerCount, punto, 1);
       return;
     }
     final sel = _stato.selezione;
@@ -437,7 +472,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
           _iniziaInquadra(d.pointerCount);
           return;
         }
-        _modo = _Modo.scorri;
+        _scorriOVista(d.pointerCount, punto, 1);
         return;
       }
       if (e != null && sel.contains(rifDi(e)) && !e.locked) {
@@ -449,7 +484,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
         return;
       }
     }
-    _modo = _Modo.scorri;
+    _scorriOVista(d.pointerCount, punto, 1);
   }
 
   void _iniziaInquadra(int dita) {
@@ -495,6 +530,13 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
         _iniziaPizzica(d);
       } else if (_modo == _Modo.pizzica && _punti < 2) {
         _iniziaSposta(d.localFocalPoint);
+      } else if (_modo == _Modo.scorri && _punti >= 2) {
+        // Un secondo dito mentre si scorre: diventa zoom, e la pagina torna al suo posto
+        _scorrimento.value = _paginaInizio.toDouble();
+        _iniziaVista(d.localFocalPoint, d.scale);
+      } else if (_modo == _Modo.vista) {
+        // Il punto focale salta: si riparte da qui senza far saltare la vista
+        _iniziaVista(d.localFocalPoint, d.scale);
       }
     }
     final precedente = _focaleUltima;
@@ -513,6 +555,8 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
         _aggiornaPizzica(d);
       case _Modo.inquadra:
         _aggiornaInquadra(d, precedente);
+      case _Modo.vista:
+        _aggiornaVista(d);
       case _Modo.nessuno:
         break;
     }
@@ -668,6 +712,109 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     texts: [for (final t in base.texts) t.uid == nuovo.uid ? nuovo : t],
   );
 
+  // ---------- Zoom della vista ----------
+  /// La vista è ingrandita o spostata: si mostra il pulsante per rimettere la pagina al centro.
+  bool get _vistaCambiata => _zoom > 1.001 || _pan != Offset.zero;
+
+  /// Due dita fuori da un elemento selezionato ingrandiscono la vista; con la vista ingrandita un dito la sposta
+  /// (invece di cambiare pagina). Altrimenti un dito scorre tra le pagine.
+  void _scorriOVista(int dita, Offset focale, double scala) {
+    if (dita >= 2 || _zoom > 1.001) {
+      _iniziaVista(focale, scala);
+    } else {
+      _modo = _Modo.scorri;
+    }
+  }
+
+  void _iniziaVista(Offset focale, double scala) {
+    _animVista.stop();
+    _modo = _Modo.vista;
+    _zoomRif = _zoom;
+    _panRif = _pan;
+    _focaleVistaRif = focale;
+    _scalaVistaRif = scala;
+    _vistaDaAncorare = true;
+  }
+
+  /// Il punto della pagina sotto le dita all'inizio resta sotto le dita: lo zoom va da 1 a [_zoomMassimo].
+  void _aggiornaVista(ScaleUpdateDetails d) {
+    final base = _geoBase;
+    if (base == null) return;
+    if (_vistaDaAncorare) {
+      _vistaDaAncorare = false;
+      _focaleVistaRif = d.localFocalPoint;
+      _scalaVistaRif = d.scale;
+      return;
+    }
+    final z = (_zoomRif * d.scale / _scalaVistaRif).clamp(1.0, _zoomMassimo);
+    final centro = _centroPagina(base);
+    final v = (_focaleVistaRif - centro - _panRif) / _zoomRif;
+    final pan = d.localFocalPoint - centro - v * z;
+    setState(() {
+      _zoom = z;
+      _pan = _limitaPan(base, z, pan);
+    });
+  }
+
+  /// Dito alzato. Se era l'ultimo e lo zoom è rimasto appena sopra 1, la pagina torna intera.
+  void _ditoAlzato() {
+    _dita = math.max(0, _dita - 1);
+    if (_dita == 0 &&
+        _modo == _Modo.nessuno &&
+        _vistaCambiata &&
+        _zoom < 1.05) {
+      _centraVista();
+    }
+  }
+
+  void _fineVista() {
+    // Quasi senza zoom: torna esattamente alla pagina intera
+    if (_zoom < 1.05) {
+      _centraVista();
+    } else {
+      _preparaConRitardo();
+    }
+  }
+
+  Offset _centroPagina(GeometriaTela base) =>
+      Offset(base.x0 + base.pw / 2, base.y0 + base.ph / 2);
+
+  /// Fin dove si può spostare la pagina ingrandita: abbastanza da portarne ogni bordo in vista, non di più.
+  Offset _limitaPan(GeometriaTela base, double z, Offset pan) {
+    if (z <= 1.001) return Offset.zero;
+    double limite(double lato, double spazio) =>
+        math.max((lato * z - lato) / 2, (lato * z - spazio) / 2 + 48);
+    final lx = limite(base.pw, base.larghezza);
+    final ly = limite(base.ph, base.altezza - altezzaEtichetta);
+    return Offset(pan.dx.clamp(-lx, lx), pan.dy.clamp(-ly, ly));
+  }
+
+  /// Toglie lo zoom e rimette la pagina al centro (animato, se le animazioni non sono ridotte).
+  void _centraVista() {
+    _animVista.stop();
+    if (_senzaAnimazioni) {
+      setState(() {
+        _zoom = 1;
+        _pan = Offset.zero;
+      });
+      _preparaConRitardo();
+      return;
+    }
+    _zoomDa = _zoom;
+    _panDa = _pan;
+    _animVista
+      ..duration = MotoScrl.pannello
+      ..forward(from: 0).whenComplete(_preparaConRitardo);
+  }
+
+  void _alPassoVista() {
+    final t = MotoScrl.curva.transform(_animVista.value);
+    setState(() {
+      _zoom = _zoomDa + (1 - _zoomDa) * t;
+      _pan = Offset.lerp(_panDa, Offset.zero, t)!;
+    });
+  }
+
   // ---------- Cambio pagina trascinando un elemento ----------
   void _controllaBordo(Offset focale) {
     final g = _geo;
@@ -692,6 +839,8 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
   void _fineGesto(ScaleEndDetails d) {
     _timerBordo?.cancel();
     _timerBordo = null;
+    // Un dito è ancora giù: il gesto riparte subito con le dita rimaste
+    _dopoRilascio = _dita > 0;
     final modo = _modo;
     _modo = _Modo.nessuno;
     _aggancio.value = Aggancio.nessuno;
@@ -709,6 +858,13 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       case _Modo.maniglia || _Modo.manigliaForma || _Modo.pizzica:
         // Con uno strumento aperto la modifica resta bozza fino a ✓
         if (!_stato.strumento.suElemento) _ctrl.conferma();
+      case _Modo.vista:
+        // Con un dito ancora giù si continua a spostare: si ricentra solo quando tutte le dita sono alzate
+        if (_dopoRilascio) {
+          _preparaConRitardo();
+        } else {
+          _fineVista();
+        }
       case _Modo.inquadra || _Modo.nessuno:
         break;
     }
@@ -745,6 +901,16 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     _ctrl.scarta();
   }
 
+  /// Selezione fatta da un lettore di schermo (doppio tocco sul nodo dell'elemento): come il tocco con il dito.
+  void _selezionaDaLettore(CanvasElement e) {
+    if (_stato.strumento.suElemento || e.pageLocked) return;
+    if (_stato.selezionePiu) {
+      _ctrl.alternaInSelezione(e);
+    } else {
+      _ctrl.seleziona(conGruppo(_stato.snapshot, e));
+    }
+  }
+
   // ---------- Costruzione ----------
   @override
   Widget build(BuildContext context) {
@@ -766,27 +932,42 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     final testi = testiDisegno(context);
     return LayoutBuilder(
       builder: (context, vincoli) {
-        final geo = GeometriaTela.adatta(
+        final base = GeometriaTela.adatta(
           larghezza: vincoli.maxWidth,
           altezza: vincoli.maxHeight,
           frameW: s.canvas.frameW,
           frameH: s.canvas.frameH,
           pos: _pos,
         );
+        _geoBase = base;
+        // Lo spazio può essere cambiato (pannello aperto o chiuso): lo spostamento resta nei limiti
+        _pan = _limitaPan(base, _zoom, _pan);
+        final geo = base.conVista(_zoom, _pan);
         _geo = geo;
+        final t = Testi.of(context);
         return Semantics(
-          label: Testi.of(context).tela,
+          label: t.tela,
+          value: t.telaPagina(stato.pagina + 1, s.canvas.numFrames),
+          // Azioni per i lettori di schermo: scorrere fra le pagine senza il gesto di trascinamento
+          onScrollLeft: stato.pagina < s.canvas.numFrames - 1
+              ? () => _ctrl.vaiAPagina(stato.pagina + 1)
+              : null,
+          onScrollRight: stato.pagina > 0
+              ? () => _ctrl.vaiAPagina(stato.pagina - 1)
+              : null,
+          explicitChildNodes: true,
           child: Listener(
             behavior: HitTestBehavior.translucent,
             onPointerDown: (e) {
               if (_dita == 0) {
                 _posGiu = e.localPosition;
                 _tsGiu = e.timeStamp;
+                _dopoRilascio = false;
               }
               _dita++;
             },
-            onPointerUp: (_) => _dita = math.max(0, _dita - 1),
-            onPointerCancel: (_) => _dita = math.max(0, _dita - 1),
+            onPointerUp: (_) => _ditoAlzato(),
+            onPointerCancel: (_) => _ditoAlzato(),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTapUp: _alTocco,
@@ -796,6 +977,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
               onScaleEnd: _fineGesto,
               child: Stack(
                 fit: StackFit.expand,
+                clipBehavior: Clip.hardEdge,
                 children: [
                   AnimatedBuilder(
                     animation: Listenable.merge([
@@ -835,6 +1017,37 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
                       ),
                     ),
                   ),
+                  // Un nodo per elemento della pagina corrente, solo per i lettori di schermo
+                  ...nodiElementi(
+                    context: context,
+                    snapshot: s,
+                    geo: geo,
+                    pagina: stato.pagina,
+                    misura: _sessione.ctx.textSize,
+                    selezione: stato.selezione,
+                    alTocco: _selezionaDaLettore,
+                    alMenu: (e) {
+                      _selezionaDaLettore(e);
+                      unawaited(mostraMenuElemento(context));
+                    },
+                  ),
+                  // Con la vista ingrandita: un tocco rimette la pagina intera al centro
+                  if (_vistaCambiata)
+                    Positioned(
+                      right: MisureScrl.spazioPiccolo,
+                      bottom: MisureScrl.spazioPiccolo,
+                      child: Material(
+                        color: ColoriScrl.veloEtichetta,
+                        shape: const CircleBorder(),
+                        child: PulsanteIcona(
+                          key: const ValueKey('tela-centra'),
+                          icona: Icons.fit_screen_rounded,
+                          etichetta: t.vistaCentra,
+                          onTap: _centraVista,
+                          colore: ColoriScrl.suAccento,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1114,24 +1327,28 @@ class _Etichetta extends StatelessWidget {
                 top: geo.y0,
                 width: geo.pw,
                 height: geo.ph,
+                // Su una pagina piccola (pannello alto, schermo basso, testo grande) il segno si rimpicciolisce
                 child: IgnorePointer(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: MisureScrl.tocco,
-                        color: ColoriScrl.testoSpento,
-                      ),
-                      const SizedBox(height: MisureScrl.spazioPiccolo),
-                      Text(
-                        t.paginaVuota,
-                        style: stili.bodySmall?.copyWith(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: MisureScrl.tocco,
                           color: ColoriScrl.testoSpento,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                        const SizedBox(height: MisureScrl.spazioPiccolo),
+                        Text(
+                          t.paginaVuota,
+                          style: stili.bodySmall?.copyWith(
+                            color: ColoriScrl.testoSpento,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

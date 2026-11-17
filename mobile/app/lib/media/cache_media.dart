@@ -141,6 +141,38 @@ class CacheMedia {
     _byte = 0;
   }
 
+  /// Toglie dal disco le anteprime delle foto che non sono più nel progetto (tolte dalla tela e dalla libreria):
+  /// senza, la cartella `cache/` crescerebbe a ogni foto sostituita. Restano quelle di tutte le foto in uso, anche
+  /// se l'originale non c'è più (l'anteprima salvata è proprio ciò che le tiene visibili). Non tocca i file
+  /// scritti da meno di [eta]: possono essere di una foto appena aggiunta, che l'elenco non conosce ancora.
+  /// Ritorna quanti file ha tolto.
+  Future<int> pulisciOrfane(
+    Iterable<String> chiaviInUso, {
+    Duration eta = const Duration(hours: 1),
+  }) async {
+    if (!cartella.existsSync()) return 0;
+    final usate = {for (final k in chiaviInUso) _hash(k)};
+    final limite = DateTime.now().subtract(eta);
+    var tolti = 0;
+    try {
+      await for (final e in cartella.list()) {
+        if (e is! File || !e.path.endsWith('.img')) continue;
+        final nome = e.uri.pathSegments.last;
+        if (usate.contains(nome.split('_').first)) continue;
+        if (e.lastModifiedSync().isAfter(limite)) continue;
+        try {
+          await e.delete();
+          tolti++;
+        } on FileSystemException {
+          // Già sparito o non cancellabile: ci si riprova alla prossima apertura
+        }
+      }
+    } on FileSystemException {
+      // Cartella illeggibile: la cache è solo un acceleratore
+    }
+    return tolti;
+  }
+
   /// File dell'anteprima salvata su disco per [s], o null se non c'è (serve allo `.zip` di «Condividi progetto»
   /// quando l'originale è sparito).
   File? fileAnteprima(SorgenteMedia s) {

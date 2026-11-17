@@ -66,17 +66,60 @@ ThemeData temaScrl() {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: ColoriScrl.accento,
+        backgroundColor: ColoriScrl.accentoPieno,
         foregroundColor: ColoriScrl.suAccento,
         minimumSize: const Size(MisureScrl.tocco, MisureScrl.tocco),
         shape: const StadiumBorder(),
       ),
     ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: ColoriScrl.testo,
+        disabledForegroundColor: ColoriScrl.testoSpento,
+        side: const BorderSide(color: ColoriScrl.bordo),
+        minimumSize: const Size(MisureScrl.tocco, MisureScrl.tocco),
+        shape: const StadiumBorder(),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: ColoriScrl.accentoTesto,
+        minimumSize: const Size(MisureScrl.tocco, MisureScrl.tocco),
+      ),
+    ),
     snackBarTheme: const SnackBarThemeData(
       backgroundColor: ColoriScrl.rilievo,
       contentTextStyle: TextStyle(color: ColoriScrl.testo),
-      actionTextColor: ColoriScrl.accento,
+      actionTextColor: ColoriScrl.accentoTesto,
       behavior: SnackBarBehavior.floating,
     ),
   );
 }
+
+/// Cambio di schermata istantaneo, per chi ha chiesto «riduci animazioni» al sistema (piano §4.7).
+class _SenzaTransizione extends PageTransitionsBuilder {
+  const _SenzaTransizione();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) => child;
+}
+
+/// Il [base] senza il movimento delle transizioni tra schermate.
+ThemeData temaSenzaMovimento(ThemeData base) => base.copyWith(
+  pageTransitionsTheme: const PageTransitionsTheme(
+    builders: {
+      TargetPlatform.android: _SenzaTransizione(),
+      TargetPlatform.iOS: _SenzaTransizione(),
+      TargetPlatform.fuchsia: _SenzaTransizione(),
+      TargetPlatform.linux: _SenzaTransizione(),
+      TargetPlatform.macOS: _SenzaTransizione(),
+      TargetPlatform.windows: _SenzaTransizione(),
+    },
+  ),
+);

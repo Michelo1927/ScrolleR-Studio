@@ -562,7 +562,7 @@ abstract class Testi {
   /// Voce della barra inferiore
   ///
   /// In it, this message translates to:
-  /// **'Disposizione'**
+  /// **'Impagina'**
   String get barraDisposizione;
 
   /// Voce della barra inferiore (＋)
@@ -616,7 +616,7 @@ abstract class Testi {
   /// Nome dello strumento Disposizione
   ///
   /// In it, this message translates to:
-  /// **'Disposizione'**
+  /// **'Impagina'**
   String get strumentoDisposizione;
 
   /// Parametro: la disposizione
@@ -3456,6 +3456,570 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Ricollega'**
   String get strRicollega;
+
+  /// Primo avvio: primo suggerimento
+  ///
+  /// In it, this message translates to:
+  /// **'Tocca una foto per selezionarla'**
+  String get suggerimentoTocca;
+
+  /// Primo avvio: secondo suggerimento
+  ///
+  /// In it, this message translates to:
+  /// **'Tieni premuto su un elemento per copiarlo, bloccarlo o eliminarlo'**
+  String get suggerimentoPremuto;
+
+  /// Primo avvio: terzo suggerimento
+  ///
+  /// In it, this message translates to:
+  /// **'Scorri di lato per cambiare pagina'**
+  String get suggerimentoScorri;
+
+  /// Azione del suggerimento, per i lettori di schermo
+  ///
+  /// In it, this message translates to:
+  /// **'Tocca per chiudere'**
+  String get suggerimentoChiudi;
+
+  /// Titolo della schermata e pulsante della Home
+  ///
+  /// In it, this message translates to:
+  /// **'Impostazioni'**
+  String get impostazioni;
+
+  /// Sezione delle Impostazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Aiuto'**
+  String get impAiuto;
+
+  /// Sezione delle Impostazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Aggiornamenti'**
+  String get impAggiornamenti;
+
+  /// Sezione delle Impostazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Registro errori'**
+  String get impRegistro;
+
+  /// Sezione delle Impostazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Informazioni'**
+  String get impInfo;
+
+  /// Voce delle Impostazioni: la versione mobile di «Scorciatoie da tastiera e mouse»
+  ///
+  /// In it, this message translates to:
+  /// **'Gesti'**
+  String get impGesti;
+
+  /// Sottotitolo della voce Gesti
+  ///
+  /// In it, this message translates to:
+  /// **'Come si usano tela e pannelli'**
+  String get impGestiAiuto;
+
+  /// Voce delle Impostazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Rivedi i suggerimenti'**
+  String get impSuggerimenti;
+
+  /// Sottotitolo della voce
+  ///
+  /// In it, this message translates to:
+  /// **'I tre suggerimenti del primo avvio torneranno nell\'editor'**
+  String get impSuggerimentiAiuto;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'I suggerimenti torneranno nell\'editor'**
+  String get impSuggerimentiRimessi;
+
+  /// Riga delle Informazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Versione {versione}'**
+  String impVersione(String versione);
+
+  /// Voce delle Impostazioni: apre le licenze dei componenti
+  ///
+  /// In it, this message translates to:
+  /// **'Licenze'**
+  String get impLicenze;
+
+  /// Sottotitolo di Licenze
+  ///
+  /// In it, this message translates to:
+  /// **'Componenti e caratteri inclusi'**
+  String get impLicenzeAiuto;
+
+  /// Riga delle Informazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Nessuna pubblicità, nessun tracciamento, nessun account. La rete serve solo a cercare gli aggiornamenti.'**
+  String get impPrivacy;
+
+  /// Titolo della schermata Gesti
+  ///
+  /// In it, this message translates to:
+  /// **'Gesti'**
+  String get gestiTitolo;
+
+  /// Gruppo della schermata Gesti
+  ///
+  /// In it, this message translates to:
+  /// **'Sulla tela'**
+  String get gestiSulla;
+
+  /// Gruppo della schermata Gesti
+  ///
+  /// In it, this message translates to:
+  /// **'Nei pannelli e nelle barre'**
+  String get gestiNeiPannelli;
+
+  /// Gruppo della schermata Gesti
+  ///
+  /// In it, this message translates to:
+  /// **'Pagine e Panoramica'**
+  String get gestiNellePagine;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Tocca'**
+  String get gestoTocca;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Seleziona una foto, un testo o una forma. Toccando il vuoto, la selezione sparisce.'**
+  String get gestoToccaDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Doppio tocco su un testo'**
+  String get gestoDoppio;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Apre la tastiera per scriverci.'**
+  String get gestoDoppioDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Tieni premuto su un elemento'**
+  String get gestoPremuto;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Copia, taglia, duplica, blocca, porta davanti o dietro, sposta in un\'altra pagina, elimina.'**
+  String get gestoPremutoDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Tieni premuto sul vuoto'**
+  String get gestoPremutoVuoto;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Incolla qui, aggiungi un testo o una forma, seleziona tutto e le azioni della pagina.'**
+  String get gestoPremutoVuotoDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Trascina un elemento'**
+  String get gestoTrascina;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Lo sposta e si aggancia alle linee degli altri. Verso il bordo dello schermo passa alla pagina vicina.'**
+  String get gestoTrascinaDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Trascina una maniglia'**
+  String get gestoManiglie;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Ridimensiona la foto o la forma selezionata.'**
+  String get gestoManiglieDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Pizzica con due dita'**
+  String get gestoPizzica;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Ingrandisce o riduce l\'elemento; girando le dita lo ruota, con piccoli scatti agli angoli più comuni.'**
+  String get gestoPizzicaDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Scorri di lato'**
+  String get gestoScorri;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Cambia pagina, una alla volta.'**
+  String get gestoScorriDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Doppio tocco su un cursore'**
+  String get gestoCursore;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Riporta il valore a quello iniziale.'**
+  String get gestoCursoreDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Trascina il pannello verso il basso'**
+  String get gestoPannello;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Chiude lo strumento senza applicare, come ✕.'**
+  String get gestoPannelloDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Tieni premuto ◐'**
+  String get gestoConfronto;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Mostra la foto com\'era prima; rilasciando torna con le modifiche.'**
+  String get gestoConfrontoDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Gesto «indietro» del telefono'**
+  String get gestoIndietro;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Torna al livello di prima di un menu o di uno strumento, poi chiude lo strumento, poi toglie la selezione, poi esce dal progetto.'**
+  String get gestoIndietroDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Tieni premuto Annulla'**
+  String get gestoAnnullaLungo;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Apre la Cronologia.'**
+  String get gestoAnnullaLungoDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Panoramica: tocca, trascina, tieni premuto'**
+  String get gestoPanoramica;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Tocca per andare alla pagina, trascina per riordinare, tieni premuto per le azioni.'**
+  String get gestoPanoramicaDesc;
+
+  /// Gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Puntini delle pagine'**
+  String get gestoPuntini;
+
+  /// Descrizione del gesto
+  ///
+  /// In it, this message translates to:
+  /// **'Toccane uno per saltare a quella pagina.'**
+  String get gestoPuntiniDesc;
+
+  /// Interruttore
+  ///
+  /// In it, this message translates to:
+  /// **'Cerca nuove versioni'**
+  String get aggControlla;
+
+  /// Sottotitolo dell'interruttore
+  ///
+  /// In it, this message translates to:
+  /// **'Una volta al giorno, all\'apertura. È l\'unico uso della rete e non invia dati personali.'**
+  String get aggControllaAiuto;
+
+  /// Voce delle Impostazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Controlla adesso'**
+  String get aggControllaOra;
+
+  /// Stato del controllo
+  ///
+  /// In it, this message translates to:
+  /// **'Controllo in corso…'**
+  String get aggInCorso;
+
+  /// Esito del controllo
+  ///
+  /// In it, this message translates to:
+  /// **'L\'app è aggiornata'**
+  String get aggAggiornato;
+
+  /// Avviso nella Home e nelle Impostazioni
+  ///
+  /// In it, this message translates to:
+  /// **'È disponibile la versione {versione}'**
+  String aggDisponibile(String versione);
+
+  /// Esito del controllo
+  ///
+  /// In it, this message translates to:
+  /// **'Non riesco a controllare: serve una connessione a Internet'**
+  String get aggErrore;
+
+  /// Apre la pagina della release nel browser
+  ///
+  /// In it, this message translates to:
+  /// **'Scarica'**
+  String get aggScarica;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Non riesco ad aprire il browser'**
+  String get aggNonApribile;
+
+  /// Pulsante dell'avviso, per i lettori di schermo
+  ///
+  /// In it, this message translates to:
+  /// **'Nascondi l\'avviso'**
+  String get aggChiudi;
+
+  /// Spiegazione del registro errori
+  ///
+  /// In it, this message translates to:
+  /// **'Gli errori inattesi si annotano solo su questo telefono. Il file non parte da solo: se vuoi segnalare un problema, condividilo tu. I percorsi di cartelle e foto sono già tolti.'**
+  String get regAiuto;
+
+  /// Voce delle Impostazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Condividi il registro'**
+  String get regCondividi;
+
+  /// Sottotitolo quando il registro è vuoto
+  ///
+  /// In it, this message translates to:
+  /// **'Nessun errore registrato'**
+  String get regVuoto;
+
+  /// Sottotitolo quando il registro ha errori
+  ///
+  /// In it, this message translates to:
+  /// **'Ci sono errori registrati'**
+  String get regPieno;
+
+  /// Voce delle Impostazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Svuota il registro'**
+  String get regCancella;
+
+  /// Conferma
+  ///
+  /// In it, this message translates to:
+  /// **'Svuotare il registro degli errori?'**
+  String get regCancellaChiede;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Registro svuotato'**
+  String get regCancellato;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Non riesco a condividere il registro'**
+  String get regNonCondiviso;
+
+  /// Valore della tela per i lettori di schermo
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {pagina} di {totale}'**
+  String telaPagina(int pagina, int totale);
+
+  /// Elemento della tela, per i lettori di schermo
+  ///
+  /// In it, this message translates to:
+  /// **'Foto {n}'**
+  String telaFoto(int n);
+
+  /// Elemento della tela, per i lettori di schermo
+  ///
+  /// In it, this message translates to:
+  /// **'Video {n}'**
+  String telaVideo(int n);
+
+  /// Elemento della tela, per i lettori di schermo
+  ///
+  /// In it, this message translates to:
+  /// **'Testo: {testo}'**
+  String telaTesto(String testo);
+
+  /// Elemento della tela, per i lettori di schermo
+  ///
+  /// In it, this message translates to:
+  /// **'Forma {n}'**
+  String telaForma(int n);
+
+  /// Elemento bloccato, per i lettori di schermo
+  ///
+  /// In it, this message translates to:
+  /// **'{nome}, bloccato'**
+  String telaBloccato(String nome);
+
+  /// Azione personalizzata di un elemento: apre il menu
+  ///
+  /// In it, this message translates to:
+  /// **'Azioni'**
+  String get telaApriMenu;
+
+  /// Foglio Esporta: quante pagine sono scelte
+  ///
+  /// In it, this message translates to:
+  /// **'{n} di {tot} pagine'**
+  String espPagineScelte(int n, int tot);
+
+  /// ‹ nel dettaglio di un parametro: torna alla griglia di tutte le schede dello strumento
+  ///
+  /// In it, this message translates to:
+  /// **'Tutte le opzioni'**
+  String get tutteLeOpzioni;
+
+  /// Scheda dello Sfondo a sfumatura: la direzione
+  ///
+  /// In it, this message translates to:
+  /// **'Direzione'**
+  String get sfDirezione;
+
+  /// Categoria della barra di una foto: Cornice e Ombra
+  ///
+  /// In it, this message translates to:
+  /// **'Aspetto'**
+  String get catAspetto;
+
+  /// Categoria della barra: copia stile, duplica, elimina…
+  ///
+  /// In it, this message translates to:
+  /// **'Altro'**
+  String get catAltro;
+
+  /// Categoria della barra con più elementi: raggruppa, separa, scambia, blocca
+  ///
+  /// In it, this message translates to:
+  /// **'Gruppo'**
+  String get catGruppo;
+
+  /// Categoria della barra di un video: riproduci, taglia, copertina, audio
+  ///
+  /// In it, this message translates to:
+  /// **'Video'**
+  String get catVideo;
+
+  /// Nuovo progetto: titolo della sezione dei formati di Instagram, in cima
+  ///
+  /// In it, this message translates to:
+  /// **'I più usati'**
+  String get formatiPiuUsati;
+
+  /// Nuovo progetto: riga sotto «I più usati»
+  ///
+  /// In it, this message translates to:
+  /// **'I formati di Instagram per post, storie e reel'**
+  String get formatiPiuUsatiDesc;
+
+  /// Nuovo progetto: titolo della sezione con gli altri formati
+  ///
+  /// In it, this message translates to:
+  /// **'Altri formati'**
+  String get formatiAltri;
+
+  /// Uso del formato 4:5
+  ///
+  /// In it, this message translates to:
+  /// **'Post nel feed'**
+  String get usoFormato45;
+
+  /// Uso del formato 9:16
+  ///
+  /// In it, this message translates to:
+  /// **'Storie e Reel'**
+  String get usoFormato916;
+
+  /// Uso del formato 3:4
+  ///
+  /// In it, this message translates to:
+  /// **'Griglia del profilo'**
+  String get usoFormato34;
+
+  /// Pulsante sulla tela e nell'Anteprima: toglie lo zoom e rimette la pagina al centro
+  ///
+  /// In it, this message translates to:
+  /// **'Centra la pagina'**
+  String get vistaCentra;
+
+  /// Foglio delle azioni di un progetto (Home): spazio occupato dalla cartella del progetto
+  ///
+  /// In it, this message translates to:
+  /// **'Occupa {peso} sul telefono'**
+  String pesoProgetto(String peso);
+
+  /// Foglio delle azioni di un progetto: mentre si calcola lo spazio occupato
+  ///
+  /// In it, this message translates to:
+  /// **'Calcolo dello spazio…'**
+  String get pesoCalcolo;
+
+  /// Foglio delle azioni di un progetto: sotto lo spazio occupato
+  ///
+  /// In it, this message translates to:
+  /// **'Le foto della galleria non sono contate: restano nella galleria, il progetto le collega.'**
+  String get pesoNota;
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

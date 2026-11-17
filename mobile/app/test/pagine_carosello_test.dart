@@ -17,6 +17,8 @@ import 'package:scrollr_studio/project/archivio.dart';
 import 'package:scrollr_studio/project/crea_progetto.dart';
 import 'package:scrollr_studio/theme/tema.dart';
 
+import 'aiuto_barra.dart';
+
 FotoScelta _foto(int i) => (
   voce: LibraryEntry(path: 'foto$i.jpg', rel: 'media/foto$i.jpg'),
   chiave: 'f:media/foto$i.jpg',
@@ -136,35 +138,9 @@ class _Banco {
   PhotoItem foto(int uid) => snapshot.items.firstWhere((p) => p.uid == uid);
 }
 
-Future<void> _vediVoce(WidgetTester tester, String testo) async {
-  final lista = find
-      .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
-      .first;
-  await tester.drag(lista, const Offset(10000, 0));
-  await tester.pump();
-  await tester.scrollUntilVisible(find.text(testo), 120, scrollable: lista);
-  await tester.pump();
-}
-
-/// Tocca [f], facendo scorrere prima la prima striscia orizzontale (pillole di un pannello o voci della barra) fino a
-/// averlo in vista.
-Future<void> _tocca(WidgetTester tester, Finder f) async {
-  if (f.evaluate().isEmpty) {
-    final lista = find
-        .descendant(
-          of: find.byType(ListView),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    await tester.drag(lista, const Offset(10000, 0));
-    await tester.pump();
-    await tester.scrollUntilVisible(f, 120, scrollable: lista);
-  }
-  await tester.ensureVisible(f);
-  await tester.pump();
-  await tester.tap(f);
-  await tester.pumpAndSettle();
-}
+/// Tocca [f] nel pannello aperto (o nella barra), tornando alla griglia delle schede o scorrendo se serve.
+Future<void> _tocca(WidgetTester tester, Finder f) =>
+    toccaNelPannello(tester, f);
 
 Finder _chiave(String k) => find.byKey(ValueKey(k));
 Finder _barra(String testo) => find.widgetWithText(VoceBarra, testo);
@@ -332,6 +308,31 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(_chiave('anteprima-1'), findsOneWidget);
+      // Pizzico: la pagina si ingrandisce e un dito non cambia più pagina; «Centra» la rimette intera
+      expect(_chiave('anteprima-centra'), findsNothing);
+      final centro = tester.getCenter(_chiave('anteprima-1'));
+      final g1 = await tester.startGesture(centro - const Offset(30, 0));
+      final g2 = await tester.startGesture(centro + const Offset(30, 0));
+      await tester.pump(); // Due dita: lo scorrimento tra le pagine si ferma
+      for (var i = 0; i < 6; i++) {
+        await g1.moveBy(const Offset(-20, 0));
+        await g2.moveBy(const Offset(20, 0));
+        await tester.pump();
+      }
+      await g1.up();
+      await g2.up();
+      await tester.pumpAndSettle();
+      expect(_chiave('anteprima-centra'), findsOneWidget);
+      await tester.fling(
+        _chiave('anteprima-pagine'),
+        const Offset(-500, 0),
+        1500,
+      );
+      await tester.pumpAndSettle();
+      expect(_chiave('anteprima-1'), findsOneWidget);
+      expect(_chiave('anteprima-2'), findsNothing);
+      await _tocca(tester, _chiave('anteprima-centra'));
+      expect(_chiave('anteprima-centra'), findsNothing);
       // Chiude con la ✕ e si torna all'editor, com'era
       await _tocca(tester, find.byIcon(Icons.close_rounded));
       expect(_chiave('anteprima-pagine'), findsNothing);
@@ -377,6 +378,7 @@ void main() {
       expect(b.stato.strumento, Strumento.sfondo);
       final passi = b.passi;
       await _tocca(tester, _chiave('sfondo-gradient'));
+      await _tocca(tester, _chiave('sfondo-scheda-direzione'));
       await _tocca(tester, _chiave('sfondo-dir-diagonal'));
       // Bozza: si vede ma non è ancora un passo
       expect(b.tela.bgMode, 'gradient');
@@ -386,10 +388,10 @@ void main() {
       await _tocca(tester, find.byIcon(Icons.check_rounded));
       expect(b.passi, passi + 1);
       expect(b.stato.cronologia.labels.last.kind, ChangeKind.background);
-      expect(b.stato.strumento, Strumento.nessuno);
+      // ✓ torna al menu Stile
+      expect(b.stato.strumento, Strumento.stile);
 
       // Un altro giro, scartato con ✕: tutto com'era
-      await _tocca(tester, _barra('Stile'));
       await _tocca(tester, _chiave('stile-sfondo'));
       await _tocca(tester, _chiave('sfondo-solid'));
       expect(b.tela.bgMode, 'solid');
@@ -431,8 +433,8 @@ void main() {
       expect(b.tela.pageNumberPos, 'tr');
       await _tocca(tester, find.byIcon(Icons.check_rounded));
       expect(b.stato.cronologia.labels.last.kind, ChangeKind.pageNumbers);
+      expect(b.stato.strumento, Strumento.stile);
 
-      await _tocca(tester, _barra('Stile'));
       await _tocca(tester, _chiave('stile-scorri'));
       await _tocca(tester, _chiave('scorri-acceso'));
       expect(b.tela.swipeHint, isTrue);
@@ -506,8 +508,7 @@ void main() {
         ]);
         await tester.pump();
         final passi = b.passi;
-        await _vediVoce(tester, 'Raggruppa');
-        await _tocca(tester, find.text('Raggruppa'));
+        await toccaVoceBarra(tester, 'Raggruppa');
         expect(b.passi, passi + 1);
         expect(b.stato.cronologia.labels.last.kind, ChangeKind.grouped);
         expect(b.foto(1).group, isNot(0));
@@ -519,8 +520,7 @@ void main() {
         await tester.tapAt(b.centroFoto(1));
         await tester.pump();
         expect(b.stato.selezione.length, 2);
-        await _vediVoce(tester, 'Separa');
-        await _tocca(tester, find.text('Separa'));
+        await toccaVoceBarra(tester, 'Separa');
         expect(b.foto(1).group, 0);
         expect(b.stato.cronologia.labels.last.kind, ChangeKind.ungrouped);
       },
@@ -548,8 +548,7 @@ void main() {
       b.controllo.seleziona(forme);
       await tester.pump();
 
-      await _vediVoce(tester, 'Allinea');
-      await _tocca(tester, find.text('Allinea'));
+      await toccaVoceBarra(tester, 'Allinea');
       expect(b.stato.strumento, Strumento.allinea);
       await _tocca(tester, _chiave('allinea-sinistra'));
       final xs = {for (final f in b.snapshot.shapes) f.x.round()};
@@ -565,15 +564,13 @@ void main() {
       b.controllo.spostaSelezione(30, 0);
       b.controllo.seleziona(forme);
       await tester.pump();
-      await _vediVoce(tester, 'Distribuisci');
-      await _tocca(tester, find.text('Distribuisci'));
+      await toccaVoceBarra(tester, 'Distribuisci');
       await _tocca(tester, _chiave('distribuisci-orizzontale'));
       expect(b.stato.cronologia.labels.last.kind, ChangeKind.moved);
       await _tocca(tester, find.byIcon(Icons.check_rounded));
 
       // Blocca: gli elementi si selezionano ma non si muovono
-      await _vediVoce(tester, 'Blocca');
-      await _tocca(tester, find.text('Blocca'));
+      await toccaVoceBarra(tester, 'Blocca');
       expect(b.snapshot.shapes.every((f) => f.locked), isTrue);
       expect(find.text('Posizione bloccata'), findsOneWidget);
       final prima = b.snapshot.shapes.first.x;
@@ -589,8 +586,7 @@ void main() {
       b.controllo.seleziona([rifDi(b.foto(1))]);
       await tester.pump();
       final z1 = b.foto(1).z;
-      await _vediVoce(tester, 'Disponi');
-      await _tocca(tester, find.text('Disponi'));
+      await toccaVoceBarra(tester, 'Livello');
       expect(b.stato.strumento, Strumento.disponi);
       await _tocca(tester, _chiave('disponi-davanti'));
       expect(b.foto(1).z, greaterThan(b.foto(4).z));
@@ -613,8 +609,7 @@ void main() {
       final a = b.foto(1), c = b.foto(2);
       b.controllo.seleziona([rifDi(a), rifDi(c)]);
       await tester.pump();
-      await _vediVoce(tester, 'Scambia');
-      await _tocca(tester, find.text('Scambia'));
+      await toccaVoceBarra(tester, 'Scambia');
       expect(b.foto(1).x, c.x);
       expect(b.foto(2).x, a.x);
     });

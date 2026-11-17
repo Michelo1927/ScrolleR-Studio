@@ -309,7 +309,7 @@ class TestiIt extends Testi {
   String get barraFoto => 'Foto';
 
   @override
-  String get barraDisposizione => 'Disposizione';
+  String get barraDisposizione => 'Impagina';
 
   @override
   String get barraAggiungi => 'Aggiungi';
@@ -336,7 +336,7 @@ class TestiIt extends Testi {
   String get chiudi => 'Chiudi';
 
   @override
-  String get strumentoDisposizione => 'Disposizione';
+  String get strumentoDisposizione => 'Impagina';
 
   @override
   String get parDisposizione => 'Disposizione';
@@ -2163,4 +2163,324 @@ class TestiIt extends Testi {
 
   @override
   String get strRicollega => 'Ricollega';
+
+  @override
+  String get suggerimentoTocca => 'Tocca una foto per selezionarla';
+
+  @override
+  String get suggerimentoPremuto =>
+      'Tieni premuto su un elemento per copiarlo, bloccarlo o eliminarlo';
+
+  @override
+  String get suggerimentoScorri => 'Scorri di lato per cambiare pagina';
+
+  @override
+  String get suggerimentoChiudi => 'Tocca per chiudere';
+
+  @override
+  String get impostazioni => 'Impostazioni';
+
+  @override
+  String get impAiuto => 'Aiuto';
+
+  @override
+  String get impAggiornamenti => 'Aggiornamenti';
+
+  @override
+  String get impRegistro => 'Registro errori';
+
+  @override
+  String get impInfo => 'Informazioni';
+
+  @override
+  String get impGesti => 'Gesti';
+
+  @override
+  String get impGestiAiuto => 'Come si usano tela e pannelli';
+
+  @override
+  String get impSuggerimenti => 'Rivedi i suggerimenti';
+
+  @override
+  String get impSuggerimentiAiuto =>
+      'I tre suggerimenti del primo avvio torneranno nell\'editor';
+
+  @override
+  String get impSuggerimentiRimessi => 'I suggerimenti torneranno nell\'editor';
+
+  @override
+  String impVersione(String versione) {
+    return 'Versione $versione';
+  }
+
+  @override
+  String get impLicenze => 'Licenze';
+
+  @override
+  String get impLicenzeAiuto => 'Componenti e caratteri inclusi';
+
+  @override
+  String get impPrivacy =>
+      'Nessuna pubblicità, nessun tracciamento, nessun account. La rete serve solo a cercare gli aggiornamenti.';
+
+  @override
+  String get gestiTitolo => 'Gesti';
+
+  @override
+  String get gestiSulla => 'Sulla tela';
+
+  @override
+  String get gestiNeiPannelli => 'Nei pannelli e nelle barre';
+
+  @override
+  String get gestiNellePagine => 'Pagine e Panoramica';
+
+  @override
+  String get gestoTocca => 'Tocca';
+
+  @override
+  String get gestoToccaDesc =>
+      'Seleziona una foto, un testo o una forma. Toccando il vuoto, la selezione sparisce.';
+
+  @override
+  String get gestoDoppio => 'Doppio tocco su un testo';
+
+  @override
+  String get gestoDoppioDesc => 'Apre la tastiera per scriverci.';
+
+  @override
+  String get gestoPremuto => 'Tieni premuto su un elemento';
+
+  @override
+  String get gestoPremutoDesc =>
+      'Copia, taglia, duplica, blocca, porta davanti o dietro, sposta in un\'altra pagina, elimina.';
+
+  @override
+  String get gestoPremutoVuoto => 'Tieni premuto sul vuoto';
+
+  @override
+  String get gestoPremutoVuotoDesc =>
+      'Incolla qui, aggiungi un testo o una forma, seleziona tutto e le azioni della pagina.';
+
+  @override
+  String get gestoTrascina => 'Trascina un elemento';
+
+  @override
+  String get gestoTrascinaDesc =>
+      'Lo sposta e si aggancia alle linee degli altri. Verso il bordo dello schermo passa alla pagina vicina.';
+
+  @override
+  String get gestoManiglie => 'Trascina una maniglia';
+
+  @override
+  String get gestoManiglieDesc =>
+      'Ridimensiona la foto o la forma selezionata.';
+
+  @override
+  String get gestoPizzica => 'Pizzica con due dita';
+
+  @override
+  String get gestoPizzicaDesc =>
+      'Ingrandisce o riduce l\'elemento; girando le dita lo ruota, con piccoli scatti agli angoli più comuni.';
+
+  @override
+  String get gestoScorri => 'Scorri di lato';
+
+  @override
+  String get gestoScorriDesc => 'Cambia pagina, una alla volta.';
+
+  @override
+  String get gestoCursore => 'Doppio tocco su un cursore';
+
+  @override
+  String get gestoCursoreDesc => 'Riporta il valore a quello iniziale.';
+
+  @override
+  String get gestoPannello => 'Trascina il pannello verso il basso';
+
+  @override
+  String get gestoPannelloDesc =>
+      'Chiude lo strumento senza applicare, come ✕.';
+
+  @override
+  String get gestoConfronto => 'Tieni premuto ◐';
+
+  @override
+  String get gestoConfrontoDesc =>
+      'Mostra la foto com\'era prima; rilasciando torna con le modifiche.';
+
+  @override
+  String get gestoIndietro => 'Gesto «indietro» del telefono';
+
+  @override
+  String get gestoIndietroDesc =>
+      'Torna al livello di prima di un menu o di uno strumento, poi chiude lo strumento, poi toglie la selezione, poi esce dal progetto.';
+
+  @override
+  String get gestoAnnullaLungo => 'Tieni premuto Annulla';
+
+  @override
+  String get gestoAnnullaLungoDesc => 'Apre la Cronologia.';
+
+  @override
+  String get gestoPanoramica => 'Panoramica: tocca, trascina, tieni premuto';
+
+  @override
+  String get gestoPanoramicaDesc =>
+      'Tocca per andare alla pagina, trascina per riordinare, tieni premuto per le azioni.';
+
+  @override
+  String get gestoPuntini => 'Puntini delle pagine';
+
+  @override
+  String get gestoPuntiniDesc => 'Toccane uno per saltare a quella pagina.';
+
+  @override
+  String get aggControlla => 'Cerca nuove versioni';
+
+  @override
+  String get aggControllaAiuto =>
+      'Una volta al giorno, all\'apertura. È l\'unico uso della rete e non invia dati personali.';
+
+  @override
+  String get aggControllaOra => 'Controlla adesso';
+
+  @override
+  String get aggInCorso => 'Controllo in corso…';
+
+  @override
+  String get aggAggiornato => 'L\'app è aggiornata';
+
+  @override
+  String aggDisponibile(String versione) {
+    return 'È disponibile la versione $versione';
+  }
+
+  @override
+  String get aggErrore =>
+      'Non riesco a controllare: serve una connessione a Internet';
+
+  @override
+  String get aggScarica => 'Scarica';
+
+  @override
+  String get aggNonApribile => 'Non riesco ad aprire il browser';
+
+  @override
+  String get aggChiudi => 'Nascondi l\'avviso';
+
+  @override
+  String get regAiuto =>
+      'Gli errori inattesi si annotano solo su questo telefono. Il file non parte da solo: se vuoi segnalare un problema, condividilo tu. I percorsi di cartelle e foto sono già tolti.';
+
+  @override
+  String get regCondividi => 'Condividi il registro';
+
+  @override
+  String get regVuoto => 'Nessun errore registrato';
+
+  @override
+  String get regPieno => 'Ci sono errori registrati';
+
+  @override
+  String get regCancella => 'Svuota il registro';
+
+  @override
+  String get regCancellaChiede => 'Svuotare il registro degli errori?';
+
+  @override
+  String get regCancellato => 'Registro svuotato';
+
+  @override
+  String get regNonCondiviso => 'Non riesco a condividere il registro';
+
+  @override
+  String telaPagina(int pagina, int totale) {
+    return 'Pagina $pagina di $totale';
+  }
+
+  @override
+  String telaFoto(int n) {
+    return 'Foto $n';
+  }
+
+  @override
+  String telaVideo(int n) {
+    return 'Video $n';
+  }
+
+  @override
+  String telaTesto(String testo) {
+    return 'Testo: $testo';
+  }
+
+  @override
+  String telaForma(int n) {
+    return 'Forma $n';
+  }
+
+  @override
+  String telaBloccato(String nome) {
+    return '$nome, bloccato';
+  }
+
+  @override
+  String get telaApriMenu => 'Azioni';
+
+  @override
+  String espPagineScelte(int n, int tot) {
+    return '$n di $tot pagine';
+  }
+
+  @override
+  String get tutteLeOpzioni => 'Tutte le opzioni';
+
+  @override
+  String get sfDirezione => 'Direzione';
+
+  @override
+  String get catAspetto => 'Aspetto';
+
+  @override
+  String get catAltro => 'Altro';
+
+  @override
+  String get catGruppo => 'Gruppo';
+
+  @override
+  String get catVideo => 'Video';
+
+  @override
+  String get formatiPiuUsati => 'I più usati';
+
+  @override
+  String get formatiPiuUsatiDesc =>
+      'I formati di Instagram per post, storie e reel';
+
+  @override
+  String get formatiAltri => 'Altri formati';
+
+  @override
+  String get usoFormato45 => 'Post nel feed';
+
+  @override
+  String get usoFormato916 => 'Storie e Reel';
+
+  @override
+  String get usoFormato34 => 'Griglia del profilo';
+
+  @override
+  String get vistaCentra => 'Centra la pagina';
+
+  @override
+  String pesoProgetto(String peso) {
+    return 'Occupa $peso sul telefono';
+  }
+
+  @override
+  String get pesoCalcolo => 'Calcolo dello spazio…';
+
+  @override
+  String get pesoNota =>
+      'Le foto della galleria non sono contate: restano nella galleria, il progetto le collega.';
 }

@@ -20,6 +20,8 @@ import 'package:scrollr_studio/project/crea_progetto.dart';
 import 'package:scrollr_studio/render/regolazioni.dart';
 import 'package:scrollr_studio/theme/tema.dart';
 
+import 'aiuto_barra.dart';
+
 FotoScelta _foto(int i) => (
   voce: LibraryEntry(path: 'foto$i.jpg', rel: 'media/foto$i.jpg'),
   chiave: 'f:media/foto$i.jpg',
@@ -142,32 +144,9 @@ class _Banco {
     await tester.pump();
   }
 
-  /// Fa scorrere la striscia degli strumenti finché la voce è in vista.
-  Future<void> vediVoce(String voce) async {
-    final lista = find
-        .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
-        .first;
-    await tester.scrollUntilVisible(find.text(voce), 120, scrollable: lista);
-    await tester.pump();
-  }
-
-  /// Tocca una pillola o una tessera del pannello aperto, facendo scorrere la riga se serve.
-  Future<void> tocca(String testo) async {
-    final f = find.textContaining(testo);
-    if (f.evaluate().isEmpty) {
-      final lista = find
-          .descendant(
-            of: find.byType(PannelloBasso),
-            matching: find.byType(Scrollable),
-          )
-          .first;
-      await tester.scrollUntilVisible(f, 80, scrollable: lista);
-    }
-    await tester.ensureVisible(f.first);
-    await tester.pumpAndSettle();
-    await tester.tap(f.first);
-    await tester.pump();
-  }
+  /// Tocca una scheda, una tessera o un'azione del pannello aperto (tornando alla griglia o scorrendo se serve).
+  Future<void> tocca(String testo) =>
+      toccaNelPannello(tester, find.textContaining(testo), settle: false);
 
   /// Aspetta che la pagina del ritaglio abbia letto la foto (file veri: il tempo passa davvero).
   Future<void> attendiRitaglio() async {
@@ -179,11 +158,8 @@ class _Banco {
     }
   }
 
-  Future<void> apriStrumento(String voce) async {
-    await vediVoce(voce);
-    await tester.tap(find.text(voce));
-    await tester.pumpAndSettle();
-  }
+  /// Apre uno strumento dalla barra di selezione (entrando nella sua categoria).
+  Future<void> apriStrumento(String voce) => toccaVoceBarra(tester, voce);
 
   /// Porta il cursore grande a [frazione] (0..1 della sua lunghezza): afferra il pollice e lo trascina.
   Future<void> cursore(double frazione) async {
@@ -210,31 +186,32 @@ class _Banco {
 }
 
 void main() {
-  testWidgets('con una foto selezionata la barra offre tutti gli strumenti Foto', (
-    tester,
-  ) async {
-    final b = _Banco(tester);
-    await b.apri();
-    await b.seleziona(1);
-    for (final voce in [
-      'Ritaglia',
-      'Inquadra',
-      'Filtri',
-      'Regola',
-      'Effetti',
-      'Cornice',
-      'Ombra',
-      'Ruota',
-      'Copia stile',
-      'Incolla stile',
-      'Duplica',
-      'Elimina',
-    ]) {
-      // La striscia scorre in orizzontale: ogni voce si raggiunge scorrendo
-      await b.vediVoce(voce);
-      expect(find.text(voce), findsOneWidget, reason: voce);
-    }
-  });
+  testWidgets(
+    'con una foto selezionata la barra offre tutti gli strumenti Foto',
+    (tester) async {
+      final b = _Banco(tester);
+      await b.apri();
+      await b.seleziona(1);
+      // Le categorie stanno tutte nello schermo; ogni strumento si raggiunge dalla sua categoria
+      final voci = await vociBarra(tester);
+      for (final voce in [
+        'Ritaglia',
+        'Inquadra',
+        'Filtri',
+        'Regola',
+        'Effetti',
+        'Cornice',
+        'Ombra',
+        'Ruota',
+        'Copia stile',
+        'Incolla stile',
+        'Duplica',
+        'Elimina',
+      ]) {
+        expect(voci, contains(voce), reason: voce);
+      }
+    },
+  );
 
   group('Regola', () {
     testWidgets('il cursore è una bozza: un solo passo di cronologia, con ✓', (
@@ -246,7 +223,8 @@ void main() {
       final passiPrima = b.passi;
       await b.apriStrumento('Regola');
       expect(b.stato.strumento, Strumento.regola);
-      // Si parte da Luminosità, cursore da −100 a +100: a tre quarti vale +50
+      // Regola si apre sulla griglia dei parametri: Luminosità, cursore da −100 a +100, a tre quarti vale +50
+      await b.tocca('Luminosità');
       await b.cursore(0.75);
       expect(valoreRegolazione(b.foto(1), 'brightness'), closeTo(50, 4));
       expect(b.passi, passiPrima, reason: 'finché non c\'è ✓ è solo una bozza');
@@ -273,6 +251,7 @@ void main() {
       await b.seleziona(1);
       final passiPrima = b.passi;
       await b.apriStrumento('Regola');
+      await b.tocca('Luminosità');
       await b.cursore(0.9);
       expect(adjustmentsActive(b.foto(1).adjust), isTrue);
       await b.annullaStrumento();
@@ -286,6 +265,7 @@ void main() {
       await b.apri();
       await b.seleziona(1);
       await b.apriStrumento('Regola');
+      await b.tocca('Luminosità');
       await b.cursore(0.9);
       expect(valoreRegolazione(b.foto(1), 'brightness'), greaterThan(40));
       final c = tester.getCenter(find.byType(Slider));
@@ -314,43 +294,49 @@ void main() {
       }
       await b.tocca('Reimposta colori');
       expect(adjustmentsActive(b.foto(1).adjust), isFalse);
-      expect(adjustmentsActive(b.foto(2).adjust), isTrue); // Reimposta vale per la selezione
+      expect(
+        adjustmentsActive(b.foto(2).adjust),
+        isTrue,
+      ); // Reimposta vale per la selezione
       await b.conferma();
       expect(b.passi, 2);
     });
 
-    testWidgets('prima/dopo: finché si tiene premuto ◐ le foto non hanno i colori', (
-      tester,
-    ) async {
-      final b = _Banco(tester);
-      await b.apri();
-      await b.seleziona(1);
-      await b.apriStrumento('Regola');
-      final risorse = b.sessione.risorse;
-      expect(risorse.mostraOriginale, isFalse);
-      final g = await tester.startGesture(
-        tester.getCenter(find.bySemanticsLabel(RegExp('confrontare'))),
-      );
-      await tester.pump();
-      expect(risorse.mostraOriginale, isTrue);
-      await g.up();
-      await tester.pump();
-      expect(risorse.mostraOriginale, isFalse);
-      // Anche chiudendo lo strumento col confronto premuto, torna tutto com'era
-      final g2 = await tester.startGesture(
-        tester.getCenter(find.bySemanticsLabel(RegExp('confrontare'))),
-      );
-      await tester.pump();
-      expect(risorse.mostraOriginale, isTrue);
-      b.controllo.chiudiStrumento();
-      await tester.pumpAndSettle();
-      await g2.up();
-      await tester.pumpAndSettle();
-      expect(risorse.mostraOriginale, isFalse);
-    });
+    testWidgets(
+      'prima/dopo: finché si tiene premuto ◐ le foto non hanno i colori',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri();
+        await b.seleziona(1);
+        await b.apriStrumento('Regola');
+        final risorse = b.sessione.risorse;
+        expect(risorse.mostraOriginale, isFalse);
+        final g = await tester.startGesture(
+          tester.getCenter(find.bySemanticsLabel(RegExp('confrontare'))),
+        );
+        await tester.pump();
+        expect(risorse.mostraOriginale, isTrue);
+        await g.up();
+        await tester.pump();
+        expect(risorse.mostraOriginale, isFalse);
+        // Anche chiudendo lo strumento col confronto premuto, torna tutto com'era
+        final g2 = await tester.startGesture(
+          tester.getCenter(find.bySemanticsLabel(RegExp('confrontare'))),
+        );
+        await tester.pump();
+        expect(risorse.mostraOriginale, isTrue);
+        b.controllo.chiudiStrumento();
+        await tester.pumpAndSettle();
+        await g2.up();
+        await tester.pumpAndSettle();
+        expect(risorse.mostraOriginale, isFalse);
+      },
+    );
   });
 
-  testWidgets('Effetti: nitidezza, vignettatura, sbiadito e grana', (tester) async {
+  testWidgets('Effetti: nitidezza, vignettatura, sbiadito e grana', (
+    tester,
+  ) async {
     final b = _Banco(tester);
     await b.apri();
     await b.seleziona(1);
@@ -371,7 +357,9 @@ void main() {
   });
 
   group('Filtri', () {
-    testWidgets('si sceglie un filtro e si riconosce; ✓ lo conferma', (tester) async {
+    testWidgets('si sceglie un filtro e si riconosce; ✓ lo conferma', (
+      tester,
+    ) async {
       final b = _Banco(tester);
       await b.apri(conFile: true);
       await b.seleziona(1);
@@ -388,7 +376,9 @@ void main() {
         'Morbido',
         'Drammatico',
       ]) {
-        await b.tocca(nome == 'Originale' ? 'Originale' : nome); // Fa scorrere fin qui
+        await b.tocca(
+          nome == 'Originale' ? 'Originale' : nome,
+        ); // Fa scorrere fin qui
         expect(find.text(nome), findsOneWidget, reason: nome);
       }
       await b.tocca('Vintage');
@@ -434,7 +424,9 @@ void main() {
       expect(b.passi, 2);
     });
 
-    testWidgets('«Reimposta» riporta zoom, posizione e rotazione', (tester) async {
+    testWidgets('«Reimposta» riporta zoom, posizione e rotazione', (
+      tester,
+    ) async {
       final b = _Banco(tester);
       await b.apri();
       await b.seleziona(1);
@@ -456,43 +448,50 @@ void main() {
       expect(b.foto(1).fitMode, 'cover');
     });
 
-    testWidgets('un dito sposta la foto dentro il riquadro, due la ingrandiscono: bozza fino a ✓', (
-      tester,
-    ) async {
-      final b = _Banco(tester);
-      await b.apri();
-      await b.seleziona(1);
-      await b.apriStrumento('Inquadra');
-      final prima = b.foto(1);
-      final x = prima.x, y = prima.y, w = prima.w, h = prima.h;
-      // La foto è alta e il riquadro largo: si sposta in verticale (in orizzontale non c'è margine)
-      await tester.dragFrom(b.centroFoto(1), const Offset(0, 40));
-      await tester.pump();
-      final dopo = b.foto(1);
-      // Il riquadro non si muove, cambia solo l'inquadratura
-      expect((dopo.x, dopo.y, dopo.w, dopo.h), (x, y, w, h));
-      expect(dopo.panY, isNot(0));
-      expect(dopo.panX, 0);
-      expect(b.passi, 1);
-      // Pizzico con due dita
-      final c = b.centroFoto(1);
-      final d1 = await tester.startGesture(c + const Offset(-20, 0), pointer: 1);
-      final d2 = await tester.startGesture(c + const Offset(20, 0), pointer: 2);
-      await tester.pump();
-      for (var i = 1; i <= 6; i++) {
-        await d1.moveTo(c + Offset(-20.0 - i * 10, 0));
-        await d2.moveTo(c + Offset(20.0 + i * 10, 0));
+    testWidgets(
+      'un dito sposta la foto dentro il riquadro, due la ingrandiscono: bozza fino a ✓',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri();
+        await b.seleziona(1);
+        await b.apriStrumento('Inquadra');
+        final prima = b.foto(1);
+        final x = prima.x, y = prima.y, w = prima.w, h = prima.h;
+        // La foto è alta e il riquadro largo: si sposta in verticale (in orizzontale non c'è margine)
+        await tester.dragFrom(b.centroFoto(1), const Offset(0, 40));
         await tester.pump();
-      }
-      await d1.up();
-      await d2.up();
-      await tester.pump();
-      expect(b.foto(1).innerZoom, greaterThan(dopo.innerZoom));
-      expect(b.passi, 1, reason: 'finché non c\'è ✓ è solo una bozza');
-      await b.conferma();
-      expect(b.passi, 2);
-      expect(b.foto(1).innerZoom, greaterThan(1.0));
-    });
+        final dopo = b.foto(1);
+        // Il riquadro non si muove, cambia solo l'inquadratura
+        expect((dopo.x, dopo.y, dopo.w, dopo.h), (x, y, w, h));
+        expect(dopo.panY, isNot(0));
+        expect(dopo.panX, 0);
+        expect(b.passi, 1);
+        // Pizzico con due dita
+        final c = b.centroFoto(1);
+        final d1 = await tester.startGesture(
+          c + const Offset(-20, 0),
+          pointer: 1,
+        );
+        final d2 = await tester.startGesture(
+          c + const Offset(20, 0),
+          pointer: 2,
+        );
+        await tester.pump();
+        for (var i = 1; i <= 6; i++) {
+          await d1.moveTo(c + Offset(-20.0 - i * 10, 0));
+          await d2.moveTo(c + Offset(20.0 + i * 10, 0));
+          await tester.pump();
+        }
+        await d1.up();
+        await d2.up();
+        await tester.pump();
+        expect(b.foto(1).innerZoom, greaterThan(dopo.innerZoom));
+        expect(b.passi, 1, reason: 'finché non c\'è ✓ è solo una bozza');
+        await b.conferma();
+        expect(b.passi, 2);
+        expect(b.foto(1).innerZoom, greaterThan(1.0));
+      },
+    );
 
     testWidgets('«Deforma»: la maniglia di un lato stira la foto, spenta no', (
       tester,
@@ -530,7 +529,10 @@ void main() {
       final prima = b.foto(1);
       await b.tocca('Proporzioni foto');
       expect(b.foto(1).savedCell, isNotNull);
-      expect(find.textContaining('Riquadro di prima', skipOffstage: false), findsOneWidget);
+      expect(
+        find.textContaining('Riquadro di prima', skipOffstage: false),
+        findsOneWidget,
+      );
       await b.tocca('Riquadro di prima');
       expect(b.foto(1).savedCell, isNull);
       expect(b.foto(1).w, closeTo(prima.w, 1e-6));
@@ -550,7 +552,8 @@ void main() {
       await b.cursore(0.5); // Bordo 0–40
       expect(b.foto(1).borderWidth, closeTo(20, 2));
       await b.tocca('Colore');
-      await tester.tap(find.bySemanticsLabel('Colore').at(4)); // Il quarto campione dopo la pillola: arancione
+      // Il quarto campione rapido (dopo il contagocce e «Altro»)
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^Colore #')).at(3));
       await tester.pump();
       expect(b.foto(1).borderColor, isNot(0xFFFFFFFF));
       await b.conferma();
@@ -558,7 +561,9 @@ void main() {
       expect(b.foto(1).autoBorder, isFalse);
     });
 
-    testWidgets('«Applica a tutte» copia cornice, opacità e ombra', (tester) async {
+    testWidgets('«Applica a tutte» copia cornice, opacità e ombra', (
+      tester,
+    ) async {
       final b = _Banco(tester);
       await b.apri();
       await b.seleziona(1);
@@ -591,7 +596,9 @@ void main() {
   });
 
   group('Ruota', () {
-    testWidgets('angolo, 90° a sinistra e a destra, dritta e specchio', (tester) async {
+    testWidgets('angolo, 90° a sinistra e a destra, dritta e specchio', (
+      tester,
+    ) async {
       final b = _Banco(tester);
       await b.apri();
       await b.seleziona(1);
@@ -633,14 +640,16 @@ void main() {
       // Altra foto, poi incolla
       b.controllo.seleziona({(tipo: ElementKind.photo, uid: 2)});
       await tester.pump();
-      await b.vediVoce('Incolla stile');
-      await tester.tap(find.text('Incolla stile')); // Il messaggio «Stile copiato» cita lo stesso nome
+      // Il messaggio «Stile copiato» cita lo stesso nome: si tocca la voce della barra
+      await toccaVoceBarra(tester, 'Incolla stile', settle: false);
       await tester.pump();
       expect(b.foto(2).borderRadius, 80);
       expect(b.foto(2).shadow, 40);
       expect(b.foto(2).adjust, presetAdjust('vintage'));
       expect(b.passi, passiPrima + 1);
-      await tester.pump(const Duration(milliseconds: 500)); // Il messaggio sostituisce il precedente
+      await tester.pump(
+        const Duration(milliseconds: 500),
+      ); // Il messaggio sostituisce il precedente
       expect(find.text('Stile incollato'), findsOneWidget);
       b.controllo.annulla();
       await tester.pump();
@@ -649,15 +658,22 @@ void main() {
   });
 
   group('Indietro e Ripristina', () {
-    testWidgets('il gesto indietro scarta e offre «Ripristina»', (tester) async {
+    testWidgets('il gesto indietro scarta e offre «Ripristina»', (
+      tester,
+    ) async {
       final b = _Banco(tester);
       await b.apri();
       await b.seleziona(1);
       await b.apriStrumento('Regola');
+      await b.tocca('Luminosità');
       await b.cursore(0.9);
       final bozza = valoreRegolazione(b.foto(1), 'brightness');
       expect(bozza, greaterThan(40));
-      // Gesto «indietro» di sistema
+      // Gesto «indietro» di sistema: dal dettaglio di Luminosità torna prima alla griglia, poi chiude
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(b.stato.strumento, Strumento.regola);
+      expect(find.byKey(const ValueKey('scheda-indietro')), findsNothing);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(b.stato.strumento, Strumento.nessuno);
@@ -671,7 +687,9 @@ void main() {
       expect(b.passi, 2);
     });
 
-    testWidgets('senza modifiche il gesto indietro chiude e basta', (tester) async {
+    testWidgets('senza modifiche il gesto indietro chiude e basta', (
+      tester,
+    ) async {
       final b = _Banco(tester);
       await b.apri();
       await b.seleziona(1);
@@ -682,122 +700,151 @@ void main() {
       expect(find.text('Ripristina'), findsNothing);
     });
 
-    testWidgets('«Ripristina» non vale se nel frattempo il documento è cambiato', (
-      tester,
-    ) async {
-      final b = _Banco(tester);
-      await b.apri();
-      await b.seleziona(1);
-      await b.apriStrumento('Regola');
-      await b.cursore(0.9);
-      b.controllo.chiudiStrumentoDaGesto();
-      await tester.pump();
-      b.controllo.duplicaSelezione();
-      await tester.pump();
-      final passi = b.passi;
-      b.controllo.ripristinaScartata();
-      await tester.pump();
-      expect(b.passi, passi);
-    });
+    testWidgets(
+      '«Ripristina» non vale se nel frattempo il documento è cambiato',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri();
+        await b.seleziona(1);
+        await b.apriStrumento('Regola');
+        await b.tocca('Luminosità');
+        await b.cursore(0.9);
+        b.controllo.chiudiStrumentoDaGesto();
+        await tester.pump();
+        b.controllo.duplicaSelezione();
+        await tester.pump();
+        final passi = b.passi;
+        b.controllo.ripristinaScartata();
+        await tester.pump();
+        expect(b.passi, passi);
+      },
+    );
 
-    testWidgets('il pannello trascinato verso il basso scarta come il gesto indietro', (
-      tester,
-    ) async {
-      final b = _Banco(tester);
-      await b.apri();
-      await b.seleziona(1);
-      await b.apriStrumento('Cornice');
-      await b.cursore(0.5);
-      // Si afferra il bordo alto del pannello (lontano dal cursore) e si trascina verso il basso
-      final alto = tester.getTopLeft(find.byType(PannelloBasso));
-      await tester.flingFrom(alto + const Offset(400, 6), const Offset(0, 300), 1500);
-      await tester.pumpAndSettle();
-      expect(b.stato.strumento, Strumento.nessuno);
-      expect(b.foto(1).borderRadius, 0);
-      expect(find.text('Ripristina'), findsOneWidget);
-    });
+    testWidgets(
+      'il pannello trascinato verso il basso scarta come il gesto indietro',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri();
+        await b.seleziona(1);
+        await b.apriStrumento('Cornice');
+        await b.cursore(0.5);
+        // Si afferra il bordo alto del pannello (lontano dal cursore) e si trascina verso il basso
+        final alto = tester.getTopLeft(find.byType(PannelloBasso));
+        await tester.flingFrom(
+          alto + const Offset(400, 6),
+          const Offset(0, 300),
+          1500,
+        );
+        await tester.pumpAndSettle();
+        expect(b.stato.strumento, Strumento.nessuno);
+        expect(b.foto(1).borderRadius, 0);
+        expect(find.text('Ripristina'), findsOneWidget);
+      },
+    );
   });
 
   group('Ritaglio', () {
-    testWidgets('pagina a schermo intero: proporzioni, scambio e ✓ applicano il ritaglio', (
-      tester,
-    ) async {
-      final b = _Banco(tester);
-      await b.apri(conFile: true);
-      await b.seleziona(1);
-      final prima = b.foto(1);
-      await b.vediVoce('Ritaglia');
-      await tester.tap(find.text('Ritaglia'));
-      await b.attendiRitaglio();
-      expect(find.text('Libera'), findsOneWidget);
-      for (final r in ['Originale', 'Riquadro', '1:1', '4:5', '3:4', '2:3', '9:16']) {
-        expect(find.text(r), findsOneWidget, reason: r);
-      }
-      expect(find.text('Foto intera'), findsOneWidget);
-      expect(find.textContaining('Ritaglio:'), findsOneWidget);
-      expect(find.text('Adatta il riquadro al ritaglio'), findsOneWidget);
-      await b.tocca('1:1');
-      // Foto 3:4 in verticale → il quadrato la taglia sopra e sotto
-      expect(find.textContaining('3000 × 3000'), findsOneWidget);
-      await b.tocca('4:5');
-      expect(find.text('5:4'), findsNothing);
-      await tester.tap(find.bySemanticsLabel('Scambia verticale e orizzontale'));
-      await tester.pump();
-      expect(find.text('5:4'), findsOneWidget);
-      await tester.tap(find.bySemanticsLabel('Applica il ritaglio'));
-      await tester.pumpAndSettle();
-      final f = b.foto(1);
-      expect(haRitaglio(f), isTrue);
-      expect(f.crop[2] - f.crop[0], closeTo(1.0, 1e-6), reason: '5:4 in una foto 3:4: tutta la larghezza');
-      expect(b.passi, 2);
-      // Il riquadro ha preso la forma del ritaglio (sta dentro quello di prima)
-      expect(f.w / f.h, closeTo(5 / 4, 0.02));
-      expect(f.w, lessThanOrEqualTo(prima.w + 1e-6));
-      expect(find.text('Ritaglio applicato'), findsOneWidget);
-      // Annulla riporta la foto intera
-      b.controllo.annulla();
-      await tester.pump();
-      expect(haRitaglio(b.foto(1)), isFalse);
-    });
+    testWidgets(
+      'pagina a schermo intero: proporzioni, scambio e ✓ applicano il ritaglio',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri(conFile: true);
+        await b.seleziona(1);
+        final prima = b.foto(1);
+        await toccaVoceBarra(tester, 'Ritaglia', settle: false);
+        await b.attendiRitaglio();
+        expect(find.text('Libera'), findsOneWidget);
+        for (final r in [
+          'Originale',
+          'Riquadro',
+          '1:1',
+          '4:5',
+          '3:4',
+          '2:3',
+          '9:16',
+        ]) {
+          expect(find.text(r), findsOneWidget, reason: r);
+        }
+        expect(find.text('Foto intera'), findsOneWidget);
+        expect(find.textContaining('Ritaglio:'), findsOneWidget);
+        expect(find.text('Adatta il riquadro al ritaglio'), findsOneWidget);
+        await b.tocca('1:1');
+        // Foto 3:4 in verticale → il quadrato la taglia sopra e sotto
+        expect(find.textContaining('3000 × 3000'), findsOneWidget);
+        await b.tocca('4:5');
+        expect(find.text('5:4'), findsNothing);
+        await tester.tap(
+          find.bySemanticsLabel('Scambia verticale e orizzontale'),
+        );
+        await tester.pump();
+        expect(find.text('5:4'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Applica il ritaglio'));
+        await tester.pumpAndSettle();
+        final f = b.foto(1);
+        expect(haRitaglio(f), isTrue);
+        expect(
+          f.crop[2] - f.crop[0],
+          closeTo(1.0, 1e-6),
+          reason: '5:4 in una foto 3:4: tutta la larghezza',
+        );
+        expect(b.passi, 2);
+        // Il riquadro ha preso la forma del ritaglio (sta dentro quello di prima)
+        expect(f.w / f.h, closeTo(5 / 4, 0.02));
+        expect(f.w, lessThanOrEqualTo(prima.w + 1e-6));
+        expect(find.text('Ritaglio applicato'), findsOneWidget);
+        // Annulla riporta la foto intera
+        b.controllo.annulla();
+        await tester.pump();
+        expect(haRitaglio(b.foto(1)), isFalse);
+      },
+    );
 
-    testWidgets('trascinare un angolo ridimensiona il rettangolo; ✕ chiude senza ritagliare', (
-      tester,
-    ) async {
-      final b = _Banco(tester);
-      await b.apri(conFile: true);
-      await b.seleziona(1);
-      await b.vediVoce('Ritaglia');
-      await tester.tap(find.text('Ritaglia'));
-      await b.attendiRitaglio();
-      final area = find.byType(CustomPaint).last;
-      final r = tester.getRect(area);
-      // Foto 3:4 in un'area larga: sta al centro, alta quanto l'area meno i margini
-      final alto = r.height - 48;
-      final largo = alto * 60 / 80;
-      final sinistra = r.center.dx - largo / 2;
-      final destra = r.center.dx + largo / 2;
-      final su = r.center.dy - alto / 2;
-      final giu = r.center.dy + alto / 2;
-      // Angolo in alto a sinistra verso il centro
-      await tester.dragFrom(Offset(sinistra + 1, su + 1), Offset(largo * 0.3, alto * 0.3));
-      await tester.pump();
-      expect(find.textContaining('Ritaglio:'), findsOneWidget);
-      expect(find.textContaining('2100'), findsNothing); // Non è più la foto intera
-      // Angolo opposto: lo stesso
-      await tester.dragFrom(Offset(destra - 1, giu - 1), Offset(-largo * 0.2, -alto * 0.2));
-      await tester.pump();
-      await tester.tap(find.bySemanticsLabel('Chiudi senza ritagliare'));
-      await tester.pumpAndSettle();
-      expect(haRitaglio(b.foto(1)), isFalse);
-      expect(b.passi, 1);
-    });
+    testWidgets(
+      'trascinare un angolo ridimensiona il rettangolo; ✕ chiude senza ritagliare',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri(conFile: true);
+        await b.seleziona(1);
+        await toccaVoceBarra(tester, 'Ritaglia', settle: false);
+        await b.attendiRitaglio();
+        final area = find.byType(CustomPaint).last;
+        final r = tester.getRect(area);
+        // Foto 3:4 in un'area larga: sta al centro, alta quanto l'area meno i margini
+        final alto = r.height - 48;
+        final largo = alto * 60 / 80;
+        final sinistra = r.center.dx - largo / 2;
+        final destra = r.center.dx + largo / 2;
+        final su = r.center.dy - alto / 2;
+        final giu = r.center.dy + alto / 2;
+        // Angolo in alto a sinistra verso il centro
+        await tester.dragFrom(
+          Offset(sinistra + 1, su + 1),
+          Offset(largo * 0.3, alto * 0.3),
+        );
+        await tester.pump();
+        expect(find.textContaining('Ritaglio:'), findsOneWidget);
+        expect(
+          find.textContaining('2100'),
+          findsNothing,
+        ); // Non è più la foto intera
+        // Angolo opposto: lo stesso
+        await tester.dragFrom(
+          Offset(destra - 1, giu - 1),
+          Offset(-largo * 0.2, -alto * 0.2),
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Chiudi senza ritagliare'));
+        await tester.pumpAndSettle();
+        expect(haRitaglio(b.foto(1)), isFalse);
+        expect(b.passi, 1);
+      },
+    );
 
     testWidgets('una foto che non si legge lo dice', (tester) async {
       final b = _Banco(tester);
       await b.apri();
       await b.seleziona(1);
-      await b.vediVoce('Ritaglia');
-      await tester.tap(find.text('Ritaglia'));
+      await toccaVoceBarra(tester, 'Ritaglia', settle: false);
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 200)),
       );

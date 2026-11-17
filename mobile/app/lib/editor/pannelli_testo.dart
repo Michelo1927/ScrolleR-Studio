@@ -147,64 +147,65 @@ class _PannelloCarattereState extends ConsumerState<PannelloCarattere> {
     final nome = testo?.font;
     final mancante = nome != null && !Caratteri.incluso(nome);
     final scelto = nome == null ? null : Caratteri.trova(nome)?.famiglia;
-    return Intelaiatura(
-      nome: t.strCarattere,
-      chips: [
-        for (final c in CategoriaCarattere.values)
-          ChipParametro(
-            etichetta: _nomeCategoria(t, c),
-            attivo: c == _categoria,
-            onTap: () => setState(() => _categoria = c),
-          ),
-      ],
-      contenuto: Column(
-        children: [
-          if (mancante)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: MisureScrl.spazio,
-              ),
-              child: Text(
-                t.avvisoCarattereMancante(nome, Caratteri.predefinito),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+    Widget elenco(CategoriaCarattere categoria) => Column(
+      children: [
+        if (mancante)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
+            child: Text(
+              t.avvisoCarattereMancante(nome, Caratteri.predefinito),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
-          Expanded(
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                horizontal: MisureScrl.spazio,
-                vertical: 4,
-              ),
-              children: [
-                for (final c in Caratteri.dellaCategoria(_categoria))
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: TesseraScelta(
-                      disegno: Text(
-                        'Aa',
-                        style: TextStyle(
-                          fontFamily: c.famiglia,
-                          fontSize: 26,
-                          color: ColoriScrl.testo,
-                        ),
-                      ),
-                      etichetta: c.famiglia,
-                      scelta: scelto == c.famiglia,
-                      larghezza: 104,
-                      altezza: double.infinity,
-                      onTap: () => modifica(
-                        (x, ctx) => conCarattere(x, c.famiglia, ctx),
+          ),
+        Expanded(
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: MisureScrl.spazio,
+              vertical: 4,
+            ),
+            children: [
+              for (final c in Caratteri.dellaCategoria(categoria))
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: TesseraScelta(
+                    disegno: Text(
+                      'Aa',
+                      style: TextStyle(
+                        fontFamily: c.famiglia,
+                        fontSize: 26,
+                        color: ColoriScrl.testo,
                       ),
                     ),
+                    etichetta: c.famiglia,
+                    scelta: scelto == c.famiglia,
+                    larghezza: 104,
+                    altezza: double.infinity,
+                    onTap: () =>
+                        modifica((x, ctx) => conCarattere(x, c.famiglia, ctx)),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+    return Intelaiatura(
+      nome: t.strCarattere,
+      segmentiMassimi: CategoriaCarattere.values.length,
+      schedaIniziale: CategoriaCarattere.values.indexOf(_categoria),
+      onScheda: (i) {
+        if (i != null) _categoria = CategoriaCarattere.values[i];
+      },
+      schede: [
+        for (final c in CategoriaCarattere.values)
+          SchedaStrumento(
+            etichetta: _nomeCategoria(t, c),
+            contenuto: elenco(c),
+          ),
+      ],
     );
   }
 }
@@ -300,7 +301,7 @@ class PannelloOpacitaTesto extends ConsumerWidget {
 
 // ---------------------------------------------------------------- Formato
 
-/// Formato: grassetto, corsivo e allineamento delle righe.
+/// Formato: grassetto, corsivo e allineamento delle righe, come cinque interruttori.
 class PannelloFormato extends ConsumerWidget {
   const PannelloFormato({super.key});
 
@@ -309,27 +310,31 @@ class PannelloFormato extends ConsumerWidget {
     final t = Testi.of(context);
     final testo = ref.watch(_testoPrincipale);
     final modifica = _modifica(ref);
-    ChipParametro allineamento(String chiave, String nome) => ChipParametro(
-      etichetta: nome,
-      attivo: testo?.align == chiave,
-      onTap: () => modifica((x, _) => conAllineamento(x, chiave)),
-    );
+    AzioneStrumento allineamento(String chiave, IconData icona, String nome) =>
+        AzioneStrumento(
+          icona: icona,
+          etichetta: nome,
+          attiva: testo?.align == chiave,
+          onTap: () => modifica((x, _) => conAllineamento(x, chiave)),
+        );
     return Intelaiatura(
       nome: t.strFormato,
-      chips: [
-        ChipParametro(
+      azioni: [
+        AzioneStrumento(
+          icona: Icons.format_bold_rounded,
           etichetta: t.azGrassetto,
-          attivo: testo?.bold ?? false,
+          attiva: testo?.bold ?? false,
           onTap: () => modifica((x, c) => conGrassetto(x, !x.bold, c)),
         ),
-        ChipParametro(
+        AzioneStrumento(
+          icona: Icons.format_italic_rounded,
           etichetta: t.azCorsivo,
-          attivo: testo?.italic ?? false,
+          attiva: testo?.italic ?? false,
           onTap: () => modifica((x, c) => conCorsivo(x, !x.italic, c)),
         ),
-        allineamento('left', t.azSinistra),
-        allineamento('center', t.azCentro),
-        allineamento('right', t.azDestra),
+        allineamento('left', Icons.format_align_left_rounded, t.azSinistra),
+        allineamento('center', Icons.format_align_center_rounded, t.azCentro),
+        allineamento('right', Icons.format_align_right_rounded, t.azDestra),
       ],
     );
   }
@@ -355,36 +360,14 @@ class PannelloColoreTesto extends ConsumerWidget {
 }
 
 /// Contorno: spessore (0–40 px) e colore. Scegliere il colore fa vedere subito il contorno.
-class PannelloContornoTesto extends ConsumerStatefulWidget {
+class PannelloContornoTesto extends ConsumerWidget {
   const PannelloContornoTesto({super.key});
 
   @override
-  ConsumerState<PannelloContornoTesto> createState() =>
-      _PannelloContornoTestoState();
-}
-
-class _PannelloContornoTestoState extends ConsumerState<PannelloContornoTesto> {
-  bool _colore = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Testi.of(context);
     final testo = ref.watch(_testoPrincipale);
     final modifica = _modifica(ref);
-    if (_colore) {
-      return PannelloColore(
-        nome: t.strContorno,
-        colore: testo?.outlineColor ?? 0xFF000000,
-        onColore: (c) => modifica((x, ctx) => conColoreContorno(x, c, ctx)),
-        chipsPrima: [
-          ChipParametro(
-            etichetta: t.parSpessore,
-            attivo: false,
-            onTap: () => setState(() => _colore = false),
-          ),
-        ],
-      );
-    }
     return PannelloCursori(
       nome: t.strContorno,
       parametri: [
@@ -398,11 +381,13 @@ class _PannelloContornoTestoState extends ConsumerState<PannelloContornoTesto> {
           unita: ' px',
         ),
       ],
-      azioni: [
-        ChipParametro(
+      schedeDopo: [
+        SchedaStrumento(
           etichetta: t.parColore,
-          attivo: false,
-          onTap: () => setState(() => _colore = true),
+          contenuto: SelettoreColore(
+            colore: testo?.outlineColor ?? 0xFF000000,
+            onColore: (c) => modifica((x, ctx) => conColoreContorno(x, c, ctx)),
+          ),
         ),
       ],
     );
@@ -423,10 +408,12 @@ class PannelloEtichetta extends ConsumerWidget {
       colore: testo?.boxColor ?? 0x96000000,
       conAlfa: true,
       onColore: (c) => modifica((x, ctx) => conColoreEtichetta(x, c, ctx)),
-      chipsPrima: [
-        ChipParametro(
+      azioni: [
+        AzioneStrumento(
+          chiave: const ValueKey('etichetta-accesa'),
+          icona: Icons.label_outline_rounded,
           etichetta: t.strEtichetta,
-          attivo: testo?.box ?? false,
+          attiva: testo?.box ?? false,
           onTap: () => modifica((x, c) => conEtichetta(x, !x.box, c)),
         ),
       ],
@@ -458,29 +445,18 @@ class PannelloRuotaTesto extends ConsumerWidget {
           unita: '°',
         ),
       ],
-      azioni: [
-        ChipParametro(
-          etichetta: t.azSinistra90,
-          attivo: false,
-          onTap: () => modifica(
-            (x, _) =>
-                conRotazioneTesto(x, normalizzaGradi(x.rotation - 90).round()),
-          ),
+      azioni: azioniRotazione(
+        t,
+        sinistra: () => modifica(
+          (x, _) =>
+              conRotazioneTesto(x, normalizzaGradi(x.rotation - 90).round()),
         ),
-        ChipParametro(
-          etichetta: t.azDestra90,
-          attivo: false,
-          onTap: () => modifica(
-            (x, _) =>
-                conRotazioneTesto(x, normalizzaGradi(x.rotation + 90).round()),
-          ),
+        destra: () => modifica(
+          (x, _) =>
+              conRotazioneTesto(x, normalizzaGradi(x.rotation + 90).round()),
         ),
-        ChipParametro(
-          etichetta: t.azDritta,
-          attivo: false,
-          onTap: () => modifica((x, _) => conRotazioneTesto(x, 0)),
-        ),
-      ],
+        dritta: () => modifica((x, _) => conRotazioneTesto(x, 0)),
+      ),
     );
   }
 }

@@ -1,5 +1,5 @@
 /// Pannelli degli strumenti Foto (piano §4.3, §4.4 e §6 «Foto»): Inquadra, Filtri, Regola, Effetti, Cornice, Ombra,
-/// Ruota. Tutti hanno la stessa anatomia: parametri a pillola che scorrono in orizzontale, **un solo cursore**,
+/// Ruota. Tutti hanno il telaio di [Intelaiatura]: schede dei parametri (sempre nello schermo), **un solo cursore**,
 /// `✕` scarta, `◐` (tenuto premuto) confronta con l'originale, `✓` conferma.
 ///
 /// Ogni cambio si vede subito sulla pagina come **bozza**; la bozza diventa un solo passo di cronologia con `✓`.
@@ -18,6 +18,7 @@ import '../media/cache_media.dart';
 import '../render/regolazioni.dart';
 import '../theme/tokens.dart';
 import 'intelaiatura.dart';
+import 'selettore_colore.dart';
 import 'sessione.dart';
 import 'stato.dart';
 import 'widget_comuni.dart';
@@ -166,8 +167,8 @@ _Par _regolazione(String nome, String chiave, {int minimo = -100}) => _Par(
   (p, v) => conRegolazione(p, chiave, v),
 );
 
-/// Pillole dei parametri + cursore del parametro attivo; le azioni extra seguono le pillole.
-class _ConParametri extends ConsumerStatefulWidget {
+/// Le schede dei parametri con cursore della foto principale; le azioni stanno sotto.
+class _ConParametri extends ConsumerWidget {
   const _ConParametri({
     required this.nome,
     required this.parametri,
@@ -177,69 +178,50 @@ class _ConParametri extends ConsumerStatefulWidget {
 
   final String nome;
   final List<_Par> parametri;
-  final List<Widget> azioni;
+  final List<AzioneStrumento> azioni;
   final bool confronto;
-
-  @override
-  ConsumerState<_ConParametri> createState() => _ConParametriState();
-}
-
-class _ConParametriState extends ConsumerState<_ConParametri> {
-  int _attivo = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final foto = ref.watch(_fotoPrincipale);
-    final par = widget.parametri[_attivo];
-    return Intelaiatura(
-      nome: widget.nome,
-      confronto: widget.confronto ? const PulsanteConfronto() : null,
-      chips: [
-        for (var i = 0; i < widget.parametri.length; i++)
-          ChipParametro(
-            etichetta: widget.parametri[i].nome,
-            valore: foto == null ? null : '${widget.parametri[i].leggi(foto)}',
-            attivo: i == _attivo,
-            onTap: () => setState(() => _attivo = i),
-          ),
-        ...widget.azioni,
-      ],
-      contenuto: _Cursore(
-        key: ValueKey('${widget.nome}/${par.nome}'),
-        nome: par.nome,
-        minimo: par.minimo,
-        massimo: par.massimo,
-        iniziale: par.iniziale,
-        leggi: par.leggi,
-        scrivi: par.scrivi,
-        unita: par.unita,
-      ),
-    );
-  }
-}
-
-/// Pillola che attiva o spegne qualcosa della foto principale.
-class _Interruttore extends ConsumerWidget {
-  const _Interruttore({
-    required this.nome,
-    required this.acceso,
-    required this.onTap,
-  });
-
-  final String nome;
-  final bool Function(PhotoItem) acceso;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final foto = ref.watch(_fotoPrincipale);
-    return ChipParametro(
-      etichetta: nome,
-      attivo: foto != null && acceso(foto),
-      onTap: onTap,
+    return Intelaiatura(
+      nome: nome,
+      confronto: confronto ? const PulsanteConfronto() : null,
+      azioni: azioni,
+      schede: [for (final p in parametri) _scheda(p, foto)],
     );
   }
 }
+
+/// La scheda di un parametro della foto: il valore sulla tessera e il cursore.
+SchedaStrumento _scheda(_Par p, PhotoItem? foto) {
+  final v = foto == null ? null : p.leggi(foto);
+  return SchedaStrumento(
+    etichetta: p.nome,
+    valore: v == null
+        ? null
+        : '${p.minimo < 0 && v > 0 ? '+' : ''}$v${p.unita.trim()}',
+    modificata: v != null && v != p.iniziale,
+    contenuto: _Cursore(
+      key: ValueKey(p.nome),
+      nome: p.nome,
+      minimo: p.minimo,
+      massimo: p.massimo,
+      iniziale: p.iniziale,
+      leggi: p.leggi,
+      scrivi: p.scrivi,
+      unita: p.unita,
+    ),
+  );
+}
+
+/// «Applica a tutte»: lo stesso colore (o stile) a tutte le foto del progetto.
+AzioneStrumento _applicaATutte(Testi t, VoidCallback onTap) => AzioneStrumento(
+  chiave: const ValueKey('azione-applica-tutte'),
+  icona: Icons.library_add_check_outlined,
+  etichetta: t.azApplicaATutte,
+  onTap: onTap,
+);
 
 // ---------------------------------------------------------------- Regola
 
@@ -251,6 +233,8 @@ class PannelloRegola extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Testi.of(context);
     final ctrl = ref.read(editorProvider.notifier);
+    final foto = ref.watch(_fotoPrincipale);
+    bool acceso(String k) => foto != null && adjOn(foto.adjust, k);
     return _ConParametri(
       nome: t.strRegola,
       confronto: true,
@@ -264,30 +248,28 @@ class PannelloRegola extends ConsumerWidget {
         _regolazione(t.parTinta, 'tint'),
       ],
       azioni: [
-        _Interruttore(
-          nome: t.auto,
-          acceso: (p) => adjOn(p.adjust, 'auto'),
+        AzioneStrumento(
+          icona: Icons.auto_fix_high_rounded,
+          etichetta: t.auto,
+          attiva: acceso('auto'),
           onTap: () => ctrl.modificaFotoSelezionate(
             (p) => conInterruttore(p, 'auto', !adjOn(p.adjust, 'auto')),
           ),
         ),
-        _Interruttore(
-          nome: t.azBiancoNero,
-          acceso: (p) => adjOn(p.adjust, 'bw'),
+        AzioneStrumento(
+          icona: Icons.filter_b_and_w_rounded,
+          etichetta: t.azBiancoNero,
+          attiva: acceso('bw'),
           onTap: () => ctrl.modificaFotoSelezionate(
             (p) => conInterruttore(p, 'bw', !adjOn(p.adjust, 'bw')),
           ),
         ),
-        ChipParametro(
+        AzioneStrumento(
+          icona: Icons.restart_alt_rounded,
           etichetta: t.azReimpostaColori,
-          attivo: false,
           onTap: () => ctrl.modificaFotoSelezionate(coloriReimpostati),
         ),
-        ChipParametro(
-          etichetta: t.azApplicaATutte,
-          attivo: false,
-          onTap: ctrl.coloriATutteLeFoto,
-        ),
+        _applicaATutte(t, ctrl.coloriATutteLeFoto),
       ],
     );
   }
@@ -312,13 +294,7 @@ class PannelloEffetti extends ConsumerWidget {
         _regolazione(t.parSbiadito, 'fade', minimo: 0),
         _regolazione(t.parGrana, 'grain', minimo: 0),
       ],
-      azioni: [
-        ChipParametro(
-          etichetta: t.azApplicaATutte,
-          attivo: false,
-          onTap: ctrl.coloriATutteLeFoto,
-        ),
-      ],
+      azioni: [_applicaATutte(t, ctrl.coloriATutteLeFoto)],
     );
   }
 }
@@ -408,13 +384,7 @@ class _PannelloFiltriState extends ConsumerState<PannelloFiltri> {
     return Intelaiatura(
       nome: t.strFiltri,
       confronto: const PulsanteConfronto(),
-      chips: [
-        ChipParametro(
-          etichetta: t.azApplicaATutte,
-          attivo: false,
-          onTap: ctrl.coloriATutteLeFoto,
-        ),
-      ],
+      azioni: [_applicaATutte(t, ctrl.coloriATutteLeFoto)],
       contenuto: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
@@ -541,35 +511,38 @@ class PannelloInquadra extends ConsumerWidget {
         ),
       ],
       azioni: [
-        ChipParametro(
+        AzioneStrumento(
+          icona: Icons.crop_free_rounded,
           etichetta: t.azRiempi,
-          attivo: foto != null && foto.fitMode != 'contain',
+          attiva: foto != null && foto.fitMode != 'contain',
           onTap: () => ctrl.modificaFotoSelezionate((p) => conFit(p, 'cover')),
         ),
-        ChipParametro(
+        AzioneStrumento(
+          icona: Icons.fit_screen_rounded,
           etichetta: t.azFotoIntera,
-          attivo: foto != null && foto.fitMode == 'contain',
+          attiva: foto != null && foto.fitMode == 'contain',
           onTap: () =>
               ctrl.modificaFotoSelezionate((p) => conFit(p, 'contain')),
         ),
-        ChipParametro(
+        AzioneStrumento(
+          icona: Icons.transform_rounded,
           etichetta: t.azDeforma,
-          attivo: deforma,
+          attiva: deforma,
           onTap: () => ctrl.impostaDeforma(!deforma),
         ),
-        ChipParametro(
-          etichetta: t.azReimposta,
-          attivo: false,
-          onTap: () => ctrl.modificaFotoSelezionate(inquadraturaReimpostata),
-        ),
-        ChipParametro(
+        AzioneStrumento(
+          icona: Icons.aspect_ratio_rounded,
           etichetta: riquadroDiPrima
               ? t.azRiquadroDiPrima
               : t.azProporzioniFoto,
-          attivo: false,
           onTap: () => ctrl.modificaFotoSelezionate(
             (p) => alternaProporzioni(p, s.misuraDi(p)),
           ),
+        ),
+        AzioneStrumento(
+          icona: Icons.restart_alt_rounded,
+          etichetta: t.azReimposta,
+          onTap: () => ctrl.modificaFotoSelezionate(inquadraturaReimpostata),
         ),
       ],
     );
@@ -579,85 +552,53 @@ class PannelloInquadra extends ConsumerWidget {
 // ---------------------------------------------------------------- Cornice
 
 /// Cornice: angoli arrotondati, spessore e colore del bordo.
-class PannelloCornice extends ConsumerStatefulWidget {
+class PannelloCornice extends ConsumerWidget {
   const PannelloCornice({super.key});
 
   @override
-  ConsumerState<PannelloCornice> createState() => _PannelloCorniceState();
-}
-
-class _PannelloCorniceState extends ConsumerState<PannelloCornice> {
-  int _attivo = 0; // 0 angoli, 1 bordo, 2 colore
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Testi.of(context);
     final ctrl = ref.read(editorProvider.notifier);
     final foto = ref.watch(_fotoPrincipale);
-    final Widget contenuto = switch (_attivo) {
-      0 => _Cursore(
-        key: const ValueKey('angoli'),
-        nome: t.parAngoli,
-        minimo: 0,
-        massimo: LimitiFoto.angoliMax,
-        iniziale: 0,
-        leggi: (p) => p.borderRadius.round(),
-        scrivi: conAngoli,
-        unita: ' px',
-      ),
-      1 => _Cursore(
-        key: const ValueKey('bordo'),
-        nome: t.parBordo,
-        minimo: 0,
-        massimo: LimitiFoto.bordoMax,
-        iniziale: 0,
-        leggi: (p) => p.borderWidth.round(),
-        scrivi: conBordo,
-        unita: ' px',
-      ),
-      _ => ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-        children: [
-          for (final c in CampioniScrl.rapidi)
-            CampioneColore(
-              colore: c,
-              scelto: foto != null && foto.borderColor == c.toARGB32(),
-              onTap: () => ctrl.modificaFotoSelezionate(
-                (p) => conColoreBordo(p, c.toARGB32()),
-              ),
-              etichetta: t.parColore,
-            ),
-        ],
-      ),
-    };
     return Intelaiatura(
       nome: t.strCornice,
-      chips: [
-        ChipParametro(
-          etichetta: t.parAngoli,
-          valore: foto == null ? null : '${foto.borderRadius.round()}',
-          attivo: _attivo == 0,
-          onTap: () => setState(() => _attivo = 0),
+      azioni: [_applicaATutte(t, ctrl.stileATutteLeFoto)],
+      schede: [
+        _scheda(
+          _Par(
+            t.parAngoli,
+            0,
+            LimitiFoto.angoliMax,
+            0,
+            (p) => p.borderRadius.round(),
+            conAngoli,
+            unita: ' px',
+          ),
+          foto,
         ),
-        ChipParametro(
-          etichetta: t.parBordo,
-          valore: foto == null ? null : '${foto.borderWidth.round()}',
-          attivo: _attivo == 1,
-          onTap: () => setState(() => _attivo = 1),
+        _scheda(
+          _Par(
+            t.parBordo,
+            0,
+            LimitiFoto.bordoMax,
+            0,
+            (p) => p.borderWidth.round(),
+            conBordo,
+            unita: ' px',
+          ),
+          foto,
         ),
-        ChipParametro(
+        SchedaStrumento(
           etichetta: t.parColore,
-          attivo: _attivo == 2,
-          onTap: () => setState(() => _attivo = 2),
-        ),
-        ChipParametro(
-          etichetta: t.azApplicaATutte,
-          attivo: false,
-          onTap: ctrl.stileATutteLeFoto,
+          contenuto: foto == null
+              ? const SizedBox.shrink()
+              : SelettoreColore(
+                  colore: foto.borderColor,
+                  onColore: (c) =>
+                      ctrl.modificaFotoSelezionate((p) => conColoreBordo(p, c)),
+                ),
         ),
       ],
-      contenuto: contenuto,
     );
   }
 }
@@ -694,13 +635,7 @@ class PannelloOmbra extends ConsumerWidget {
           unita: '%',
         ),
       ],
-      azioni: [
-        ChipParametro(
-          etichetta: t.azApplicaATutte,
-          attivo: false,
-          onTap: ctrl.stileATutteLeFoto,
-        ),
-      ],
+      azioni: [_applicaATutte(t, ctrl.stileATutteLeFoto)],
     );
   }
 }
@@ -718,32 +653,26 @@ class PannelloRuota extends ConsumerWidget {
     final foto = ref.watch(_fotoPrincipale);
     return Intelaiatura(
       nome: t.strRuota,
-      chips: [
-        ChipParametro(
-          etichetta: t.azSinistra90,
-          attivo: false,
-          onTap: () => ctrl.modificaFotoSelezionate((p) => ruotataDi(p, -90)),
+      azioni: [
+        ...azioniRotazione(
+          t,
+          sinistra: () =>
+              ctrl.modificaFotoSelezionate((p) => ruotataDi(p, -90)),
+          destra: () => ctrl.modificaFotoSelezionate((p) => ruotataDi(p, 90)),
+          dritta: () => ctrl.modificaFotoSelezionate((p) => conRotazione(p, 0)),
         ),
-        ChipParametro(
-          etichetta: t.azDestra90,
-          attivo: false,
-          onTap: () => ctrl.modificaFotoSelezionate((p) => ruotataDi(p, 90)),
-        ),
-        ChipParametro(
-          etichetta: t.azDritta,
-          attivo: false,
-          onTap: () => ctrl.modificaFotoSelezionate((p) => conRotazione(p, 0)),
-        ),
-        ChipParametro(
+        AzioneStrumento(
+          icona: Icons.flip_rounded,
           etichetta: t.azSpecchiaOrizz,
-          attivo: foto?.flipH ?? false,
+          attiva: foto?.flipH ?? false,
           onTap: () => ctrl.modificaFotoSelezionate(
             (p) => specchiata(p, orizzontale: true),
           ),
         ),
-        ChipParametro(
+        AzioneStrumento(
+          icona: Icons.swap_vert_rounded,
           etichetta: t.azSpecchiaVert,
-          attivo: foto?.flipV ?? false,
+          attiva: foto?.flipV ?? false,
           onTap: () => ctrl.modificaFotoSelezionate(
             (p) => specchiata(p, orizzontale: false),
           ),

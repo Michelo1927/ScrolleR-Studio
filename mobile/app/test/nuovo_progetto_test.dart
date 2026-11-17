@@ -83,6 +83,22 @@ void main() {
       // Passo 1: formato 4:5
       await tester.tap(find.text('Nuovo'));
       await tester.pumpAndSettle();
+      // Tutti i formati in una schermata: in cima i più usati (Instagram: 4:5, 9:16, 3:4), poi gli altri
+      expect(find.text('I più usati'), findsOneWidget);
+      expect(find.text('Altri formati'), findsOneWidget);
+      Offset pos(int i) =>
+          tester.getTopLeft(find.byKey(ValueKey('nuovo-formato-$i')));
+      expect(pos(2).dy, pos(4).dy);
+      expect(pos(4).dy, pos(0).dy);
+      expect(pos(2).dx < pos(4).dx && pos(4).dx < pos(0).dx, isTrue);
+      for (final i in [1, 3, 5, 6, 7, 8]) {
+        expect(pos(i).dy, greaterThan(pos(2).dy), reason: '$i');
+        expect(
+          tester.getBottomLeft(find.byKey(ValueKey('nuovo-formato-$i'))).dy,
+          lessThan(1600),
+          reason: 'si vede senza scorrere',
+        );
+      }
       await tester.tap(find.text('4:5 Instagram'));
       await tester.pump();
       await tester.tap(find.text('Continua'));

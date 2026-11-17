@@ -97,6 +97,22 @@ void main() {
     expect(l.first.pagine, 1);
   });
 
+  test(
+    'spazio occupato: tutti i file della cartella, cache e media compresi',
+    () async {
+      final c = await crea('Pesato', foto: 2);
+      final base = await archivio.spazioOccupato(c);
+      expect(base, greaterThan(0), reason: 'il .scrlproj e info.json');
+      await Directory('${c.path}/media').create();
+      File('${c.path}/media/foto1.jpg').writeAsBytesSync(List.filled(3000, 1));
+      Directory('${c.path}/cache/a').createSync(recursive: true);
+      File('${c.path}/cache/a/x.img').writeAsBytesSync(List.filled(500, 2));
+      expect(await archivio.spazioOccupato(c), base + 3500);
+      await archivio.elimina(c);
+      expect(await archivio.spazioOccupato(c), 0);
+    },
+  );
+
   test('rinomina, duplica ed elimina', () async {
     final c = await crea('Originale', foto: 3);
     File('${c.path}/miniatura.png').writeAsBytesSync([1, 2, 3]);

@@ -9,6 +9,7 @@ import '../home/scelta_foto.dart';
 import '../l10n/app_localizations.dart';
 import '../project/crea_progetto.dart';
 import '../theme/tokens.dart';
+import 'intelaiatura.dart';
 import 'stato.dart';
 import 'widget_comuni.dart';
 
@@ -38,59 +39,68 @@ class PannelloAggiungi extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Testi.of(context);
     final ctrl = ref.read(editorProvider.notifier);
+    Widget voce(
+      String chiave,
+      IconData icona,
+      String etichetta,
+      VoidCallback onTap,
+    ) => TesseraVoce(
+      key: ValueKey(chiave),
+      icona: icona,
+      etichetta: etichetta,
+      larghezza: null,
+      margine: false,
+      onTap: onTap,
+    );
     return PannelloBasso(
       onScarta: ctrl.chiudiStrumento,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            height: MisureScrl.barraInferiore + 24,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(MisureScrl.spazio),
-              children: [
-                _Voce(
-                  Icons.add_photo_alternate_outlined,
-                  t.fotoOVideo,
-                  () => _foto(context, ref),
-                ),
-                _Voce(Icons.note_add_outlined, t.paginaNuova, () {
+          const SizedBox(height: MisureScrl.spazio),
+          RigaTessere(
+            altezza: MisureScrl.barraInferiore + 8,
+            children: [
+              voce(
+                'aggiungi-foto',
+                Icons.add_photo_alternate_outlined,
+                t.fotoOVideo,
+                () => _foto(context, ref),
+              ),
+              voce(
+                'aggiungi-pagina',
+                Icons.note_add_outlined,
+                t.paginaNuova,
+                () {
                   ctrl.aggiungiPagina();
                   ctrl.chiudiStrumento();
-                }),
-                _Voce(Icons.title_rounded, t.testo, ctrl.nuovoTesto),
-                _Voce(
-                  Icons.category_outlined,
-                  t.forma,
-                  () => ctrl.apriStrumento(Strumento.formaNuova),
-                ),
-              ],
-            ),
+                },
+              ),
+              voce(
+                'aggiungi-testo',
+                Icons.title_rounded,
+                t.testo,
+                ctrl.nuovoTesto,
+              ),
+              voce(
+                'aggiungi-forma',
+                Icons.category_outlined,
+                t.forma,
+                () => ctrl.apriStrumento(Strumento.formaNuova),
+              ),
+            ],
+          ),
+          const SizedBox(height: MisureScrl.spazioPiccolo),
+          PiedeStrumento(
+            nome: t.barraAggiungi,
+            etichettaAnnulla: t.chiudi,
+            etichettaConferma: t.conferma,
+            onAnnulla: ctrl.chiudiStrumento,
+            onConferma: null,
           ),
           SizedBox(height: MediaQuery.paddingOf(context).bottom),
         ],
       ),
     );
   }
-}
-
-class _Voce extends StatelessWidget {
-  const _Voce(this.icona, this.etichetta, this.onTap);
-
-  final IconData icona;
-  final String etichetta;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(right: MisureScrl.spazioPiccolo),
-    child: Container(
-      width: 96,
-      decoration: BoxDecoration(
-        color: ColoriScrl.rilievo,
-        borderRadius: BorderRadius.circular(MisureScrl.angoloTessera),
-      ),
-      child: VoceBarra(icona: icona, etichetta: etichetta, onTap: onTap),
-    ),
-  );
 }

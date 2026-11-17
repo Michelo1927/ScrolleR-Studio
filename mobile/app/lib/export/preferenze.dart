@@ -92,9 +92,43 @@ class PreferenzeApp {
     return OpzioniEsportazione.fromJson(_dati['export']);
   }
 
-  Future<void> salvaEsportazione(OpzioniEsportazione o) async {
+  Future<void> salvaEsportazione(OpzioniEsportazione o) =>
+      scrivi('export', o.toJson());
+
+  /// Valore ricordato sotto [chiave] (null se manca): le altre preferenze (suggerimenti visti, controllo degli
+  /// aggiornamenti) usano questo e [scrivi]. Chiavi sconosciute si conservano.
+  Future<Object?> leggi(String chiave) async {
     await _leggi();
-    _dati = {..._dati, 'export': o.toJson()};
+    return _dati[chiave];
+  }
+
+  /// Interruttore ricordato sotto [chiave], con il suo [predefinito] se manca o non è un booleano.
+  Future<bool> leggiBool(String chiave, {required bool predefinito}) async {
+    final v = await leggi(chiave);
+    return v is bool ? v : predefinito;
+  }
+
+  /// Numero intero ricordato sotto [chiave] (null se manca).
+  Future<int?> leggiInt(String chiave) async {
+    final v = await leggi(chiave);
+    return v is num ? v.round() : null;
+  }
+
+  /// Elenco di testi ricordato sotto [chiave] (vuoto se manca; gli elementi che non sono testi si scartano).
+  Future<List<String>> leggiTesti(String chiave) async {
+    final v = await leggi(chiave);
+    return v is List ? [for (final e in v) ?(e is String ? e : null)] : [];
+  }
+
+  /// Ricorda [valore] sotto [chiave] e riscrive il file (atomico). Con `null` la chiave si toglie.
+  Future<void> scrivi(String chiave, Object? valore) async {
+    await _leggi();
+    _dati = {..._dati};
+    if (valore == null) {
+      _dati.remove(chiave);
+    } else {
+      _dati[chiave] = valore;
+    }
     final f = file;
     if (f == null) return;
     try {

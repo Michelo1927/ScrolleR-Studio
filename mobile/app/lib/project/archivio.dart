@@ -217,6 +217,23 @@ class ArchivioProgetti {
     return nuova;
   }
 
+  /// Byte occupati sul telefono dalla cartella del progetto: `.scrlproj`, miniatura, foto copiate in `media/` e
+  /// anteprime in `cache/`. Le foto della galleria sono solo collegate e non si contano.
+  Future<int> spazioOccupato(Directory cartella) async {
+    if (!cartella.existsSync()) return 0;
+    var totale = 0;
+    await for (final e in cartella.list(recursive: true, followLinks: false)) {
+      if (e is File) {
+        try {
+          totale += await e.length();
+        } on FileSystemException {
+          // Un file sparito nel frattempo (una miniatura riscritta) non conta
+        }
+      }
+    }
+    return totale;
+  }
+
   /// Elimina il progetto: la sua cartella e ciò che contiene (le foto della galleria non si toccano mai).
   Future<void> elimina(Directory cartella) async {
     if (cartella.existsSync()) await cartella.delete(recursive: true);

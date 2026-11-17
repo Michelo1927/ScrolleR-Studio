@@ -95,25 +95,14 @@ class PannelloNuovaForma extends ConsumerWidget {
               children: _tessereTipi(t, null, ctrl.nuovaForma),
             ),
           ),
-          SizedBox(
-            height: MisureScrl.tocco,
-            child: Row(
-              children: [
-                PulsanteIcona(
-                  icona: Icons.close_rounded,
-                  etichetta: t.annulla,
-                  onTap: ctrl.chiudiStrumento,
-                ),
-                Expanded(
-                  child: Text(
-                    t.forma,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                const SizedBox(width: MisureScrl.tocco),
-              ],
-            ),
+          PiedeStrumento(
+            nome: t.forma,
+            percorso: t.barraAggiungi,
+            etichettaAnnulla: t.indietro,
+            etichettaConferma: t.conferma,
+            iconaAnnulla: Icons.arrow_back_rounded,
+            onAnnulla: ctrl.chiudiStrumento,
+            onConferma: null,
           ),
           SizedBox(height: MediaQuery.paddingOf(context).bottom),
         ],
@@ -135,7 +124,6 @@ class PannelloTipoForma extends ConsumerWidget {
     final modifica = _modifica(ref);
     return Intelaiatura(
       nome: t.strTipo,
-      chips: const [],
       contenuto: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
@@ -171,19 +159,10 @@ class PannelloRiempimento extends ConsumerWidget {
 
 // ---------------------------------------------------------------- Bordo
 
-enum _SchedaBordo { spessore, colore, tratto }
-
 /// Bordo di una forma piena o linea di una linea: spessore (0–80 px), colore e tratto (continuo, tratteggiato,
 /// a puntini). Scegliere il colore del bordo lo fa vedere subito.
-class PannelloBordo extends ConsumerStatefulWidget {
+class PannelloBordo extends ConsumerWidget {
   const PannelloBordo({super.key});
-
-  @override
-  ConsumerState<PannelloBordo> createState() => _PannelloBordoState();
-}
-
-class _PannelloBordoState extends ConsumerState<PannelloBordo> {
-  _SchedaBordo _scheda = _SchedaBordo.spessore;
 
   String _nomeTratto(Testi t, String stile) => switch (stile) {
     'dash' => t.trattoTratteggiato,
@@ -192,74 +171,54 @@ class _PannelloBordoState extends ConsumerState<PannelloBordo> {
   };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Testi.of(context);
     final forma = ref.watch(_formaPrincipale);
     final modifica = _modifica(ref);
     final linea = forma?.isLine ?? false;
-    final nome = linea ? t.parLinea : t.parBordo;
-    ChipParametro scheda(_SchedaBordo s, String etichetta) => ChipParametro(
-      etichetta: etichetta,
-      attivo: _scheda == s,
-      onTap: () => setState(() => _scheda = s),
-    );
-    switch (_scheda) {
-      case _SchedaBordo.colore:
-        return PannelloColore(
-          nome: nome,
-          colore: forma?.stroke ?? 0xFFFFFFFF,
-          onColore: (c) =>
-              modifica((x, canvas) => conColoreTratto(x, c, canvas)),
-          chipsPrima: [scheda(_SchedaBordo.spessore, t.parSpessore)],
-          chipsDopo: [scheda(_SchedaBordo.tratto, t.parTratto)],
-        );
-      case _SchedaBordo.tratto:
-        return Intelaiatura(
-          nome: nome,
-          chips: [
-            scheda(_SchedaBordo.spessore, t.parSpessore),
-            scheda(_SchedaBordo.colore, t.parColore),
-            scheda(_SchedaBordo.tratto, t.parTratto),
-          ],
-          contenuto: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
+    return PannelloCursori(
+      nome: linea ? t.parLinea : t.parBordo,
+      parametri: [
+        ParametroCursore(
+          nome: t.parSpessore,
+          minimo: LimitiForma.spessoreMin,
+          massimo: LimitiForma.spessoreMax,
+          iniziale: 0,
+          valore: forma?.strokeWidth.round(),
+          onCambia: (v) => modifica((x, _) => conSpessoreForma(x, v)),
+          unita: ' px',
+        ),
+      ],
+      schedeDopo: [
+        SchedaStrumento(
+          etichetta: t.parColore,
+          chiave: const ValueKey('bordo-colore'),
+          contenuto: SelettoreColore(
+            colore: forma?.stroke ?? 0xFFFFFFFF,
+            onColore: (c) =>
+                modifica((x, canvas) => conColoreTratto(x, c, canvas)),
+          ),
+        ),
+        SchedaStrumento(
+          etichetta: t.parTratto,
+          chiave: const ValueKey('bordo-tratto'),
+          contenuto: RigaTessere(
+            altezza: 80,
             children: [
               for (final stile in stiliTratto)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: TesseraScelta(
-                    disegno: IconaTratto(stile: stile),
-                    etichetta: _nomeTratto(t, stile),
-                    scelta: forma?.strokeStyle == stile,
-                    larghezza: 108,
-                    altezza: 72,
-                    onTap: () => modifica((x, _) => conTratto(x, stile)),
-                  ),
+                TesseraScelta(
+                  disegno: IconaTratto(stile: stile),
+                  etichetta: _nomeTratto(t, stile),
+                  scelta: forma?.strokeStyle == stile,
+                  larghezza: double.infinity,
+                  altezza: 80,
+                  onTap: () => modifica((x, _) => conTratto(x, stile)),
                 ),
             ],
           ),
-        );
-      case _SchedaBordo.spessore:
-        return PannelloCursori(
-          nome: nome,
-          parametri: [
-            ParametroCursore(
-              nome: t.parSpessore,
-              minimo: LimitiForma.spessoreMin,
-              massimo: LimitiForma.spessoreMax,
-              iniziale: 0,
-              valore: forma?.strokeWidth.round(),
-              onCambia: (v) => modifica((x, _) => conSpessoreForma(x, v)),
-              unita: ' px',
-            ),
-          ],
-          azioni: [
-            scheda(_SchedaBordo.colore, t.parColore),
-            scheda(_SchedaBordo.tratto, t.parTratto),
-          ],
-        );
-    }
+        ),
+      ],
+    );
   }
 }
 
@@ -339,29 +298,18 @@ class PannelloRuotaForma extends ConsumerWidget {
           unita: '°',
         ),
       ],
-      azioni: [
-        ChipParametro(
-          etichetta: t.azSinistra90,
-          attivo: false,
-          onTap: () => modifica(
-            (x, _) =>
-                conRotazioneForma(x, normalizzaGradi(x.rotation - 90).round()),
-          ),
+      azioni: azioniRotazione(
+        t,
+        sinistra: () => modifica(
+          (x, _) =>
+              conRotazioneForma(x, normalizzaGradi(x.rotation - 90).round()),
         ),
-        ChipParametro(
-          etichetta: t.azDestra90,
-          attivo: false,
-          onTap: () => modifica(
-            (x, _) =>
-                conRotazioneForma(x, normalizzaGradi(x.rotation + 90).round()),
-          ),
+        destra: () => modifica(
+          (x, _) =>
+              conRotazioneForma(x, normalizzaGradi(x.rotation + 90).round()),
         ),
-        ChipParametro(
-          etichetta: t.azDritta,
-          attivo: false,
-          onTap: () => modifica((x, _) => conRotazioneForma(x, 0)),
-        ),
-      ],
+        dritta: () => modifica((x, _) => conRotazioneForma(x, 0)),
+      ),
     );
   }
 }

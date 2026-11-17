@@ -23,6 +23,8 @@ import 'package:scrollr_studio/render/testo.dart';
 import 'package:scrollr_studio/theme/tema.dart';
 import 'package:scrollr_studio/theme/tokens.dart';
 
+import 'aiuto_barra.dart';
+
 FotoScelta _foto(int i) => (
   voce: LibraryEntry(path: 'foto$i.jpg', rel: 'media/foto$i.jpg'),
   chiave: 'f:media/foto$i.jpg',
@@ -148,26 +150,18 @@ class _Banco {
     await tester.pumpAndSettle();
   }
 
-  Future<void> vediVoce(String voce) async {
-    final lista = find
-        .descendant(
-          of: find.byType(ListView),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    await tester.scrollUntilVisible(find.text(voce), 120, scrollable: lista);
-    await tester.pump();
-  }
-
-  Future<void> apriStrumento(String voce) async {
-    await vediVoce(voce);
-    await tester.tap(find.text(voce));
-    await tester.pumpAndSettle();
-  }
+  /// Apre uno strumento dalla barra di selezione (entrando nella sua categoria).
+  Future<void> apriStrumento(String voce) => toccaVoceBarra(tester, voce);
 
   /// Fa scorrere le righe del pannello aperto finché [testo] si vede (parte dall'inizio di ogni riga).
   Future<void> faiVedere(String testo) async {
     final f = find.textContaining(testo);
+    // Nel dettaglio di una scheda: ‹ riporta alla griglia
+    final indietro = find.byKey(const ValueKey('scheda-indietro'));
+    if (f.evaluate().isEmpty && indietro.evaluate().isNotEmpty) {
+      await tester.tap(indietro);
+      await tester.pump();
+    }
     final liste = find.descendant(
       of: find.byType(PannelloBasso),
       matching: find.byType(Scrollable),
@@ -191,6 +185,12 @@ class _Banco {
   Future<void> tocca(String testo) async {
     await faiVedere(testo);
     await tester.tap(find.textContaining(testo).first);
+    await tester.pump();
+  }
+
+  /// Tocca un comando del pannello dalla sua chiave (i comandi a sola icona: contagocce, «Altro», ‹).
+  Future<void> toccaChiave(String chiave) async {
+    await tester.tap(find.byKey(ValueKey(chiave)));
     await tester.pump();
   }
 
@@ -377,6 +377,7 @@ void main() {
         expect(b.testo.text, 'Ciao\nmondo');
         // Resta selezionato e la barra offre gli strumenti del testo
         expect(b.stato.selezione, hasLength(1));
+        final voci = await vociBarra(tester);
         for (final voce in [
           'Modifica',
           'Carattere',
@@ -392,8 +393,7 @@ void main() {
           'Duplica',
           'Elimina',
         ]) {
-          await b.vediVoce(voce);
-          expect(find.text(voce), findsOneWidget, reason: voce);
+          expect(voci, contains(voce), reason: voce);
         }
         // Annulla porta via il testo e il testo non lascia la selezione
         b.controllo.annulla();
@@ -416,7 +416,7 @@ void main() {
         expect(b.stato.selezione, isEmpty);
         expect(b.passi, 1);
         // La barra torna quella con niente selezionato
-        expect(find.text('Disposizione'), findsOneWidget);
+        expect(find.text('Impagina'), findsOneWidget);
       },
     );
 
@@ -733,7 +733,7 @@ void main() {
         await b.testoPronto();
         await b.apriStrumento('Colore');
         await b.campione('FF3B30');
-        await b.tocca('Altro');
+        await b.toccaChiave('colore-altro');
         // Tinta da 0 a 359: a metà è il ciano, e le altre due misure restano
         final prima = argbToHsl(0xFFFF3B30);
         await b.cursore(0.5);
@@ -757,7 +757,7 @@ void main() {
         h = argbToHsl(b.testo.color);
         expect(h.s, 0);
         // Esadecimale: con o senza #, e un testo non valido non cambia niente
-        await b.tocca('Esadecimale');
+        await b.toccaChiave('colore-esadecimale');
         await tester.enterText(find.byType(TextField), '00FF00');
         await tester.pump();
         expect(b.testo.color, 0xFF00FF00);
@@ -769,7 +769,7 @@ void main() {
         await tester.pump();
         expect(b.testo.color, 0xFFFF3B30);
         // Si torna ai campioni
-        await b.tocca('‹ Colori');
+        await b.toccaChiave('colore-indietro');
         expect(find.bySemanticsLabel('Colore #FF3B30'), findsWidgets);
         await b.conferma();
         expect(b.testo.color, 0xFFFF3B30);
@@ -790,7 +790,7 @@ void main() {
         );
         await tester.pump();
         await b.apriStrumento('Colore');
-        await b.tocca('Contagocce');
+        await b.toccaChiave('colore-contagocce');
         expect(b.stato.contagocce, isTrue);
         expect(
           find.textContaining('Tocca un punto della pagina'),
@@ -807,9 +807,9 @@ void main() {
         expect(b.stato.contagocce, isFalse);
         expect(b.testo.color, 0xFF336699);
         // Si può rifare e si spegne con un secondo tocco sulla pillola
-        await b.tocca('Contagocce');
+        await b.toccaChiave('colore-contagocce');
         expect(b.stato.contagocce, isTrue);
-        await b.tocca('Contagocce');
+        await b.toccaChiave('colore-contagocce');
         expect(b.stato.contagocce, isFalse);
         await b.conferma();
         expect(b.testo.color, 0xFF336699);
@@ -823,13 +823,13 @@ void main() {
         await b.apri();
         await b.testoPronto();
         await b.apriStrumento('Colore');
-        await b.tocca('Contagocce');
+        await b.toccaChiave('colore-contagocce');
         expect(b.stato.contagocce, isTrue);
         // Il tocco su un'altra zona non cambia la selezione
         await tester.tapAt(b.schermo(1000, 1300));
         await b.attendiLavoro();
         expect(b.stato.selezione, hasLength(1));
-        await b.tocca('Contagocce');
+        await b.toccaChiave('colore-contagocce');
         await b.annullaStrumento();
         expect(b.stato.contagocce, isFalse);
       },
@@ -872,20 +872,20 @@ void main() {
       await b.testoPronto();
       expect(b.testo.box, isFalse);
       await b.apriStrumento('Etichetta');
-      await b.tocca('Etichetta');
+      await b.toccaChiave('etichetta-accesa');
       expect(b.testo.box, isTrue);
-      await b.tocca('Etichetta');
+      await b.toccaChiave('etichetta-accesa');
       expect(b.testo.box, isFalse);
       // Scegliere un colore accende l'etichetta
       await b.campione('34C759');
       expect(b.testo.box, isTrue);
       expect(b.testo.boxColor, 0xFF34C759);
-      // La trasparenza: mezzo trasparente
-      await b.tocca('Opacità');
+      // La trasparenza (il righello sotto i campioni): mezzo trasparente
       await b.cursore(0.5);
       expect(alfaDi(b.testo.boxColor), closeTo(128, 4));
       expect(b.testo.boxColor & 0xFFFFFF, 0x34C759);
-      await b.tocca('Esadecimale');
+      await b.toccaChiave('colore-altro');
+      await b.toccaChiave('colore-esadecimale');
       await tester.enterText(find.byType(TextField), '0000FF');
       await tester.pump();
       expect(
@@ -947,6 +947,7 @@ void main() {
         final b = _Banco(tester);
         await b.apri();
         await b.aggiungiForma('Rettangolo');
+        var voci = await vociBarra(tester);
         for (final voce in [
           'Tipo',
           'Riempimento',
@@ -957,23 +958,22 @@ void main() {
           'Duplica',
           'Elimina',
         ]) {
-          await b.vediVoce(voce);
-          expect(find.text(voce), findsOneWidget, reason: voce);
+          expect(voci, contains(voce), reason: voce);
         }
         await b.aggiungiForma('Stella');
-        await b.vediVoce('Bordo');
-        expect(find.text('Angoli'), findsNothing);
-        expect(find.text('Riempimento'), findsOneWidget);
+        voci = await vociBarra(tester);
+        expect(voci, isNot(contains('Angoli')));
+        expect(voci, contains('Riempimento'));
         await b.aggiungiForma('Freccia');
-        await b.vediVoce('Tipo');
-        expect(find.text('Riempimento'), findsNothing);
-        expect(find.text('Angoli'), findsNothing);
+        voci = await vociBarra(tester);
+        expect(voci, isNot(contains('Riempimento')));
+        expect(voci, isNot(contains('Angoli')));
         expect(
-          find.text('Linea'),
-          findsOneWidget,
+          voci,
+          contains('Linea'),
           reason: 'il bordo di una linea si chiama Linea',
         );
-        expect(find.text('Bordo'), findsNothing);
+        expect(voci, isNot(contains('Bordo')));
       },
     );
 

@@ -11,6 +11,7 @@ import 'package:scrollr_studio/editor/stato.dart';
 import 'package:scrollr_studio/editor/tela.dart';
 import 'package:scrollr_studio/export/consegna.dart';
 import 'package:scrollr_studio/home/scambio_ui.dart';
+import 'package:scrollr_studio/l10n/app_localizations.dart';
 import 'package:scrollr_studio/main.dart';
 import 'package:scrollr_studio/media/galleria.dart';
 import 'package:scrollr_studio/project/archivio.dart';
@@ -88,6 +89,15 @@ Future<void> _finoA(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  test('peso leggibile con i decimali della lingua', () {
+    final it = lookupTesti(const Locale('it'));
+    final en = lookupTesti(const Locale('en'));
+    expect(formatoDimensione(it, 840 * 1024), '840 KB');
+    expect(formatoDimensione(it, (3.25 * (1 << 20)).round()), '3,3 MB');
+    expect(formatoDimensione(en, (3.25 * (1 << 20)).round()), '3.3 MB');
+    expect(formatoDimensione(it, (1.5 * (1 << 30)).round()), '1,5 GB');
+  });
+
   late Directory radice;
   late ArchivioProgetti archivio;
   late _GalleriaFinta galleria;
@@ -188,11 +198,30 @@ void main() {
   testWidgets(
     'Condividi progetto: avanzamento, zip con originali, foglio di sistema, temporaneo tolto',
     (tester) async {
-      await creaProgettoTelefono(tester);
+      final cartellaTelefono = await creaProgettoTelefono(tester);
       await avvia(tester);
       await _finoA(tester, find.text('Viaggio'));
       await tester.longPress(find.text('Viaggio'));
       await tester.pumpAndSettle();
+      // Il foglio dice quanto occupa il progetto (la cartella intera; le foto della galleria no)
+      final byte = await tester.runAsync(
+        () => archivio.spazioOccupato(cartellaTelefono),
+      );
+      await _finoA(tester, find.textContaining('sul telefono'));
+      final peso = tester.widget<Text>(
+        find.byKey(const ValueKey('progetto-peso')),
+      );
+      expect(peso.data, startsWith('Occupa '));
+      expect(
+        peso.data,
+        byte! >= 1 << 20
+            ? contains(',')
+            : 'Occupa ${(byte / 1024).ceil()} KB sul telefono',
+      );
+      expect(
+        find.textContaining('foto della galleria non sono contate'),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Condividi progetto'));
       await tester.pump();
       await _finoA(tester, find.byKey(const ValueKey('lavoro-titolo')));

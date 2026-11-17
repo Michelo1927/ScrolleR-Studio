@@ -416,7 +416,7 @@
   "@barraFoto": {
     "description": "Voce della barra inferiore: libreria"
   },
-  "barraDisposizione": "Disposizione",
+  "barraDisposizione": "Impagina",
   "@barraDisposizione": {
     "description": "Voce della barra inferiore"
   },
@@ -452,7 +452,7 @@
   "@chiudi": {
     "description": "Chiude un pannello"
   },
-  "strumentoDisposizione": "Disposizione",
+  "strumentoDisposizione": "Impagina",
   "@strumentoDisposizione": {
     "description": "Nome dello strumento Disposizione"
   },
@@ -2985,5 +2985,442 @@
   "strRicollega": "Ricollega",
   "@strRicollega": {
     "description": "Barra di selezione"
+  },
+  "suggerimentoTocca": "Tocca una foto per selezionarla",
+  "@suggerimentoTocca": {
+    "description": "Primo avvio: primo suggerimento"
+  },
+  "suggerimentoPremuto": "Tieni premuto su un elemento per copiarlo, bloccarlo o eliminarlo",
+  "@suggerimentoPremuto": {
+    "description": "Primo avvio: secondo suggerimento"
+  },
+  "suggerimentoScorri": "Scorri di lato per cambiare pagina",
+  "@suggerimentoScorri": {
+    "description": "Primo avvio: terzo suggerimento"
+  },
+  "suggerimentoChiudi": "Tocca per chiudere",
+  "@suggerimentoChiudi": {
+    "description": "Azione del suggerimento, per i lettori di schermo"
+  },
+  "impostazioni": "Impostazioni",
+  "@impostazioni": {
+    "description": "Titolo della schermata e pulsante della Home"
+  },
+  "impAiuto": "Aiuto",
+  "@impAiuto": {
+    "description": "Sezione delle Impostazioni"
+  },
+  "impAggiornamenti": "Aggiornamenti",
+  "@impAggiornamenti": {
+    "description": "Sezione delle Impostazioni"
+  },
+  "impRegistro": "Registro errori",
+  "@impRegistro": {
+    "description": "Sezione delle Impostazioni"
+  },
+  "impInfo": "Informazioni",
+  "@impInfo": {
+    "description": "Sezione delle Impostazioni"
+  },
+  "impGesti": "Gesti",
+  "@impGesti": {
+    "description": "Voce delle Impostazioni: la versione mobile di «Scorciatoie da tastiera e mouse»"
+  },
+  "impGestiAiuto": "Come si usano tela e pannelli",
+  "@impGestiAiuto": {
+    "description": "Sottotitolo della voce Gesti"
+  },
+  "impSuggerimenti": "Rivedi i suggerimenti",
+  "@impSuggerimenti": {
+    "description": "Voce delle Impostazioni"
+  },
+  "impSuggerimentiAiuto": "I tre suggerimenti del primo avvio torneranno nell'editor",
+  "@impSuggerimentiAiuto": {
+    "description": "Sottotitolo della voce"
+  },
+  "impSuggerimentiRimessi": "I suggerimenti torneranno nell'editor",
+  "@impSuggerimentiRimessi": {
+    "description": "Messaggio breve"
+  },
+  "impVersione": "Versione {versione}",
+  "@impVersione": {
+    "description": "Riga delle Informazioni",
+    "placeholders": {
+      "versione": {
+        "type": "String",
+        "example": "1.0.0"
+      }
+    }
+  },
+  "impLicenze": "Licenze",
+  "@impLicenze": {
+    "description": "Voce delle Impostazioni: apre le licenze dei componenti"
+  },
+  "impLicenzeAiuto": "Componenti e caratteri inclusi",
+  "@impLicenzeAiuto": {
+    "description": "Sottotitolo di Licenze"
+  },
+  "impPrivacy": "Nessuna pubblicità, nessun tracciamento, nessun account. La rete serve solo a cercare gli aggiornamenti.",
+  "@impPrivacy": {
+    "description": "Riga delle Informazioni"
+  },
+  "gestiTitolo": "Gesti",
+  "@gestiTitolo": {
+    "description": "Titolo della schermata Gesti"
+  },
+  "gestiSulla": "Sulla tela",
+  "@gestiSulla": {
+    "description": "Gruppo della schermata Gesti"
+  },
+  "gestiNeiPannelli": "Nei pannelli e nelle barre",
+  "@gestiNeiPannelli": {
+    "description": "Gruppo della schermata Gesti"
+  },
+  "gestiNellePagine": "Pagine e Panoramica",
+  "@gestiNellePagine": {
+    "description": "Gruppo della schermata Gesti"
+  },
+  "gestoTocca": "Tocca",
+  "@gestoTocca": {
+    "description": "Gesto"
+  },
+  "gestoToccaDesc": "Seleziona una foto, un testo o una forma. Toccando il vuoto, la selezione sparisce.",
+  "@gestoToccaDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoDoppio": "Doppio tocco su un testo",
+  "@gestoDoppio": {
+    "description": "Gesto"
+  },
+  "gestoDoppioDesc": "Apre la tastiera per scriverci.",
+  "@gestoDoppioDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoPremuto": "Tieni premuto su un elemento",
+  "@gestoPremuto": {
+    "description": "Gesto"
+  },
+  "gestoPremutoDesc": "Copia, taglia, duplica, blocca, porta davanti o dietro, sposta in un'altra pagina, elimina.",
+  "@gestoPremutoDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoPremutoVuoto": "Tieni premuto sul vuoto",
+  "@gestoPremutoVuoto": {
+    "description": "Gesto"
+  },
+  "gestoPremutoVuotoDesc": "Incolla qui, aggiungi un testo o una forma, seleziona tutto e le azioni della pagina.",
+  "@gestoPremutoVuotoDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoTrascina": "Trascina un elemento",
+  "@gestoTrascina": {
+    "description": "Gesto"
+  },
+  "gestoTrascinaDesc": "Lo sposta e si aggancia alle linee degli altri. Verso il bordo dello schermo passa alla pagina vicina.",
+  "@gestoTrascinaDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoManiglie": "Trascina una maniglia",
+  "@gestoManiglie": {
+    "description": "Gesto"
+  },
+  "gestoManiglieDesc": "Ridimensiona la foto o la forma selezionata.",
+  "@gestoManiglieDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoPizzica": "Pizzica con due dita",
+  "@gestoPizzica": {
+    "description": "Gesto"
+  },
+  "gestoPizzicaDesc": "Ingrandisce o riduce l'elemento; girando le dita lo ruota, con piccoli scatti agli angoli più comuni.",
+  "@gestoPizzicaDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoScorri": "Scorri di lato",
+  "@gestoScorri": {
+    "description": "Gesto"
+  },
+  "gestoScorriDesc": "Cambia pagina, una alla volta.",
+  "@gestoScorriDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoCursore": "Doppio tocco su un cursore",
+  "@gestoCursore": {
+    "description": "Gesto"
+  },
+  "gestoCursoreDesc": "Riporta il valore a quello iniziale.",
+  "@gestoCursoreDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoPannello": "Trascina il pannello verso il basso",
+  "@gestoPannello": {
+    "description": "Gesto"
+  },
+  "gestoPannelloDesc": "Chiude lo strumento senza applicare, come ✕.",
+  "@gestoPannelloDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoConfronto": "Tieni premuto ◐",
+  "@gestoConfronto": {
+    "description": "Gesto"
+  },
+  "gestoConfrontoDesc": "Mostra la foto com'era prima; rilasciando torna con le modifiche.",
+  "@gestoConfrontoDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoIndietro": "Gesto «indietro» del telefono",
+  "@gestoIndietro": {
+    "description": "Gesto"
+  },
+  "gestoIndietroDesc": "Torna al livello di prima di un menu o di uno strumento, poi chiude lo strumento, poi toglie la selezione, poi esce dal progetto.",
+  "@gestoIndietroDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoAnnullaLungo": "Tieni premuto Annulla",
+  "@gestoAnnullaLungo": {
+    "description": "Gesto"
+  },
+  "gestoAnnullaLungoDesc": "Apre la Cronologia.",
+  "@gestoAnnullaLungoDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoPanoramica": "Panoramica: tocca, trascina, tieni premuto",
+  "@gestoPanoramica": {
+    "description": "Gesto"
+  },
+  "gestoPanoramicaDesc": "Tocca per andare alla pagina, trascina per riordinare, tieni premuto per le azioni.",
+  "@gestoPanoramicaDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "gestoPuntini": "Puntini delle pagine",
+  "@gestoPuntini": {
+    "description": "Gesto"
+  },
+  "gestoPuntiniDesc": "Toccane uno per saltare a quella pagina.",
+  "@gestoPuntiniDesc": {
+    "description": "Descrizione del gesto"
+  },
+  "aggControlla": "Cerca nuove versioni",
+  "@aggControlla": {
+    "description": "Interruttore"
+  },
+  "aggControllaAiuto": "Una volta al giorno, all'apertura. È l'unico uso della rete e non invia dati personali.",
+  "@aggControllaAiuto": {
+    "description": "Sottotitolo dell'interruttore"
+  },
+  "aggControllaOra": "Controlla adesso",
+  "@aggControllaOra": {
+    "description": "Voce delle Impostazioni"
+  },
+  "aggInCorso": "Controllo in corso…",
+  "@aggInCorso": {
+    "description": "Stato del controllo"
+  },
+  "aggAggiornato": "L'app è aggiornata",
+  "@aggAggiornato": {
+    "description": "Esito del controllo"
+  },
+  "aggDisponibile": "È disponibile la versione {versione}",
+  "@aggDisponibile": {
+    "description": "Avviso nella Home e nelle Impostazioni",
+    "placeholders": {
+      "versione": {
+        "type": "String",
+        "example": "1.0.1"
+      }
+    }
+  },
+  "aggErrore": "Non riesco a controllare: serve una connessione a Internet",
+  "@aggErrore": {
+    "description": "Esito del controllo"
+  },
+  "aggScarica": "Scarica",
+  "@aggScarica": {
+    "description": "Apre la pagina della release nel browser"
+  },
+  "aggNonApribile": "Non riesco ad aprire il browser",
+  "@aggNonApribile": {
+    "description": "Messaggio breve"
+  },
+  "aggChiudi": "Nascondi l'avviso",
+  "@aggChiudi": {
+    "description": "Pulsante dell'avviso, per i lettori di schermo"
+  },
+  "regAiuto": "Gli errori inattesi si annotano solo su questo telefono. Il file non parte da solo: se vuoi segnalare un problema, condividilo tu. I percorsi di cartelle e foto sono già tolti.",
+  "@regAiuto": {
+    "description": "Spiegazione del registro errori"
+  },
+  "regCondividi": "Condividi il registro",
+  "@regCondividi": {
+    "description": "Voce delle Impostazioni"
+  },
+  "regVuoto": "Nessun errore registrato",
+  "@regVuoto": {
+    "description": "Sottotitolo quando il registro è vuoto"
+  },
+  "regPieno": "Ci sono errori registrati",
+  "@regPieno": {
+    "description": "Sottotitolo quando il registro ha errori"
+  },
+  "regCancella": "Svuota il registro",
+  "@regCancella": {
+    "description": "Voce delle Impostazioni"
+  },
+  "regCancellaChiede": "Svuotare il registro degli errori?",
+  "@regCancellaChiede": {
+    "description": "Conferma"
+  },
+  "regCancellato": "Registro svuotato",
+  "@regCancellato": {
+    "description": "Messaggio breve"
+  },
+  "regNonCondiviso": "Non riesco a condividere il registro",
+  "@regNonCondiviso": {
+    "description": "Messaggio breve"
+  },
+  "telaPagina": "Pagina {pagina} di {totale}",
+  "@telaPagina": {
+    "description": "Valore della tela per i lettori di schermo",
+    "placeholders": {
+      "pagina": {
+        "type": "int",
+        "example": "2"
+      },
+      "totale": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "telaFoto": "Foto {n}",
+  "@telaFoto": {
+    "description": "Elemento della tela, per i lettori di schermo",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "telaVideo": "Video {n}",
+  "@telaVideo": {
+    "description": "Elemento della tela, per i lettori di schermo",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "telaTesto": "Testo: {testo}",
+  "@telaTesto": {
+    "description": "Elemento della tela, per i lettori di schermo",
+    "placeholders": {
+      "testo": {
+        "type": "String",
+        "example": "Ciao"
+      }
+    }
+  },
+  "telaForma": "Forma {n}",
+  "@telaForma": {
+    "description": "Elemento della tela, per i lettori di schermo",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "telaBloccato": "{nome}, bloccato",
+  "@telaBloccato": {
+    "description": "Elemento bloccato, per i lettori di schermo",
+    "placeholders": {
+      "nome": {
+        "type": "String"
+      }
+    }
+  },
+  "telaApriMenu": "Azioni",
+  "@telaApriMenu": {
+    "description": "Azione personalizzata di un elemento: apre il menu"
+  },
+  "espPagineScelte": "{n} di {tot} pagine",
+  "@espPagineScelte": {
+    "description": "Foglio Esporta: quante pagine sono scelte",
+    "placeholders": {
+      "n": {"type": "int", "example": "3"},
+      "tot": {"type": "int", "example": "5"}
+    }
+  },
+  "tutteLeOpzioni": "Tutte le opzioni",
+  "@tutteLeOpzioni": {
+    "description": "‹ nel dettaglio di un parametro: torna alla griglia di tutte le schede dello strumento"
+  },
+  "sfDirezione": "Direzione",
+  "@sfDirezione": {
+    "description": "Scheda dello Sfondo a sfumatura: la direzione"
+  },
+  "catAspetto": "Aspetto",
+  "@catAspetto": {
+    "description": "Categoria della barra di una foto: Cornice e Ombra"
+  },
+  "catAltro": "Altro",
+  "@catAltro": {
+    "description": "Categoria della barra: copia stile, duplica, elimina…"
+  },
+  "catGruppo": "Gruppo",
+  "@catGruppo": {
+    "description": "Categoria della barra con più elementi: raggruppa, separa, scambia, blocca"
+  },
+  "catVideo": "Video",
+  "@catVideo": {
+    "description": "Categoria della barra di un video: riproduci, taglia, copertina, audio"
+  },
+  "formatiPiuUsati": "I più usati",
+  "@formatiPiuUsati": {
+    "description": "Nuovo progetto: titolo della sezione dei formati di Instagram, in cima"
+  },
+  "formatiPiuUsatiDesc": "I formati di Instagram per post, storie e reel",
+  "@formatiPiuUsatiDesc": {
+    "description": "Nuovo progetto: riga sotto «I più usati»"
+  },
+  "formatiAltri": "Altri formati",
+  "@formatiAltri": {
+    "description": "Nuovo progetto: titolo della sezione con gli altri formati"
+  },
+  "usoFormato45": "Post nel feed",
+  "@usoFormato45": {
+    "description": "Uso del formato 4:5"
+  },
+  "usoFormato916": "Storie e Reel",
+  "@usoFormato916": {
+    "description": "Uso del formato 9:16"
+  },
+  "usoFormato34": "Griglia del profilo",
+  "@usoFormato34": {
+    "description": "Uso del formato 3:4"
+  },
+  "vistaCentra": "Centra la pagina",
+  "@vistaCentra": {
+    "description": "Pulsante sulla tela e nell'Anteprima: toglie lo zoom e rimette la pagina al centro"
+  },
+  "pesoProgetto": "Occupa {peso} sul telefono",
+  "@pesoProgetto": {
+    "description": "Foglio delle azioni di un progetto (Home): spazio occupato dalla cartella del progetto",
+    "placeholders": {
+      "peso": {
+        "type": "String",
+        "example": "12,3 MB"
+      }
+    }
+  },
+  "pesoCalcolo": "Calcolo dello spazio…",
+  "@pesoCalcolo": {
+    "description": "Foglio delle azioni di un progetto: mentre si calcola lo spazio occupato"
+  },
+  "pesoNota": "Le foto della galleria non sono contate: restano nella galleria, il progetto le collega.",
+  "@pesoNota": {
+    "description": "Foglio delle azioni di un progetto: sotto lo spazio occupato"
   }
 }

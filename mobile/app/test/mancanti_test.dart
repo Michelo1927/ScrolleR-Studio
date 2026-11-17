@@ -418,10 +418,10 @@ void main() {
       final due = stato().snapshot.items.firstWhere((p) => p.asset!.id == '2');
       ctrl.seleziona([(tipo: ElementKind.photo, uid: uno.uid)]);
       await t.pumpAndSettle();
-      expect(find.byKey(const ValueKey('voce-ricollega')), findsNothing);
+      expect(find.byKey(const ValueKey('cat-ricollega')), findsNothing);
       ctrl.seleziona([(tipo: ElementKind.photo, uid: due.uid)]);
       await t.pumpAndSettle();
-      expect(find.byKey(const ValueKey('voce-ricollega')), findsOneWidget);
+      expect(find.byKey(const ValueKey('cat-ricollega')), findsOneWidget);
     });
 
     testWidgets(

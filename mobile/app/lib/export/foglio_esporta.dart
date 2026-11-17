@@ -37,6 +37,7 @@ Future<void> apriEsportazione(BuildContext context, {int? pagina}) {
   final contenitore = ProviderScope.containerOf(context);
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: MotoScrl.foglio(context),
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: ColoriScrl.pannello,
@@ -313,9 +314,11 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
       final sessione = _s;
       final testi = testiDisegno(context);
       final navigator = Navigator.of(context);
+      final foglio = ModalRoute.of(context);
       final consegna = ref.read(consegnaProvider);
       final cartellaTemp = await ref.read(cartellaTemporaneaProvider)();
-      if (!mounted) return;
+      // Il foglio può essere già stato chiuso (gesto «indietro» durante l'attesa): il `pop` chiuderebbe l'editor
+      if (!mounted || !(foglio?.isCurrent ?? false)) return;
       // Il nome dei file vale per il progetto: si salva con lui, come `_set_export_name`
       ctrl.impostaNomeEsportazione(_nome.text);
       unawaited(ref.read(preferenzeProvider).salvaEsportazione(_opz));
@@ -365,174 +368,212 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
     );
     final puoEsportare = collage || pagine.isNotEmpty;
     final stile = Theme.of(context).textTheme;
+    final pronto = puoEsportare && !_occupato;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              height: MisureScrl.tocco,
-              child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Intestazione fissa: titolo e chiusura
+          SizedBox(
+            height: MisureScrl.tocco + 4,
+            child: Row(
+              children: [
+                const SizedBox(width: MisureScrl.spazio),
+                Expanded(child: Text(t.esporta, style: stile.titleMedium)),
+                PulsanteIcona(
+                  icona: Icons.close_rounded,
+                  etichetta: t.chiudi,
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          // Il resto scorre; i pulsanti di destinazione restano sempre in vista in fondo
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MisureScrl.spazio,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(width: MisureScrl.spazio),
-                  Expanded(child: Text(t.esporta, style: stile.titleMedium)),
-                  if (_modo == ModoEsportazione.pagine) ...[
-                    // Center: senza, la pillola si allunga fino all'altezza della riga
-                    Center(
-                      child: ChipParametro(
-                        key: const ValueKey('esporta-tutte'),
-                        etichetta: t.espTutte,
-                        attivo: _scelte.length == c.numFrames,
-                        onTap: () => setState(
-                          () => _scelte = {
-                            for (var i = 0; i < c.numFrames; i++) i,
-                          },
-                        ),
+                  ControlloSegmentato<ModoEsportazione>(
+                    voci: [
+                      VoceSegmento(
+                        valore: ModoEsportazione.pagine,
+                        etichetta: t.espPagineSeparate,
+                        chiave: const ValueKey('esporta-modo-pagine'),
                       ),
-                    ),
-                    const SizedBox(width: MisureScrl.spazioPiccolo),
-                    Center(
-                      child: ChipParametro(
-                        key: const ValueKey('esporta-nessuna'),
-                        etichetta: t.espNessuna,
-                        attivo: _scelte.isEmpty,
-                        onTap: () => setState(() => _scelte = {}),
+                      VoceSegmento(
+                        valore: ModoEsportazione.questa,
+                        etichetta: t.espQuestaPagina,
+                        chiave: const ValueKey('esporta-modo-questa'),
                       ),
-                    ),
-                  ],
-                  PulsanteIcona(
-                    icona: Icons.close_rounded,
-                    etichetta: t.chiudi,
-                    onTap: () => Navigator.of(context).pop(),
+                      VoceSegmento(
+                        valore: ModoEsportazione.collage,
+                        etichetta: t.espCollage,
+                        chiave: const ValueKey('esporta-modo-collage'),
+                      ),
+                    ],
+                    scelto: _modo,
+                    onScelto: (v) => setState(() => _modo = v),
                   ),
+                  if (_modo != ModoEsportazione.collage) ...[
+                    const SizedBox(height: MisureScrl.spazio),
+                    _miniature(c, t),
+                  ],
+                  const SizedBox(height: MisureScrl.spazio),
+                  // Le opzioni stanno in un'unica scheda, ognuna con il nome sopra
+                  Container(
+                    padding: const EdgeInsets.all(MisureScrl.spazio),
+                    decoration: BoxDecoration(
+                      color: ColoriScrl.rilievo,
+                      borderRadius: BorderRadius.circular(
+                        MisureScrl.angoloTessera,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _gruppo(
+                          t.espFormato,
+                          ControlloSegmentato<bool>(
+                            voci: [
+                              VoceSegmento(
+                                valore: false,
+                                etichetta: t.espFormatoPng,
+                                chiave: const ValueKey('esporta-png'),
+                              ),
+                              VoceSegmento(
+                                valore: true,
+                                etichetta: t.espFormatoJpg,
+                                chiave: const ValueKey('esporta-jpg'),
+                              ),
+                            ],
+                            scelto: jpg,
+                            onScelto: (v) => _imposta(
+                              _opz.copia(
+                                formato: v
+                                    ? FormatoImmagine.jpg
+                                    : FormatoImmagine.png,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // La qualità conta solo per il JPG (il PNG non ha perdite)
+                        if (jpg)
+                          _gruppo(
+                            t.espQualita,
+                            ControlloSegmentato<int>(
+                              voci: [
+                                for (final q in qualitaJpg)
+                                  VoceSegmento(
+                                    valore: q,
+                                    etichetta: '$q',
+                                    chiave: ValueKey('esporta-q$q'),
+                                  ),
+                              ],
+                              scelto: _opz.qualita,
+                              onScelto: (q) => _imposta(_opz.copia(qualita: q)),
+                            ),
+                          ),
+                        _gruppo(
+                          t.espScala,
+                          ControlloSegmentato<int>(
+                            voci: [
+                              for (final s in scaleEsportazione)
+                                VoceSegmento(
+                                  valore: s,
+                                  etichetta: s == 1 ? t.espScala1 : t.espScala2,
+                                  chiave: ValueKey('esporta-x$s'),
+                                ),
+                            ],
+                            scelto: _opz.scala,
+                            onScelto: (s) => _imposta(_opz.copia(scala: s)),
+                          ),
+                        ),
+                        _gruppo(
+                          t.espNomeFile,
+                          TextField(
+                            key: const ValueKey('esporta-nome'),
+                            controller: _nome,
+                            onChanged: (_) => setState(() {}),
+                            maxLength: 80,
+                            decoration: InputDecoration(
+                              hintText: t.espNomeSuggerimento,
+                              counterText: '',
+                              isDense: true,
+                              filled: true,
+                              fillColor: ColoriScrl.barra,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(
+                                  MisureScrl.angoloTessera,
+                                ),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                          ultimo: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: MisureScrl.spazioPiccolo),
+                  Text(
+                    [
+                      if (!puoEsportare)
+                        t.espNessunaPagina
+                      else ...[
+                        t.espEsempioNome(primo),
+                        collage
+                            ? t.espMisureCollage(m.collageW, m.collageH)
+                            : t.espMisure(m.paginaW, m.paginaH),
+                      ],
+                    ].join('  ·  '),
+                    key: const ValueKey('esporta-info'),
+                    style: stile.bodySmall,
+                  ),
+                  if (conVideo)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        top: MisureScrl.spazioPiccolo,
+                      ),
+                      child: Text(
+                        collage
+                            ? t.espVideoCollage
+                            : _mp4 == false
+                            ? t.espVideoNonDisponibile
+                            : t.espVideoMp4(mp4.w, mp4.h, RegoleVideo.fps),
+                        key: const ValueKey('esporta-nota-video'),
+                        style: stile.bodySmall,
+                      ),
+                    ),
+                  const SizedBox(height: MisureScrl.spazio),
                 ],
               ),
             ),
-            _riga([
-              _modoChip(t.espPagineSeparate, ModoEsportazione.pagine),
-              _modoChip(t.espQuestaPagina, ModoEsportazione.questa),
-              _modoChip(t.espCollage, ModoEsportazione.collage),
-            ]),
-            const SizedBox(height: MisureScrl.spazioPiccolo),
-            if (_modo != ModoEsportazione.collage)
-              _miniature(c, t)
-            else
-              const SizedBox.shrink(),
-            const SizedBox(height: MisureScrl.spazioPiccolo),
-            _riga([
-              _etichetta(t.espFormato),
-              _chip(
-                'esporta-png',
-                t.espFormatoPng,
-                !jpg,
-                () => _imposta(_opz.copia(formato: FormatoImmagine.png)),
-              ),
-              _chip(
-                'esporta-jpg',
-                t.espFormatoJpg,
-                jpg,
-                () => _imposta(_opz.copia(formato: FormatoImmagine.jpg)),
-              ),
-            ]),
-            // La qualità conta solo per il JPG (il PNG non ha perdite)
-            if (jpg)
-              _riga([
-                _etichetta(t.espQualita),
-                for (final q in qualitaJpg)
-                  _chip(
-                    'esporta-q$q',
-                    '$q',
-                    _opz.qualita == q,
-                    () => _imposta(_opz.copia(qualita: q)),
-                  ),
-              ]),
-            _riga([
-              _etichetta(t.espScala),
-              for (final s in scaleEsportazione)
-                _chip(
-                  'esporta-x$s',
-                  s == 1 ? t.espScala1 : t.espScala2,
-                  _opz.scala == s,
-                  () => _imposta(_opz.copia(scala: s)),
-                ),
-            ]),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                MisureScrl.spazio,
-                MisureScrl.spazioPiccolo,
-                MisureScrl.spazio,
-                0,
-              ),
-              child: TextField(
-                key: const ValueKey('esporta-nome'),
-                controller: _nome,
-                onChanged: (_) => setState(() {}),
-                maxLength: 80,
-                decoration: InputDecoration(
-                  labelText: t.espNomeFile,
-                  hintText: t.espNomeSuggerimento,
-                  counterText: '',
-                  isDense: true,
-                ),
-              ),
+          ),
+          // Destinazione: Galleria (la scelta principale) a tutta larghezza; sotto le altre due, affiancate: così i
+          // nomi non vanno a capo nemmeno con il testo ingrandito
+          DecoratedBox(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: ColoriScrl.separatore)),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                MisureScrl.spazio,
-                MisureScrl.spazioPiccolo,
-                MisureScrl.spazio,
-                0,
-              ),
-              child: Text(
-                [
-                  if (!puoEsportare)
-                    t.espNessunaPagina
-                  else ...[
-                    t.espEsempioNome(primo),
-                    collage
-                        ? t.espMisureCollage(m.collageW, m.collageH)
-                        : t.espMisure(m.paginaW, m.paginaH),
-                  ],
-                ].join('  ·  '),
-                key: const ValueKey('esporta-info'),
-                style: stile.bodySmall,
-              ),
-            ),
-            if (conVideo)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  MisureScrl.spazio,
-                  MisureScrl.spazioPiccolo,
-                  MisureScrl.spazio,
-                  0,
-                ),
-                child: Text(
-                  collage
-                      ? t.espVideoCollage
-                      : _mp4 == false
-                      ? t.espVideoNonDisponibile
-                      : t.espVideoMp4(mp4.w, mp4.h, RegoleVideo.fps),
-                  key: const ValueKey('esporta-nota-video'),
-                  style: stile.bodySmall,
-                ),
-              ),
-            Padding(
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 MisureScrl.spazio,
                 MisureScrl.spazio,
                 MisureScrl.spazio,
                 MisureScrl.spazio,
               ),
-              // Galleria (la scelta principale) a tutta larghezza; sotto le altre due, affiancate: così i nomi
-              // non vanno a capo nemmeno con il testo ingrandito
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   FilledButton.icon(
                     key: const ValueKey('esporta-galleria'),
-                    onPressed: puoEsportare && !_occupato
+                    onPressed: pronto
                         ? () => unawaited(_esporta(Destinazione.galleria))
                         : null,
                     icon: const Icon(Icons.photo_library_outlined),
@@ -548,7 +589,7 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
                       Expanded(
                         child: OutlinedButton.icon(
                           key: const ValueKey('esporta-condividi'),
-                          onPressed: puoEsportare && !_occupato
+                          onPressed: pronto
                               ? () =>
                                     unawaited(_esporta(Destinazione.condividi))
                               : null,
@@ -564,7 +605,7 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
                       Expanded(
                         child: OutlinedButton.icon(
                           key: const ValueKey('esporta-file'),
-                          onPressed: puoEsportare && !_occupato
+                          onPressed: pronto
                               ? () => unawaited(_esporta(Destinazione.file))
                               : null,
                           icon: const Icon(Icons.folder_open_rounded),
@@ -580,82 +621,120 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  /// Riga che scorre solo in orizzontale (come i parametri degli strumenti).
-  Widget _riga(List<Widget> figli) => SizedBox(
-    height: 44,
-    child: ListView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-      children: figli,
-    ),
-  );
-
-  Widget _etichetta(String testo) => Padding(
-    padding: const EdgeInsets.only(right: MisureScrl.spazioPiccolo),
-    child: Center(
-      child: Text(testo, style: Theme.of(context).textTheme.bodySmall),
-    ),
-  );
-
-  Widget _chip(String chiave, String testo, bool attivo, VoidCallback onTap) =>
+  /// Un'opzione della scheda: il nome piccolo sopra, il controllo sotto.
+  Widget _gruppo(String nome, Widget controllo, {bool ultimo = false}) =>
       Padding(
-        padding: const EdgeInsets.only(right: MisureScrl.spazioPiccolo),
-        child: Center(
-          child: ChipParametro(
-            key: ValueKey(chiave),
-            etichetta: testo,
-            attivo: attivo,
-            onTap: onTap,
-          ),
+        padding: EdgeInsets.only(bottom: ultimo ? 0 : MisureScrl.spazio),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 4,
+                bottom: MisureScrl.spazioPiccolo,
+              ),
+              child: Text(
+                nome,
+                style: const TextStyle(
+                  fontSize: TestoScrl.piccolo,
+                  fontWeight: TestoScrl.marcato,
+                  color: ColoriScrl.testoSecondario,
+                ),
+              ),
+            ),
+            controllo,
+          ],
         ),
       );
 
-  Widget _modoChip(String testo, ModoEsportazione modo) => _chip(
-    'esporta-modo-${modo.name}',
-    testo,
-    _modo == modo,
-    () => setState(() => _modo = modo),
-  );
-
   /// Miniature delle pagine: nelle pagine separate si toccano per sceglierle; in «Questa pagina» se ne vede una.
   Widget _miniature(CanvasState c, Testi t) {
-    const altezza = 96.0;
+    const altezza = 104.0;
     final larghezza = (altezza * c.frameW / c.frameH).clamp(44.0, 140.0);
     final elenco = _modo == ModoEsportazione.questa
         ? [_pagina]
         : List.generate(c.numFrames, (i) => i);
-    return SizedBox(
-      height: altezza + 8,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-        children: [
-          for (final k in elenco)
-            Padding(
-              padding: const EdgeInsets.only(right: MisureScrl.spazioPiccolo),
-              child: _Miniatura(
-                key: ValueKey('esporta-pagina-$k'),
-                pagina: k,
-                larghezza: larghezza,
-                altezza: altezza,
-                snapshot: _documento,
-                risorse: _s.risorse,
-                scelta: _modo == ModoEsportazione.questa || _scelte.contains(k),
-                onTap: _modo == ModoEsportazione.questa
-                    ? null
-                    : () => setState(() {
-                        if (!_scelte.remove(k)) _scelte.add(k);
-                      }),
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_modo == ModoEsportazione.pagine)
+          SizedBox(
+            height: 36,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      t.espPagineScelte(_scelte.length, c.numFrames),
+                      style: const TextStyle(
+                        fontSize: TestoScrl.piccolo,
+                        fontWeight: TestoScrl.marcato,
+                        color: ColoriScrl.testoSecondario,
+                      ),
+                    ),
+                  ),
+                ),
+                TextButton(
+                  key: const ValueKey('esporta-tutte'),
+                  onPressed: _scelte.length == c.numFrames
+                      ? null
+                      : () => setState(
+                          () => _scelte = {
+                            for (var i = 0; i < c.numFrames; i++) i,
+                          },
+                        ),
+                  child: Text(t.espTutte),
+                ),
+                TextButton(
+                  key: const ValueKey('esporta-nessuna'),
+                  onPressed: _scelte.isEmpty
+                      ? null
+                      : () => setState(() => _scelte = {}),
+                  child: Text(t.espNessuna),
+                ),
+              ],
             ),
-        ],
-      ),
+          ),
+        SizedBox(
+          height: altezza + 8,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            children: [
+              for (final k in elenco)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    right: MisureScrl.spazioPiccolo,
+                    top: 4,
+                    bottom: 4,
+                  ),
+                  child: _Miniatura(
+                    key: ValueKey('esporta-pagina-$k'),
+                    pagina: k,
+                    larghezza: larghezza,
+                    altezza: altezza,
+                    snapshot: _documento,
+                    risorse: _s.risorse,
+                    scelta:
+                        _modo == ModoEsportazione.questa || _scelte.contains(k),
+                    onTap: _modo == ModoEsportazione.questa
+                        ? null
+                        : () => setState(() {
+                            if (!_scelte.remove(k)) _scelte.add(k);
+                          }),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -701,11 +780,15 @@ class _Miniatura extends StatelessWidget {
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      MisureScrl.angoloTessera,
+                    ),
                     border: Border.all(
                       color: scelta ? ColoriScrl.accento : ColoriScrl.bordo,
                       width: scelta ? 3 : 1,
                     ),
                   ),
+                  clipBehavior: Clip.antiAlias,
                   child: ClipRect(
                     child: Opacity(
                       opacity: scelta ? 1 : 0.5,
@@ -733,7 +816,7 @@ class _Miniatura extends StatelessWidget {
                 bottom: 4,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: scelta ? ColoriScrl.accento : ColoriScrl.barra,
+                    color: scelta ? ColoriScrl.accentoPieno : ColoriScrl.barra,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Padding(

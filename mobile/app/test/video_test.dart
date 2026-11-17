@@ -12,6 +12,7 @@ import 'package:scrollr_studio/editor/editor_page.dart';
 import 'package:scrollr_studio/editor/sessione.dart';
 import 'package:scrollr_studio/editor/stato.dart';
 import 'package:scrollr_studio/editor/tela.dart';
+import 'package:scrollr_studio/editor/widget_comuni.dart';
 import 'package:scrollr_studio/export/consegna.dart';
 import 'package:scrollr_studio/export/esporta_immagini.dart';
 import 'package:scrollr_studio/export/preferenze.dart';
@@ -24,6 +25,8 @@ import 'package:scrollr_studio/project/archivio.dart';
 import 'package:scrollr_studio/render/disegno.dart';
 import 'package:scrollr_studio/render/risorse_pagina.dart';
 import 'package:scrollr_studio/theme/tema.dart';
+
+import 'aiuto_barra.dart';
 
 const _info = InfoVideo(
   larghezza: 64,
@@ -279,15 +282,18 @@ void main() {
       final ctrl = c.read(editorProvider.notifier);
       ctrl.seleziona([(tipo: ElementKind.photo, uid: 1)]);
       await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('cat-video')));
+      await tester.pump();
       for (final k in ['riproduci', 'taglia', 'copertina', 'audio']) {
         expect(find.byKey(ValueKey('voce-$k')), findsOneWidget, reason: k);
       }
-      expect(find.text('Filtri'), findsNothing);
-      expect(find.text('Regola'), findsNothing);
+      final voci = await vociBarra(tester);
+      expect(voci, isNot(contains('Filtri')));
+      expect(voci, isNot(contains('Regola')));
       // La foto da sola non ha gli strumenti Video
       ctrl.seleziona([(tipo: ElementKind.photo, uid: 2)]);
       await tester.pump();
-      expect(find.byKey(const ValueKey('voce-taglia')), findsNothing);
+      expect(find.byKey(const ValueKey('cat-video')), findsNothing);
     });
 
     testWidgets('Audio: un tocco = un passo, con il nome giusto', (
@@ -298,6 +304,8 @@ void main() {
       ctrl.seleziona([(tipo: ElementKind.photo, uid: 1)]);
       await tester.pump();
       final passi = c.read(editorProvider).cronologia.states.length;
+      await tester.tap(find.byKey(const ValueKey('cat-video')));
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('voce-audio')));
       await tester.pump();
       final st = c.read(editorProvider);
@@ -313,13 +321,24 @@ void main() {
       final ctrl = c.read(editorProvider.notifier);
       ctrl.seleziona([(tipo: ElementKind.photo, uid: 1)]);
       await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('cat-video')));
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('voce-taglia')));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 50)),
       );
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('video-inizio')), findsOneWidget);
-      expect(find.text('Fine  0:10'), findsOneWidget); // Fine = durata
+      // Fine = durata: la scheda Fine mostra il cursore a fondo
+      await tester.tap(find.byKey(const ValueKey('video-fine')));
+      await tester.pump();
+      expect(
+        find.descendant(
+          of: find.byType(CursoreGrande),
+          matching: find.textContaining('0:10'),
+        ),
+        findsOneWidget,
+      );
       expect(find.textContaining('Durata 0:10'), findsOneWidget);
       final passi = c.read(editorProvider).cronologia.states.length;
       ctrl.modificaVideoSelezionati((p, d) => conInizio(p, 2.5, d));
@@ -348,6 +367,8 @@ void main() {
       ctrl.alternaRiproduzione();
       expect(c.read(editorProvider).videoInRiproduzione, {1});
       await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('cat-video')));
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('voce-copertina')));
       await tester.pumpAndSettle();
       expect(c.read(editorProvider).videoInRiproduzione, isEmpty);
@@ -365,6 +386,8 @@ void main() {
       final c = await apri(tester);
       final ctrl = c.read(editorProvider.notifier);
       ctrl.seleziona([(tipo: ElementKind.photo, uid: 1)]);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('cat-video')));
       await tester.pump();
       await tester.tap(find.byKey(const ValueKey('voce-riproduci')));
       await tester.pump();

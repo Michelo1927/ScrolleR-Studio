@@ -53,9 +53,23 @@ class _PaginaAnteprimaState extends ConsumerState<PaginaAnteprima> {
   SessioneEditor get _s => ref.read(sessioneProvider);
   late final RiproduzioneVideo _riproduzione;
 
+  /// Zoom col pizzico della pagina in vista. Ingrandita, un dito la sposta invece di cambiare pagina.
+  final TransformationController _trasforma = TransformationController();
+  bool _ingrandita = false;
+
+  /// Dita sullo schermo: con due il pizzico vince sullo scorrimento tra le pagine.
+  int _dita = 0;
+
+  void _contaDita(int delta) {
+    final prima = _dita >= 2;
+    _dita = (_dita + delta).clamp(0, 10);
+    if ((_dita >= 2) != prima) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
+    _trasforma.addListener(_alloZoom);
     final s = _s;
     _riproduzione = RiproduzioneVideo(
       risorse: s.risorse,
@@ -79,16 +93,30 @@ class _PaginaAnteprimaState extends ConsumerState<PaginaAnteprima> {
     _riproduzione.chiudi();
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     _controllo.dispose();
+    _trasforma.dispose();
     super.dispose();
   }
 
-  /// Prepara la pagina corrente e le vicine, alla risoluzione dello schermo.
+  void _alloZoom() {
+    final ingrandita = _trasforma.value.getMaxScaleOnAxis() > 1.01;
+    if (ingrandita != _ingrandita) setState(() => _ingrandita = ingrandita);
+  }
+
+  /// Rimette la pagina intera, senza zoom.
+  void _centra() {
+    _trasforma.value = Matrix4.identity();
+    _prepara();
+  }
+
+  /// Prepara la pagina corrente e le vicine, alla risoluzione dello schermo (e dello zoom).
   void _prepara() {
     if (!mounted) return;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final c = _documento.canvas;
+    final zoom = _trasforma.value.getMaxScaleOnAxis();
     final scala =
-        (MediaQuery.sizeOf(context).width / c.frameW).clamp(0.05, 4.0) * dpr;
+        (MediaQuery.sizeOf(context).width * zoom / c.frameW).clamp(0.05, 4.0) *
+        dpr;
     for (var i = _corrente - 1; i <= _corrente + 1; i++) {
       if (i < 0 || i >= c.numFrames) continue;
       unawaited(_s.risorse.prepara(_documento, i, pixelPerUnita: scala));
@@ -108,31 +136,49 @@ class _PaginaAnteprimaState extends ConsumerState<PaginaAnteprima> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          PageView.builder(
-            key: const ValueKey('anteprima-pagine'),
-            controller: _controllo,
-            itemCount: c.numFrames,
-            onPageChanged: (i) {
-              setState(() => _corrente = i);
-              _prepara();
-            },
-            itemBuilder: (context, i) => Semantics(
-              label: t.etichettaPagina(i + 1),
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: c.frameW / c.frameH,
-                  child: LayoutBuilder(
-                    builder: (context, vincoli) => AnimatedBuilder(
-                      animation: _s.risorse,
-                      builder: (context, _) => CustomPaint(
-                        key: ValueKey('anteprima-$i'),
-                        painter: _PitturaAnteprima(
-                          _documento,
-                          i,
-                          _s.risorse,
-                          testi,
-                          _s.risorse.versione,
-                          vincoli.maxWidth / c.frameW,
+          Listener(
+            onPointerDown: (_) => _contaDita(1),
+            onPointerUp: (_) => _contaDita(-1),
+            onPointerCancel: (_) => _contaDita(-1),
+            child: PageView.builder(
+              key: const ValueKey('anteprima-pagine'),
+              controller: _controllo,
+              itemCount: c.numFrames,
+              // Con la pagina ingrandita le dita la spostano: si cambia pagina dopo averla rimessa intera
+              physics: _ingrandita || _dita >= 2
+                  ? const NeverScrollableScrollPhysics()
+                  : null,
+              onPageChanged: (i) {
+                _trasforma.value = Matrix4.identity();
+                setState(() => _corrente = i);
+                _prepara();
+              },
+              itemBuilder: (context, i) => Semantics(
+                label: t.etichettaPagina(i + 1),
+                child: InteractiveViewer(
+                  key: ValueKey('anteprima-zoom-$i'),
+                  transformationController: i == _corrente ? _trasforma : null,
+                  minScale: 1,
+                  maxScale: 6,
+                  panEnabled: i == _corrente && _ingrandita,
+                  onInteractionEnd: (_) => _prepara(),
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: c.frameW / c.frameH,
+                      child: LayoutBuilder(
+                        builder: (context, vincoli) => AnimatedBuilder(
+                          animation: _s.risorse,
+                          builder: (context, _) => CustomPaint(
+                            key: ValueKey('anteprima-$i'),
+                            painter: _PitturaAnteprima(
+                              _documento,
+                              i,
+                              _s.risorse,
+                              testi,
+                              _s.risorse.versione,
+                              vincoli.maxWidth / c.frameW,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -141,6 +187,26 @@ class _PaginaAnteprimaState extends ConsumerState<PaginaAnteprima> {
               ),
             ),
           ),
+          if (_ingrandita)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(MisureScrl.spazioPiccolo),
+                  child: Material(
+                    color: ColoriScrl.veloEtichetta,
+                    shape: const CircleBorder(),
+                    child: PulsanteIcona(
+                      key: const ValueKey('anteprima-centra'),
+                      icona: Icons.fit_screen_rounded,
+                      etichetta: t.vistaCentra,
+                      onTap: _centra,
+                      colore: ColoriScrl.suAccento,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,

@@ -6,17 +6,15 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
 import '../export/foglio_esporta.dart';
 import '../l10n/app_localizations.dart';
-import '../media/cache_media.dart' show chiaveMedia;
 import '../theme/tokens.dart';
+import 'barra_selezione.dart';
+import 'indietro.dart';
 import 'mancanti_ui.dart';
-import 'menu_pressione_lunga.dart';
 import 'pagina_anteprima.dart';
 import 'pagina_panoramica.dart';
-import 'pagina_ritaglio.dart';
 import 'pannelli_forma.dart';
 import 'pannelli_foto.dart';
 import 'pannelli_testo.dart';
@@ -30,6 +28,7 @@ import 'pannello_pagine.dart';
 import 'pannello_stile.dart';
 import 'sessione.dart';
 import 'stato.dart';
+import 'suggerimenti.dart';
 import 'tela.dart';
 import 'testi_avvisi.dart';
 import 'widget_comuni.dart';
@@ -99,14 +98,31 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
   @override
   void didHaveMemoryPressure() => ref.read(sessioneProvider).memoriaScarsa();
 
+  /// Uscita in corso: si sta salvando prima di tornare alla Home.
+  bool _uscendo = false;
+
+  /// Salva e torna alla Home. Una volta sola: altri «indietro» mentre si salva (freccia, gesto di sistema) non
+  /// fanno niente; prima ognuno chiudeva una schermata, e quello in più chiudeva la Home lasciando lo schermo nero.
   Future<void> _esci() async {
+    if (_uscendo) return;
+    _uscendo = true;
     await _ctrl.salvaOra(attendiMiniatura: true);
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    final rotta = ModalRoute.of(context);
+    // Si chiude solo la schermata dell'editor, se c'è ancora (e quello che le si è aperto sopra nel frattempo)
+    if (rotta == null || !rotta.isActive) return;
+    Navigator.of(context)
+      ..popUntil((r) => r == rotta)
+      ..pop();
   }
 
-  /// Gesto «indietro» di sistema: chiude lo strumento (scartando), poi toglie la selezione, poi esce.
+  /// Gesto «indietro» di sistema: torna su da un sottomenu, poi chiude lo strumento (scartando; dentro un menu si torna
+  /// al menu), poi toglie la selezione, poi esce.
   void _indietro() {
+    if (_uscendo) return;
     final s = ref.read(editorProvider);
+    // Un sottomenu aperto (dettaglio di un parametro, selettore completo, categoria della barra) torna su di un livello
+    if (ref.read(pilaIndietroProvider).indietro()) return;
     if (s.strumento != Strumento.nessuno) {
       _ctrl.chiudiStrumentoDaGesto();
     } else if (s.selezione.isNotEmpty || s.selezionePiu) {
@@ -167,6 +183,8 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
         body: const Stack(
           children: [
             Positioned.fill(child: TelaEditor()),
+            // Primo avvio: al massimo tre suggerimenti, una volta sola (non bloccano mai la tela)
+            Positioned.fill(child: SuggerimentiEditor()),
             // Segno «N foto mancanti», in alto a sinistra
             Positioned(
               top: MisureScrl.spazioPiccolo,
@@ -208,42 +226,125 @@ class _BarraSuperiore extends ConsumerWidget {
             etichetta: t.indietro,
             onTap: onIndietro,
           ),
-          PulsanteIcona(
-            icona: Icons.undo_rounded,
-            etichetta: t.annulla,
-            onTap: stato.puoAnnullare ? ctrl.annulla : null,
-            // Pressione lunga su Annulla = Cronologia
-            onLongPress: () => unawaited(mostraCronologia(context)),
+          // Annulla e Ripeti al centro, vicini: sono i comandi che si usano di continuo
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                PulsanteIcona(
+                  icona: Icons.undo_rounded,
+                  etichetta: t.annulla,
+                  onTap: stato.puoAnnullare ? ctrl.annulla : null,
+                  // Pressione lunga su Annulla = Cronologia
+                  onLongPress: () => unawaited(mostraCronologia(context)),
+                ),
+                PulsanteIcona(
+                  icona: Icons.redo_rounded,
+                  etichetta: t.ripeti,
+                  onTap: stato.puoRipetere ? ctrl.ripeti : null,
+                ),
+              ],
+            ),
           ),
-          PulsanteIcona(
-            icona: Icons.redo_rounded,
-            etichetta: t.ripeti,
-            onTap: stato.puoRipetere ? ctrl.ripeti : null,
-          ),
-          const Spacer(),
           PulsanteIcona(
             icona: Icons.play_arrow_rounded,
             etichetta: t.anteprima,
             onTap: () => unawaited(apriAnteprima(context)),
           ),
-          PulsanteIcona(
-            icona: Icons.ios_share_rounded,
+          // Esporta è l'azione che chiude il lavoro: una pillola piena, l'unico elemento colorato della barra
+          _PillolaEsporta(
             etichetta: t.esporta,
+            // Schermo stretto o testo molto grande: solo l'icona, il nome resta per i lettori di schermo
+            compatta:
+                MediaQuery.sizeOf(context).width <
+                340 +
+                    160 * (MediaQuery.textScalerOf(context).scale(14) / 14 - 1),
             onTap: () => unawaited(apriEsportazione(context)),
           ),
+          const SizedBox(width: MisureScrl.spazioPiccolo),
         ],
       ),
     );
   }
 }
 
+class _PillolaEsporta extends StatelessWidget {
+  const _PillolaEsporta({
+    required this.etichetta,
+    required this.onTap,
+    this.compatta = false,
+  });
+
+  final String etichetta;
+  final VoidCallback onTap;
+  final bool compatta;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: etichetta,
+    excludeSemantics: true,
+    child: Material(
+      color: ColoriScrl.accentoPieno,
+      shape: const StadiumBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: const ValueKey('barra-esporta'),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 36),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: compatta ? 9 : 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.ios_share_rounded,
+                  size: 18,
+                  color: ColoriScrl.suAccento,
+                ),
+                if (!compatta) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    etichetta,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: TestoScrl.normale,
+                      fontWeight: TestoScrl.marcato,
+                      color: ColoriScrl.suAccento,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// Striscia pagine e, sotto, la barra inferiore o il pannello dello strumento aperto. Il passaggio si anima
 /// e la pagina nella tela si ridimensiona insieme.
-class _ZonaInferiore extends ConsumerWidget {
+class _ZonaInferiore extends ConsumerStatefulWidget {
   const _ZonaInferiore();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ZonaInferiore> createState() => _ZonaInferioreState();
+}
+
+class _ZonaInferioreState extends ConsumerState<_ZonaInferiore> {
+  /// Categoria aperta della barra di selezione: resta mentre uno strumento è aperto, così ✓ e ✕ ci riportano.
+  String? _categoria;
+
+  @override
+  Widget build(BuildContext context) {
+    // Cambia il tipo di cosa è selezionata (o non c'è più niente): si riparte dalle categorie
+    ref.listen(editorProvider.select(tipoSelezione), (prima, dopo) {
+      if (prima != dopo && _categoria != null) {
+        setState(() => _categoria = null);
+      }
+    });
     final strumento = ref.watch(editorProvider.select((s) => s.strumento));
     final haSelezione = ref.watch(
       editorProvider.select((s) => s.selezione.isNotEmpty || s.selezionePiu),
@@ -336,12 +437,14 @@ class _ZonaInferiore extends ConsumerWidget {
       ),
       Strumento.nessuno =>
         haSelezione
-            ? const _BarraSelezione(key: ValueKey('selezione'))
+            ? BarraSelezione(
+                key: const ValueKey('selezione'),
+                categoria: _categoria,
+                onCategoria: (c) => setState(() => _categoria = c),
+              )
             : const _BarraInferiore(key: ValueKey('barra')),
     };
-    final durata = MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : MotoScrl.pannello;
+    final senzaMovimento = MediaQuery.disableAnimationsOf(context);
     return ColoredBox(
       color: ColoriScrl.barra,
       child: SafeArea(
@@ -352,12 +455,15 @@ class _ZonaInferiore extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const _StrisciaPagine(),
-            AnimatedSize(
-              duration: durata,
-              curve: MotoScrl.curva,
-              alignment: Alignment.topCenter,
-              child: sotto,
-            ),
+            // Con «riduci animazioni» niente AnimatedSize: a durata zero in debug solleva un'asserzione di layout
+            senzaMovimento
+                ? sotto
+                : AnimatedSize(
+                    duration: MotoScrl.pannello,
+                    curve: MotoScrl.curva,
+                    alignment: Alignment.topCenter,
+                    child: sotto,
+                  ),
           ],
         ),
       ),
@@ -493,7 +599,7 @@ class _Puntino extends StatelessWidget {
                       : ColoriScrl.testoSecondario,
                 )
               : AnimatedContainer(
-                  duration: MotoScrl.breve,
+                  duration: MotoScrl.durata(context, MotoScrl.breve),
                   width: attivo ? 10 : 7,
                   height: attivo ? 10 : 7,
                   decoration: BoxDecoration(
@@ -558,403 +664,6 @@ class _BarraInferiore extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Con un elemento selezionato la barra diventa una striscia di strumenti, con ✕ a sinistra per deselezionare.
-/// Foto: Ritaglia · Inquadra · Filtri · Regola · Effetti · Cornice · Ombra · Ruota · Libera · Copia stile ·
-/// Incolla stile · Duplica · Elimina (un video non ha Filtri, Regola ed Effetti, e ha in testa Riproduci · Taglia ·
-/// Copertina · Audio).
-/// Testo: Modifica · Carattere · Dimensione · Formato · Colore · Contorno · Ombra · Etichetta · Spaziatura · Opacità ·
-/// Ruota · Duplica · Elimina. Forma: Tipo · Riempimento · Bordo · Angoli · Opacità · Ruota · Duplica · Elimina
-/// (le linee non hanno Riempimento né Angoli, il rettangolo ha gli Angoli, gli altri tipi no).
-class _BarraSelezione extends ConsumerWidget {
-  const _BarraSelezione({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = Testi.of(context);
-    final ctrl = ref.read(editorProvider.notifier);
-    final stato = ref.watch(editorProvider);
-    final sel = stato.elementiSelezionati;
-    final foto = sel.whereType<PhotoItem>().toList();
-    final tutteLibere = foto.isNotEmpty && foto.every((p) => p.free);
-    final conColori = foto.any((p) => !p.isVideo);
-    final conVideo = foto.any((p) => p.isVideo);
-    final videoGira =
-        conVideo &&
-        foto.any((p) => p.isVideo && stato.videoInRiproduzione.contains(p.uid));
-    final testi = sel.whereType<TextItem>().toList();
-    final forme = sel.whereType<ShapeItem>().toList();
-    // Gli strumenti di foto, testi e forme valgono quando la selezione è fatta di un solo tipo; con tipi diversi restano
-    // i comandi per più elementi (Allinea, Distribuisci, Raggruppa, Blocca…)
-    final soloFoto = testi.isEmpty && forme.isEmpty && foto.isNotEmpty;
-    final soloTesti = foto.isEmpty && forme.isEmpty && testi.isNotEmpty;
-    final soloForme = foto.isEmpty && testi.isEmpty && forme.isNotEmpty;
-    final multi = sel.length > 1;
-    // Una foto selezionata che non si trova più: «Ricollega» sta in testa alla barra
-    final mancanteSel = ref
-        .watch(mancantiProvider)
-        .value
-        ?.where((m) => foto.any((p) => chiaveMedia(p) == m.chiave))
-        .firstOrNull;
-    final inGruppi = selezioneHaGruppi(stato.snapshot, stato.selezione);
-    final unGruppo = selezioneEUnGruppo(stato.snapshot, stato.selezione);
-    final bloccati = sel.isNotEmpty && sel.every((e) => e.locked);
-    final tutteLinee = soloForme && forme.every((f) => f.isLine);
-    final conAngoli = soloForme && forme.any((f) => f.kind == 'rect');
-    void apri(Strumento s) => ctrl.apriStrumento(s);
-    return SizedBox(
-      height: MisureScrl.barraInferiore,
-      child: Row(
-        children: [
-          PulsanteIcona(
-            icona: Icons.close_rounded,
-            etichetta: t.deseleziona,
-            onTap: ctrl.deseleziona,
-          ),
-          if (sel.isEmpty)
-            Expanded(
-              child: Text(
-                t.selezionaPiuAiuto,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            )
-          else
-            Expanded(
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  if (soloFoto && conVideo) ...[
-                    VoceBarra(
-                      key: const ValueKey('voce-riproduci'),
-                      icona: videoGira
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      etichetta: videoGira ? t.videoPausa : t.videoRiproduci,
-                      attiva: videoGira,
-                      onTap: ctrl.alternaRiproduzione,
-                    ),
-                    VoceBarra(
-                      key: const ValueKey('voce-taglia'),
-                      icona: Icons.content_cut_rounded,
-                      etichetta: t.strTaglia,
-                      onTap: () => apri(Strumento.videoTaglia),
-                    ),
-                    VoceBarra(
-                      key: const ValueKey('voce-copertina'),
-                      icona: Icons.image_outlined,
-                      etichetta: t.strCopertina,
-                      onTap: () => apri(Strumento.videoCopertina),
-                    ),
-                    const _VoceAudio(key: ValueKey('voce-audio')),
-                  ],
-                  if (soloFoto && mancanteSel != null)
-                    VoceBarra(
-                      key: const ValueKey('voce-ricollega'),
-                      icona: Icons.link_rounded,
-                      etichetta: t.strRicollega,
-                      onTap: () =>
-                          unawaited(ricollegaUna(context, ref, mancanteSel)),
-                    ),
-                  if (soloFoto) ...[
-                    VoceBarra(
-                      icona: Icons.crop_rounded,
-                      etichetta: t.strRitaglia,
-                      onTap: () => _ritaglia(context, ref),
-                    ),
-                    VoceBarra(
-                      icona: Icons.center_focus_strong_outlined,
-                      etichetta: t.strInquadra,
-                      onTap: () => ctrl.apriStrumento(Strumento.inquadra),
-                    ),
-                    if (conColori) ...[
-                      VoceBarra(
-                        icona: Icons.auto_awesome_outlined,
-                        etichetta: t.strFiltri,
-                        onTap: () => ctrl.apriStrumento(Strumento.filtri),
-                      ),
-                      VoceBarra(
-                        icona: Icons.tune_rounded,
-                        etichetta: t.strRegola,
-                        onTap: () => ctrl.apriStrumento(Strumento.regola),
-                      ),
-                      VoceBarra(
-                        icona: Icons.auto_fix_high_rounded,
-                        etichetta: t.strEffetti,
-                        onTap: () => ctrl.apriStrumento(Strumento.effetti),
-                      ),
-                    ],
-                    VoceBarra(
-                      icona: Icons.rounded_corner_rounded,
-                      etichetta: t.strCornice,
-                      onTap: () => ctrl.apriStrumento(Strumento.cornice),
-                    ),
-                    VoceBarra(
-                      icona: Icons.blur_on_rounded,
-                      etichetta: t.strOmbra,
-                      onTap: () => ctrl.apriStrumento(Strumento.ombra),
-                    ),
-                    VoceBarra(
-                      icona: Icons.rotate_right_rounded,
-                      etichetta: t.strRuota,
-                      onTap: () => ctrl.apriStrumento(Strumento.ruota),
-                    ),
-                    VoceBarra(
-                      icona: Icons.layers_outlined,
-                      etichetta: t.strDisponi,
-                      onTap: () => ctrl.apriStrumento(Strumento.disponi),
-                    ),
-                    VoceBarra(
-                      icona: tutteLibere
-                          ? Icons.grid_view_rounded
-                          : Icons.open_with_rounded,
-                      etichetta: tutteLibere ? t.inDisposizione : t.libera,
-                      onTap: ctrl.liberaSelezione,
-                    ),
-                    VoceBarra(
-                      icona: Icons.drive_file_move_outlined,
-                      etichetta: t.menuSpostaInPagina,
-                      onTap: () => unawaited(
-                        mostraMenuElemento(context, soloPagina: true),
-                      ),
-                    ),
-                    VoceBarra(
-                      icona: Icons.colorize_rounded,
-                      etichetta: t.strCopiaStile,
-                      onTap: ctrl.copiaStile,
-                    ),
-                    VoceBarra(
-                      icona: Icons.format_paint_rounded,
-                      etichetta: t.strIncollaStile,
-                      onTap: ctrl.incollaStileCopiato,
-                      spenta: stato.stileCopiato == null,
-                    ),
-                  ],
-                  if (soloTesti) ...[
-                    VoceBarra(
-                      icona: Icons.edit_outlined,
-                      etichetta: t.strModifica,
-                      onTap: () => apri(Strumento.testoModifica),
-                    ),
-                    VoceBarra(
-                      icona: Icons.font_download_outlined,
-                      etichetta: t.strCarattere,
-                      onTap: () => apri(Strumento.testoCarattere),
-                    ),
-                    VoceBarra(
-                      icona: Icons.format_size_rounded,
-                      etichetta: t.strDimensione,
-                      onTap: () => apri(Strumento.testoDimensione),
-                    ),
-                    VoceBarra(
-                      icona: Icons.format_bold_rounded,
-                      etichetta: t.strFormato,
-                      onTap: () => apri(Strumento.testoFormato),
-                    ),
-                    VoceBarra(
-                      icona: Icons.format_color_text_rounded,
-                      etichetta: t.parColore,
-                      onTap: () => apri(Strumento.testoColore),
-                    ),
-                    VoceBarra(
-                      icona: Icons.border_color_outlined,
-                      etichetta: t.strContorno,
-                      onTap: () => apri(Strumento.testoContorno),
-                    ),
-                    VoceBarra(
-                      icona: Icons.blur_on_rounded,
-                      etichetta: t.strOmbra,
-                      attiva: testi.first.shadow,
-                      onTap: ctrl.alternaOmbraTesto,
-                    ),
-                    VoceBarra(
-                      icona: Icons.label_outline_rounded,
-                      etichetta: t.strEtichetta,
-                      attiva: testi.first.box,
-                      onTap: () => apri(Strumento.testoEtichetta),
-                    ),
-                    VoceBarra(
-                      icona: Icons.format_line_spacing_rounded,
-                      etichetta: t.strSpaziatura,
-                      onTap: () => apri(Strumento.testoSpaziatura),
-                    ),
-                    VoceBarra(
-                      icona: Icons.opacity_rounded,
-                      etichetta: t.parOpacita,
-                      onTap: () => apri(Strumento.testoOpacita),
-                    ),
-                    VoceBarra(
-                      icona: Icons.rotate_right_rounded,
-                      etichetta: t.strRuota,
-                      onTap: () => apri(Strumento.testoRuota),
-                    ),
-                    VoceBarra(
-                      icona: Icons.layers_outlined,
-                      etichetta: t.strDisponi,
-                      onTap: () => apri(Strumento.disponi),
-                    ),
-                  ],
-                  if (soloForme) ...[
-                    VoceBarra(
-                      icona: Icons.category_outlined,
-                      etichetta: t.strTipo,
-                      onTap: () => apri(Strumento.formaTipo),
-                    ),
-                    if (!tutteLinee)
-                      VoceBarra(
-                        icona: Icons.format_color_fill_rounded,
-                        etichetta: t.strRiempimento,
-                        onTap: () => apri(Strumento.formaRiempimento),
-                      ),
-                    VoceBarra(
-                      icona: Icons.line_weight_rounded,
-                      etichetta: tutteLinee ? t.parLinea : t.parBordo,
-                      onTap: () => apri(Strumento.formaBordo),
-                    ),
-                    if (conAngoli)
-                      VoceBarra(
-                        icona: Icons.rounded_corner_rounded,
-                        etichetta: t.parAngoli,
-                        onTap: () => apri(Strumento.formaAngoli),
-                      ),
-                    VoceBarra(
-                      icona: Icons.opacity_rounded,
-                      etichetta: t.parOpacita,
-                      onTap: () => apri(Strumento.formaOpacita),
-                    ),
-                    VoceBarra(
-                      icona: Icons.rotate_right_rounded,
-                      etichetta: t.strRuota,
-                      onTap: () => apri(Strumento.formaRuota),
-                    ),
-                    VoceBarra(
-                      icona: Icons.layers_outlined,
-                      etichetta: t.strDisponi,
-                      onTap: () => apri(Strumento.disponi),
-                    ),
-                  ],
-                  if (multi && !soloFoto && !soloTesti && !soloForme)
-                    VoceBarra(
-                      icona: Icons.layers_outlined,
-                      etichetta: t.strDisponi,
-                      onTap: () => apri(Strumento.disponi),
-                    ),
-                  VoceBarra(
-                    icona: Icons.align_horizontal_left_rounded,
-                    etichetta: t.strAllinea,
-                    onTap: () => apri(Strumento.allinea),
-                  ),
-                  if (multi) ...[
-                    VoceBarra(
-                      icona: Icons.horizontal_distribute_rounded,
-                      etichetta: t.strDistribuisci,
-                      onTap: () => apri(Strumento.distribuisci),
-                    ),
-                    if (!unGruppo)
-                      VoceBarra(
-                        icona: Icons.workspaces_outline,
-                        etichetta: t.strRaggruppa,
-                        onTap: ctrl.raggruppaSelezione,
-                      ),
-                    if (inGruppi)
-                      VoceBarra(
-                        icona: Icons.workspaces_filled,
-                        etichetta: t.strSepara,
-                        onTap: ctrl.separaSelezione,
-                      ),
-                    if (foto.length == 2 && sel.length == 2)
-                      VoceBarra(
-                        icona: Icons.swap_horiz_rounded,
-                        etichetta: t.strScambia,
-                        onTap: ctrl.scambiaFoto,
-                      ),
-                    VoceBarra(
-                      icona: bloccati
-                          ? Icons.lock_open_rounded
-                          : Icons.lock_outline,
-                      etichetta: bloccati ? t.strSblocca : t.strBlocca,
-                      attiva: bloccati,
-                      onTap: ctrl.bloccaSelezione,
-                    ),
-                  ] else if (inGruppi)
-                    VoceBarra(
-                      icona: Icons.workspaces_filled,
-                      etichetta: t.strSepara,
-                      onTap: ctrl.separaSelezione,
-                    ),
-                  VoceBarra(
-                    icona: Icons.copy_rounded,
-                    etichetta: t.duplica,
-                    onTap: ctrl.duplicaSelezione,
-                  ),
-                  VoceBarra(
-                    icona: Icons.delete_outline_rounded,
-                    etichetta: t.elimina,
-                    onTap: ctrl.eliminaSelezione,
-                    colore: ColoriScrl.pericolo,
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// Ritaglio a schermo intero: si apre una pagina nuova e, con ✓, il ritaglio entra in cronologia.
-  Future<void> _ritaglia(BuildContext context, WidgetRef ref) async {
-    final ctrl = ref.read(editorProvider.notifier);
-    final s = ref.read(sessioneProvider);
-    final foto = ctrl.fotoSelezionate;
-    if (foto.isEmpty) return;
-    final r = await Navigator.of(context).push<RisultatoRitaglio>(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => PaginaRitaglio(sessione: s, foto: foto.first),
-      ),
-    );
-    if (r != null) {
-      ctrl.applicaRitaglio(r.ritaglio, adattaRiquadro: r.adattaRiquadro);
-    }
-  }
-}
-
-/// «Audio» del video selezionato (`chk_video_audio`): acceso o spento nell'MP4 esportato, un tocco = un passo.
-/// Un video senza traccia audio ha la voce spenta, e il tocco lo dice.
-class _VoceAudio extends ConsumerWidget {
-  const _VoceAudio({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = Testi.of(context);
-    final ctrl = ref.read(editorProvider.notifier);
-    final risorse = ref.read(sessioneProvider).risorse;
-    final video = ref.watch(
-      editorProvider.select(
-        (s) => s.elementiSelezionati
-            .whereType<PhotoItem>()
-            .where((p) => p.isVideo)
-            .firstOrNull,
-      ),
-    );
-    if (video == null) return const SizedBox.shrink();
-    return ListenableBuilder(
-      listenable: risorse,
-      builder: (context, _) {
-        final audio = risorse.infoVideo(video)?.audio ?? false;
-        final acceso = audio && !video.muted;
-        return VoceBarra(
-          icona: acceso ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-          etichetta: t.strAudio,
-          attiva: acceso,
-          spenta: !audio,
-          onTap: audio
-              ? ctrl.alternaAudioVideo
-              : () => ctrl.messaggio(MessaggioEditor.videoSenzaAudio),
-        );
-      },
     );
   }
 }
