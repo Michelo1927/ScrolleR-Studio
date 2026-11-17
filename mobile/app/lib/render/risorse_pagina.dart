@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -28,8 +29,18 @@ class _Pronta {
 /// come il campo `asset` delle foto (le `bg_blur_*` del desktop conoscono solo i percorsi).
 const String campoSfondoAsset = 'bg_blur_asset';
 
-class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
-  RisorsePagina({required this.cache, required this.cartellaProgetto});
+/// Legge durata e audio di un video (sostituibile nelle prove).
+typedef LeggiInfoVideo = Future<InfoVideo> Function(String sorgente);
+
+class RisorsePagina extends ChangeNotifier
+    implements RisorseDisegno, RisorseVideo {
+  RisorsePagina({
+    required this.cache,
+    required this.cartellaProgetto,
+    this.leggiInfo = ScrlVideo.info,
+  });
+
+  final LeggiInfoVideo leggiInfo;
 
   final CacheMedia cache;
 
@@ -51,6 +62,13 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
 
   /// Fotogrammi dei video impostati dall'esportazione (uid → immagine), al posto della copertina.
   final Map<int, ui.Image> fotogrammi = {};
+
+  /// Video in riproduzione sulla tela (per l'etichetta ▶/pausa).
+  final Set<int> _inRiproduzione = {};
+
+  /// Durata e audio dei video per chiave di sorgente (null = file non leggibile).
+  final Map<String, InfoVideo?> _infoVideo = {};
+  final Map<String, Future<InfoVideo?>> _infoInCorso = {};
 
   /// Cresce a ogni cambio di risorse: chi disegna lo confronta per sapere se deve ridisegnare.
   int versione = 0;
@@ -99,6 +117,82 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
 
   @override
   bool mancante(PhotoItem p) => _mancanti.contains(p.uid);
+
+  // ---------------- Video ----------------
+
+  /// Durata e audio del video [p], se già letti (null finché non si conoscono o se il file non si legge).
+  InfoVideo? infoVideo(PhotoItem p) => _infoVideo[chiaveMedia(p)];
+
+  /// Durata del video [p] in secondi (0 = sconosciuta, come `duration` del desktop quando il file non si legge).
+  double durataVideo(PhotoItem p) => infoVideo(p)?.durata ?? 0.0;
+
+  /// Legge (una volta sola per file) durata e audio del video [p].
+  Future<InfoVideo?> caricaInfoVideo(PhotoItem p) {
+    final k = chiaveMedia(p);
+    if (_infoVideo.containsKey(k)) return Future.value(_infoVideo[k]);
+    return _infoInCorso[k] ??= _leggiInfoVideo(p, k);
+  }
+
+  Future<InfoVideo?> _leggiInfoVideo(PhotoItem p, String k) async {
+    InfoVideo? info;
+    try {
+      final src = await cache.sorgenteVideo(sorgenteDi(p, cartellaProgetto));
+      if (src != null) info = await leggiInfo(src);
+    } on Exception {
+      info = null; // Video non leggibile (o piattaforma senza video): durata sconosciuta
+    }
+    unawaited(_infoInCorso.remove(k));
+    if (_chiuso) return info;
+    _infoVideo[k] = info;
+    _avvisa();
+    return info;
+  }
+
+  /// Prove: durata e audio di un video già noti.
+  @visibleForTesting
+  void ricordaInfoVideo(PhotoItem p, InfoVideo info) =>
+      _infoVideo[chiaveMedia(p)] = info;
+
+  @override
+  EtichettaVideo? etichettaVideo(PhotoItem p) {
+    if (!p.isVideo || _mancanti.contains(p.uid)) return null;
+    final info = infoVideo(p);
+    final durata = info?.durata ?? 0.0;
+    return EtichettaVideo(
+      durata: clipLength(p, durata),
+      muto: p.muted || !(info?.audio ?? false),
+      inRiproduzione: _inRiproduzione.contains(p.uid),
+    );
+  }
+
+  /// Riproduzione sulla tela: mostra [img] al posto della copertina del video [uid] (la precedente si libera).
+  void impostaFotogramma(int uid, ui.Image img) {
+    if (_chiuso) {
+      img.dispose();
+      return;
+    }
+    _inRiproduzione.add(uid);
+    final vecchio = fotogrammi[uid];
+    fotogrammi[uid] = img;
+    _avvisa();
+    // Con un attimo di ritardo: un disegno (miniatura) in corso potrebbe ancora usarla
+    if (vecchio != null && !identical(vecchio, img)) {
+      Timer(const Duration(milliseconds: 200), vecchio.dispose);
+    }
+  }
+
+  /// Fine della riproduzione del video [uid]: torna la copertina.
+  void togliFotogramma(int uid) {
+    final f = fotogrammi.remove(uid);
+    final c = _inRiproduzione.remove(uid);
+    if (f != null) Timer(const Duration(milliseconds: 200), f.dispose);
+    if (f != null || c) _avvisa();
+  }
+
+  /// Segna l'inizio della riproduzione del video [uid] (l'etichetta passa a «pausa» subito).
+  void segnaRiproduzione(int uid) {
+    if (_inRiproduzione.add(uid)) _avvisa();
+  }
 
   @override
   ui.Image? get sfondoSfocato => _sfondo;
@@ -232,6 +326,10 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
 
   Future<void> _preparaFoto(PhotoItem p, double pixelPerUnita) async {
     final src = sorgenteDi(p, cartellaProgetto);
+    // Durata e audio servono all'etichetta e agli strumenti Video anche prima che la copertina sia pronta
+    if (p.isVideo && !_infoVideo.containsKey(chiaveMedia(p))) {
+      unawaited(caricaInfoVideo(p));
+    }
     final ant = await cache.carica(src, Dettaglio.anteprima);
     if (ant == null) {
       if (_mancanti.add(p.uid)) _avvisa();
@@ -252,7 +350,8 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
       final cop = await _copertina(src, p.poster);
       if (cop != null) base = cop;
     }
-    if (_qualitaRidotta && math.max(base.width, base.height) > latoInterattivo) {
+    if (_qualitaRidotta &&
+        math.max(base.width, base.height) > latoInterattivo) {
       final r = _ridotte[p.uid];
       if (r != null && identical(r.$1, base)) {
         base = r.$2;
@@ -298,23 +397,42 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
     }
   }
 
-  final Map<String, ui.Image> _copertine = {};
+  /// Copertine lette (chiave e secondo → fotogramma), dalla meno alla più recente.
+  final LinkedHashMap<String, ui.Image> _copertine = LinkedHashMap();
+
+  /// Copertine tenute in memoria oltre a quelle in uso: scorrendo il cursore Copertina se ne leggono molte.
+  static const int copertineMassime = 6;
 
   Future<ui.Image?> _copertina(SorgenteMedia src, double t) async {
     final k = '${src.chiave}|$t';
-    final c = _copertine[k];
-    if (c != null) return c;
+    final c = _copertine.remove(k);
+    if (c != null) return _copertine[k] = c;
     final sorgente = await cache.sorgenteVideo(src);
     if (sorgente == null) return null;
     try {
       final f = await ScrlVideo.fotogramma(sorgente, t);
-      return _copertine[k] = await immagineDaPixel(
-        f.rgba,
-        f.larghezza,
-        f.altezza,
-      );
+      final img = await immagineDaPixel(f.rgba, f.larghezza, f.altezza);
+      _copertine[k] = img;
+      _potaCopertine();
+      return img;
     } on Exception {
       return null;
+    }
+  }
+
+  /// Libera le copertine più vecchie che nessuna foto pronta sta usando.
+  void _potaCopertine() {
+    if (_copertine.length <= copertineMassime) return;
+    final inUso = <ui.Image>{
+      for (final p in _foto.values) ...[p.foto.immagine, p.originale],
+    };
+    for (final k in _copertine.keys.toList()) {
+      if (_copertine.length <= copertineMassime) break;
+      final img = _copertine[k]!;
+      if (inUso.any((i) => identical(i, img))) continue;
+      _copertine.remove(k);
+      // Con ritardo: una miniatura o un'esportazione potrebbe ancora disegnarla
+      Timer(const Duration(seconds: 5), img.dispose);
     }
   }
 

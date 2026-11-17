@@ -1,6 +1,6 @@
 /// Anteprima del carosello (piano §4.6, `▶`): schermo intero, sfondo nero, si scorre di pagina in pagina come su
 /// Instagram, senza guide né selezione (`scene.clean_render`). Le pagine sono disegnate dallo stesso modulo della tela e
-/// dell'esportazione. I video partono da soli solo con la Fase 8 (video completo): per ora si vede la copertina.
+/// dell'esportazione. I video della pagina in vista partono da soli, senza audio e a ripetizione, come sulla tela.
 library;
 
 import 'dart:async';
@@ -12,6 +12,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
 import '../l10n/app_localizations.dart';
+import '../media/riproduzione_video.dart';
 import '../render/disegno.dart';
 import '../render/risorse_pagina.dart';
 import '../theme/tokens.dart';
@@ -50,18 +51,32 @@ class _PaginaAnteprimaState extends ConsumerState<PaginaAnteprima> {
   late final Snapshot _documento = ref.read(editorProvider).cronologia.current;
 
   SessioneEditor get _s => ref.read(sessioneProvider);
+  late final RiproduzioneVideo _riproduzione;
 
   @override
   void initState() {
     super.initState();
+    final s = _s;
+    _riproduzione = RiproduzioneVideo(
+      risorse: s.risorse,
+      cache: s.cache,
+      cartellaProgetto: s.cartella.path,
+      apriLettore: s.apriLettoreVideo,
+    );
     unawaited(
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _prepara());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // I video della tela si fermano: qui girano quelli della pagina in vista
+      ref.read(editorProvider.notifier).fermaTuttiVideo();
+      _prepara();
+    });
   }
 
   @override
   void dispose() {
+    _riproduzione.chiudi();
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     _controllo.dispose();
     super.dispose();
@@ -78,6 +93,9 @@ class _PaginaAnteprimaState extends ConsumerState<PaginaAnteprima> {
       if (i < 0 || i >= c.numFrames) continue;
       unawaited(_s.risorse.prepara(_documento, i, pixelPerUnita: scala));
     }
+    _riproduzione.sincronizza(_documento, {
+      for (final v in videoDellaPagina(_documento, _corrente)) v.uid,
+    });
   }
 
   @override

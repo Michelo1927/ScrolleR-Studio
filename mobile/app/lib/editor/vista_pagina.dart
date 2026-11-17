@@ -17,6 +17,7 @@ TestiDisegno testiDisegno(BuildContext context) {
     fotoMancante: t.fotoMancante,
     originaleMancante: t.originaleMancante,
     di: t.numeroPaginaDi,
+    muto: t.videoMuto,
   );
 }
 

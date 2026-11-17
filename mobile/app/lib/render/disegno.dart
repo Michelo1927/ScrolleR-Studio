@@ -46,6 +46,24 @@ abstract class RisorseDisegno {
   bool get mostraOriginale;
 }
 
+/// Etichetta di un video sulla tela: durata del taglio, muto, ▶ o pausa.
+class EtichettaVideo {
+  final double durata;
+  final bool muto;
+  final bool inRiproduzione;
+  const EtichettaVideo({
+    required this.durata,
+    required this.muto,
+    required this.inRiproduzione,
+  });
+}
+
+/// Risorse che sanno qualcosa dei video (durata, audio, riproduzione): servono all'etichetta a schermo.
+abstract class RisorseVideo {
+  /// Etichetta del video [p], o null se non va mostrata (video mancante).
+  EtichettaVideo? etichettaVideo(PhotoItem p);
+}
+
 /// Testi del disegno che dipendono dalla lingua (dai file `.arb`).
 class TestiDisegno {
   /// «Foto mancante».
@@ -56,10 +74,14 @@ class TestiDisegno {
 
   /// Parola del formato «1 di 5» dei numeri di pagina.
   final String di;
+
+  /// «muto», nell'etichetta dei video.
+  final String muto;
   const TestiDisegno({
     required this.fotoMancante,
     required this.originaleMancante,
     required this.di,
+    this.muto = '',
   });
 }
 
@@ -128,7 +150,7 @@ void disegnaPagina(
     if (o.filtro != null && !o.filtro!(e)) continue;
     switch (e) {
       case PhotoItem():
-        _foto(canvas, e, r, o);
+        _foto(canvas, e, r, o, scala);
       case TextItem():
         final l = ImpaginazioneTesto.di(e);
         _inPosizione(canvas, e.x, e.y, l.larghezza, l.altezza, e.rotation, () {
@@ -210,7 +232,13 @@ void _sfondo(ui.Canvas canvas, CanvasState c, RisorseDisegno r) {
 
 ui.Color _alfa(ui.Color c, double op) => c.withValues(alpha: c.a * op);
 
-void _foto(ui.Canvas canvas, PhotoItem p, RisorseDisegno r, OpzioniDisegno o) {
+void _foto(
+  ui.Canvas canvas,
+  PhotoItem p,
+  RisorseDisegno r,
+  OpzioniDisegno o,
+  double scala,
+) {
   // L'opacità della foto vale per ogni pezzo disegnato (ombra, foto, effetti, bordo), come `setOpacity` di Qt
   final op = (p.opacity / 100.0).clamp(0.0, 1.0);
   if (op <= 0) return;
@@ -266,7 +294,63 @@ void _foto(ui.Canvas canvas, PhotoItem p, RisorseDisegno r, OpzioniDisegno o) {
     if (!o.senzaIndicazioni && pronta != null && pronta.originaleMancante) {
       _segnoOriginaleMancante(canvas, p, o.testi.originaleMancante);
     }
+    if (!o.senzaIndicazioni && p.isVideo && r is RisorseVideo) {
+      final e = (r as RisorseVideo).etichettaVideo(p);
+      if (e != null) _etichettaVideo(canvas, p, e, o.testi.muto, scala);
+    }
   });
+}
+
+/// `_paint_badge`: etichetta in alto a sinistra con ▶ (o pausa) e durata del taglio, a misura costante sullo
+/// schermo ([scala] = pixel per unità della tela). Non compare se il riquadro è troppo piccolo per contenerla.
+void _etichettaVideo(
+  ui.Canvas canvas,
+  PhotoItem p,
+  EtichettaVideo e,
+  String muto,
+  double scala,
+) {
+  final k = 1.0 / math.max(1e-6, scala);
+  var testo = formatoTempo(e.durata);
+  if (e.muto && muto.isNotEmpty) testo += '  $muto';
+  final tp = TextPainter(
+    text: TextSpan(
+      text: testo,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: TestoScrl.marcato,
+        color: ColoriScrl.suAccento,
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+  )..layout();
+  const h = 18.0;
+  final w = 22.0 + tp.width + 8.0;
+  if (w * k > p.w - 8 * k || h * k > p.h - 8 * k) return;
+  canvas.save();
+  canvas.translate(6 * k, 6 * k);
+  canvas.scale(k, k);
+  canvas.drawRRect(
+    ui.RRect.fromRectXY(ui.Rect.fromLTWH(0, 0, w, h), h / 2.0, h / 2.0),
+    ui.Paint()..color = ColoriScrl.veloEtichetta,
+  );
+  final bianco = ui.Paint()..color = ColoriScrl.suAccento;
+  if (e.inRiproduzione) {
+    canvas.drawRect(const ui.Rect.fromLTWH(8.0, 5.0, 2.6, 8.0), bianco);
+    canvas.drawRect(const ui.Rect.fromLTWH(12.4, 5.0, 2.6, 8.0), bianco);
+  } else {
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(8.0, 4.5)
+        ..lineTo(15.5, 9.0)
+        ..lineTo(8.0, 13.5)
+        ..close(),
+      bianco,
+    );
+  }
+  tp.paint(canvas, ui.Offset(20.0, (h - tp.height) / 2.0));
+  canvas.restore();
 }
 
 /// `_paint_shadow`: ombra morbida, 12 rettangoli arrotondati sempre più piccoli e trasparenti.

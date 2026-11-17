@@ -157,6 +157,30 @@ class Galleria {
     if (Platform.isIOS) await _inAlbumIos(e);
   }
 
+  /// Salva l'MP4 [file] in galleria, nello stesso album delle immagini (così le pagine di un carosello restano
+  /// insieme e in ordine). Stesse regole di [salvaImmagine] per il permesso.
+  Future<void> salvaVideo(
+    File file,
+    String nomeFile, {
+    required DateTime data,
+  }) async {
+    var accesso = await stato();
+    if (accesso == AccessoGalleria.daChiedere ||
+        accesso == AccessoGalleria.negato) {
+      accesso = await chiedi();
+    }
+    if (accesso == AccessoGalleria.negato) {
+      throw const AccessoGalleriaNegato();
+    }
+    final e = await PhotoManager.editor.saveVideo(
+      file,
+      title: nomeFile,
+      relativePath: Platform.isAndroid ? 'Pictures/$album' : null,
+      creationDate: data,
+    );
+    if (Platform.isIOS) await _inAlbumIos(e);
+  }
+
   /// iOS: l'immagine nasce tra gli «Recenti»; la si mette anche nell'album, che si crea la prima volta.
   Future<void> _inAlbumIos(AssetEntity e) async {
     try {

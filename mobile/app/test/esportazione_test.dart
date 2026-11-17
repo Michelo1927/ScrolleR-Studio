@@ -44,6 +44,17 @@ class ConsegnaFinta implements Consegna {
   }
 
   @override
+  Future<void> salvaVideoInGalleria(
+    File file,
+    String nome,
+    DateTime data,
+  ) async {
+    final e = errore;
+    if (e != null) throw e;
+    galleria.add((nome: nome, data: data, dati: file.readAsBytesSync()));
+  }
+
+  @override
   Future<void> condividi(List<File> files, bool jpg) async {
     // I file devono esistere ancora al momento della condivisione
     for (final f in files) {

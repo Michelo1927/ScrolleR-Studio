@@ -3,8 +3,9 @@
 /// Ogni pagina si disegna **con lo stesso modulo dello schermo** (`disegnaPagina`, in modalità esportazione) alla scala
 /// scelta; le foto si leggono dagli originali grandi quanto serve, una pagina alla volta, e si liberano subito dopo.
 /// Il collage intero si disegna a pezzi (una pagina per volta, più pezzi se una pagina supera il lato massimo di una
-/// texture) e si unisce nell'isolate di codifica. I file nascono in una cartella temporanea e poi vanno alla
-/// destinazione scelta: Galleria (in ordine), foglio Condividi o Salva in File.
+/// texture) e si unisce nell'isolate di codifica. Le pagine con un video diventano **MP4** (`_export_video_page`,
+/// in [esportaPaginaVideo]); nel collage intero i video compaiono con la copertina. I file nascono in una cartella
+/// temporanea e poi vanno alla destinazione scelta: Galleria (in ordine), foglio Condividi o Salva in File.
 library;
 
 import 'dart:io';
@@ -13,6 +14,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:scrl_engine/scrl_engine.dart';
+import 'package:scrl_video/scrl_video.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../media/cache_media.dart';
@@ -21,6 +23,7 @@ import '../render/risorse_pagina.dart';
 import 'codifica.dart';
 import 'consegna.dart';
 import 'preferenze.dart';
+import 'video_pagina.dart';
 
 /// Che cosa fa il telefono con i file pronti.
 enum Destinazione {
@@ -65,6 +68,9 @@ enum FaseEsportazione {
   /// Disegno e codifica della pagina.
   pagina,
 
+  /// Pagina con video: fotogrammi dell'MP4.
+  video,
+
   /// Codifica del collage intero.
   composizione,
 
@@ -80,6 +86,8 @@ class Avanzamento {
     this.totale = 0,
     this.pagina = 0,
     this.frazione = 0,
+    this.fotogramma = 0,
+    this.fotogrammi = 0,
   });
   final FaseEsportazione fase;
   final int indice;
@@ -88,6 +96,10 @@ class Avanzamento {
   /// Numero della pagina del documento (da 1) mentre si legge o si disegna.
   final int pagina;
   final double frazione;
+
+  /// Pagina con video: fotogramma scritto e totale dei fotogrammi dell'MP4.
+  final int fotogramma;
+  final int fotogrammi;
 }
 
 enum StatoEsito {
@@ -114,6 +126,9 @@ class EsitoEsportazione {
     this.altezza = 0,
     this.errore,
     this.collage = false,
+    this.mp4 = 0,
+    this.videoLarghezza = 0,
+    this.videoAltezza = 0,
   });
   final StatoEsito stato;
   final Destinazione destinazione;
@@ -129,6 +144,11 @@ class EsitoEsportazione {
   final int altezza;
   final Object? errore;
   final bool collage;
+
+  /// Quante delle pagine salvate sono MP4, e le loro misure (`output_size`).
+  final int mp4;
+  final int videoLarghezza;
+  final int videoAltezza;
 }
 
 class _Annullata implements Exception {
@@ -139,7 +159,12 @@ class _Uscita {
   _Uscita(this.nome, this.file);
   final String nome;
   final File file;
+  bool get video => nome.endsWith(estensioneVideo);
 }
+
+/// Estensione e tipo dei file delle pagine con video.
+const String estensioneVideo = '.mp4';
+const String mimeVideo = 'video/mp4';
 
 /// Un'esportazione in corso. Si avvia con [esegui]; [avanzamento] si osserva dall'interfaccia e [annulla] si può
 /// chiamare in ogni momento (si ferma alla prossima pausa: tra una foto, un pezzo o una pagina e l'altra).
@@ -152,8 +177,16 @@ class LavoroEsportazione {
     required this.cartellaTemporanea,
     required this.consegna,
     this.schermoAcceso = _schermoAccesoDiSistema,
+    this.esportaVideo = esportaPaginaVideo,
+    this.videoDisponibile = ScrlVideo.disponibile,
     DateTime Function()? adesso,
   }) : _adesso = adesso ?? DateTime.now;
+
+  /// Scrive l'MP4 di una pagina con video (si può sostituire nelle prove).
+  final EsportaPaginaVideo esportaVideo;
+
+  /// Il telefono sa scrivere MP4; se no le pagine con video escono come immagine con la copertina.
+  final Future<bool> Function() videoDisponibile;
 
   final RichiestaEsportazione richiesta;
   final CacheMedia cache;
@@ -203,13 +236,18 @@ class LavoroEsportazione {
     int totale, {
     int indice = 0,
     int pagina = 0,
+    double parte = 0,
+    int fotogramma = 0,
+    int fotogrammi = 0,
   }) {
     avanzamento.value = Avanzamento(
       fase,
       indice: indice,
       totale: totale,
       pagina: pagina,
-      frazione: totale == 0 ? 0 : (fatti / totale).clamp(0.0, 1.0),
+      frazione: totale == 0 ? 0 : ((fatti + parte) / totale).clamp(0.0, 1.0),
+      fotogramma: fotogramma,
+      fotogrammi: fotogrammi,
     );
   }
 
@@ -228,6 +266,25 @@ class LavoroEsportazione {
     final prodotti = <_Uscita>[];
     final falliti = <String>[];
     final salvati = <String>[];
+    final mp4 = RegoleVideo.misuraUscita(
+      c.frameW.toDouble(),
+      c.frameH.toDouble(),
+    );
+    EsitoEsportazione esito(
+      int w,
+      int h, {
+      bool annullata = false,
+      Object? errore,
+    }) => _esito(
+      salvati,
+      falliti,
+      w,
+      h,
+      annullata: annullata,
+      errore: errore,
+      mp4: salvati.where((n) => n.endsWith(estensioneVideo)).length,
+      misuraVideo: mp4,
+    );
     try {
       await schermoAcceso(true);
       await cartella.create(recursive: true);
@@ -262,9 +319,27 @@ class LavoroEsportazione {
         await f.writeAsBytes(dati, flush: true);
         prodotti.add(_Uscita(nome, f));
       } else {
+        // Le pagine con un video (trovato) diventano MP4, se il telefono li sa scrivere
+        final conVideo = <int>{};
+        if (pagine.any((k) => videoDellaPagina(r.snapshot, k).isNotEmpty) &&
+            await videoDisponibile()) {
+          for (final k in pagine) {
+            final v = await videoTrovati(
+              r.snapshot,
+              k,
+              cache,
+              cartellaProgetto,
+            );
+            if (v.isNotEmpty) conVideo.add(k);
+          }
+        }
         for (var i = 0; i < pagine.length; i++) {
           _controlla();
           final k = pagine[i];
+          if (conVideo.contains(k)) {
+            await _paginaVideo(k, i, totale, cartella, prodotti, falliti);
+            continue;
+          }
           final nome = nomeFilePagina(r.nome, k, ext);
           try {
             final rgba = await _rendiPagina(k, m, i, pagine.length, totale);
@@ -293,20 +368,12 @@ class LavoroEsportazione {
       }
 
       await _consegna(prodotti, salvati, totale, passiProduzione, jpg);
-      return _esito(
-        salvati,
-        falliti,
-        larghezza,
-        altezza,
-        annullata: _annullato,
-      );
+      return esito(larghezza, altezza, annullata: _annullato);
     } on _Annullata {
-      return _esito(salvati, falliti, larghezza, altezza, annullata: true);
+      return esito(larghezza, altezza, annullata: true);
     } on Object catch (e) {
-      if (_annullato) {
-        return _esito(salvati, falliti, larghezza, altezza, annullata: true);
-      }
-      return _esito(salvati, falliti, larghezza, altezza, errore: e);
+      if (_annullato) return esito(larghezza, altezza, annullata: true);
+      return esito(larghezza, altezza, errore: e);
     } finally {
       _striscia?.chiudi();
       _striscia = null;
@@ -326,6 +393,8 @@ class LavoroEsportazione {
     int h, {
     bool annullata = false,
     Object? errore,
+    int mp4 = 0,
+    ({int w, int h}) misuraVideo = (w: 0, h: 0),
   }) {
     final StatoEsito stato;
     if (salvati.isNotEmpty) {
@@ -346,7 +415,55 @@ class LavoroEsportazione {
       altezza: h,
       errore: errore,
       collage: richiesta.collage,
+      mp4: mp4,
+      videoLarghezza: misuraVideo.w,
+      videoAltezza: misuraVideo.h,
     );
+  }
+
+  /// Pagina [k] con video come MP4 (`_export_video_page`): avanzamento per fotogramma; se fallisce va tra le non
+  /// salvate, se si annulla si ferma tutto. In entrambi i casi il file a metà non resta.
+  Future<void> _paginaVideo(
+    int k,
+    int i,
+    int totale,
+    Directory cartella,
+    List<_Uscita> prodotti,
+    List<String> falliti,
+  ) async {
+    final nome = nomeFilePagina(richiesta.nome, k, estensioneVideo);
+    final f = File('${cartella.path}/$nome');
+    _segna(FaseEsportazione.foto, i, totale, indice: i + 1, pagina: k + 1);
+    final e = await esportaVideo(
+      s: richiesta.snapshot,
+      k: k,
+      percorso: f.path,
+      cache: cache,
+      cartellaProgetto: cartellaProgetto,
+      testi: testi,
+      annullato: () => _annullato,
+      avanzamento: (fatti, n) => _segna(
+        FaseEsportazione.video,
+        i,
+        totale,
+        indice: i + 1,
+        pagina: k + 1,
+        parte: n == 0 ? 0 : fatti / n,
+        fotogramma: fatti,
+        fotogrammi: n,
+      ),
+    );
+    if (e.fatto == null || _annullato) {
+      if (f.existsSync()) f.deleteSync(); // Niente MP4 a metà
+      throw const _Annullata();
+    }
+    if (e.fatto == true && f.existsSync()) {
+      prodotti.add(_Uscita(nome, f));
+      return;
+    }
+    debugPrint('Esportazione MP4 della pagina ${k + 1}: ${e.errore}');
+    if (f.existsSync()) f.deleteSync();
+    falliti.add(nome);
   }
 
   /// Disegna la pagina [k] alla scala di [m] e ne restituisce i pixel RGBA (`paginaW × paginaH × 4`).
@@ -430,11 +547,16 @@ class LavoroEsportazione {
           _controlla();
           _segna(FaseEsportazione.consegna, fatti + i, totale, indice: i + 1);
           final u = prodotti[i];
-          await consegna.salvaInGalleria(
-            await u.file.readAsBytes(),
-            u.nome,
-            fine.subtract(Duration(seconds: n - 1 - i)),
-          );
+          final data = fine.subtract(Duration(seconds: n - 1 - i));
+          if (u.video) {
+            await consegna.salvaVideoInGalleria(u.file, u.nome, data);
+          } else {
+            await consegna.salvaInGalleria(
+              await u.file.readAsBytes(),
+              u.nome,
+              data,
+            );
+          }
           salvati.add(u.nome);
         }
       case Destinazione.condividi:
@@ -450,7 +572,7 @@ class LavoroEsportazione {
           final fatto = await consegna.salvaInFile(
             u.nome,
             await u.file.readAsBytes(),
-            mimeImmagine(jpg),
+            u.video ? mimeVideo : mimeImmagine(jpg),
           );
           // Il selettore di sistema è stato chiuso senza scegliere: si smette qui
           if (!fatto) throw const _Annullata();

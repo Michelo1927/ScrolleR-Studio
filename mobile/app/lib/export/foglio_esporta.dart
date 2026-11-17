@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
+import 'package:scrl_video/scrl_video.dart' show RegoleVideo;
 
 import '../editor/sessione.dart';
 import '../editor/stato.dart';
@@ -23,6 +24,7 @@ import 'consegna.dart';
 import 'esporta_immagini.dart';
 import 'pagina_esportazione.dart';
 import 'preferenze.dart';
+import 'video_pagina.dart';
 
 enum ModoEsportazione { pagine, questa, collage }
 
@@ -87,6 +89,9 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
   OpzioniEsportazione _opz = const OpzioniEsportazione();
   bool _occupato = false;
 
+  /// Il telefono sa scrivere MP4 (null finché non si sa): decide la nota sui video.
+  bool? _mp4;
+
   SessioneEditor get _s => ref.read(sessioneProvider);
 
   @override
@@ -102,13 +107,21 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
     _scelte = {for (var i = 0; i < n; i++) i};
     _nome = TextEditingController(text: _documento.canvas.exportName);
     unawaited(_leggiPreferenze());
+    unawaited(_leggiMp4());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // Come `_begin_export`: la riproduzione sulla tela si ferma (il lettore dei video serve all'esportazione)
+      ref.read(editorProvider.notifier).fermaTuttiVideo();
       // Le miniature: foto a bassa risoluzione, come nella Panoramica
       for (var i = 0; i < n; i++) {
         unawaited(_s.risorse.prepara(_documento, i, pixelPerUnita: 0.2));
       }
     });
+  }
+
+  Future<void> _leggiMp4() async {
+    final d = await ref.read(videoDisponibileProvider)();
+    if (mounted) setState(() => _mp4 = d);
   }
 
   Future<void> _leggiPreferenze() async {
@@ -267,6 +280,8 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
         testi: testi,
         cartellaTemporanea: cartellaTemp,
         consegna: consegna,
+        esportaVideo: ref.read(esportaPaginaVideoProvider),
+        videoDisponibile: ref.read(videoDisponibileProvider),
       );
       navigator.pop();
       await apriAvanzamento(navigator, lavoro);
@@ -289,8 +304,12 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
         : nomeFilePagina(_nome.text, pagine.isEmpty ? 0 : pagine.first, ext);
     final conVideo = [
       for (final k in collage ? List.generate(c.numFrames, (i) => i) : pagine)
-        ...RisorsePagina.fotoDellaPagina(_documento, k).where((p) => p.isVideo),
+        ...videoDellaPagina(_documento, k),
     ].isNotEmpty;
+    final mp4 = RegoleVideo.misuraUscita(
+      c.frameW.toDouble(),
+      c.frameH.toDouble(),
+    );
     final puoEsportare = collage || pagine.isNotEmpty;
     final stile = Theme.of(context).textTheme;
     return Padding(
@@ -436,7 +455,15 @@ class _FoglioEsportaState extends ConsumerState<FoglioEsporta> {
                   MisureScrl.spazio,
                   0,
                 ),
-                child: Text(t.espVideoCopertina, style: stile.bodySmall),
+                child: Text(
+                  collage
+                      ? t.espVideoCollage
+                      : _mp4 == false
+                      ? t.espVideoNonDisponibile
+                      : t.espVideoMp4(mp4.w, mp4.h, RegoleVideo.fps),
+                  key: const ValueKey('esporta-nota-video'),
+                  style: stile.bodySmall,
+                ),
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(

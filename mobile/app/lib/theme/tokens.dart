@@ -52,6 +52,9 @@ abstract final class ColoriScrl {
 
   /// Linee di aggancio.
   static const Color aggancio = Color(0xFFFF3DCB);
+
+  /// Fondo scuro semitrasparente delle etichette sopra le foto (durata dei video).
+  static const Color veloEtichetta = Color(0xA6000000);
 }
 
 /// Tipografia: font di sistema (Roboto / San Francisco), 3 misure e 2 pesi.

@@ -18,7 +18,10 @@ abstract class Consegna {
   /// Salva l'immagine in galleria, nell'album dell'app, con la data di creazione [data].
   Future<void> salvaInGalleria(Uint8List dati, String nome, DateTime data);
 
-  /// Apre il foglio Condividi di sistema con i [file] (nell'ordine dato).
+  /// Salva l'MP4 [file] di una pagina con video in galleria, nello stesso album delle immagini.
+  Future<void> salvaVideoInGalleria(File file, String nome, DateTime data);
+
+  /// Apre il foglio Condividi di sistema con i [file] (nell'ordine dato; gli `.mp4` come video).
   Future<void> condividi(List<File> file, bool jpg);
 
   /// Salva un file dove sceglie l'utente. Falso se ha chiuso il selettore senza scegliere.
@@ -34,12 +37,21 @@ class ConsegnaTelefono implements Consegna {
       galleria.salvaImmagine(dati, nome, data: data);
 
   @override
+  Future<void> salvaVideoInGalleria(File file, String nome, DateTime data) =>
+      galleria.salvaVideo(file, nome, data: data);
+
+  @override
   Future<void> condividi(List<File> file, bool jpg) async {
     await SharePlus.instance.share(
       ShareParams(
         files: [
           for (final f in file)
-            XFile(f.path, mimeType: jpg ? 'image/jpeg' : 'image/png'),
+            XFile(
+              f.path,
+              mimeType: f.path.endsWith('.mp4')
+                  ? 'video/mp4'
+                  : (jpg ? 'image/jpeg' : 'image/png'),
+            ),
         ],
       ),
     );

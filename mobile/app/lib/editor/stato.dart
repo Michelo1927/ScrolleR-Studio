@@ -62,7 +62,11 @@ enum Strumento {
   // Comandi sulla selezione (Fase 6): Disponi (livello, blocco, frecce), Allinea, Distribuisci
   disponi,
   allinea,
-  distribuisci;
+  distribuisci,
+
+  // Video (Fase 8): Taglia (inizio e fine) e Copertina del video selezionato
+  videoTaglia,
+  videoCopertina;
 
   /// Strumento Foto che lavora sulla foto selezionata.
   bool get eFoto => index >= inquadra.index && index <= ruota.index;
@@ -77,8 +81,11 @@ enum Strumento {
   bool get eDisposizione =>
       this == disponi || this == allinea || this == distribuisci;
 
+  /// Strumento Video che lavora sul video selezionato.
+  bool get eVideo => this == videoTaglia || this == videoCopertina;
+
   /// Strumento che lavora sull'elemento selezionato: la selezione resta ferma finché è aperto.
-  bool get suElemento => eFoto || eTesto || eForma || eDisposizione;
+  bool get suElemento => eFoto || eTesto || eForma || eDisposizione || eVideo;
 
   /// Lo stile scelto con questo strumento diventa quello delle prossime forme (`_remember_shape_style`).
   bool get ricordaStileForma =>
@@ -136,6 +143,7 @@ enum MessaggioEditor {
   selezionaPiu,
   sfondoSenzaFoto,
   inArrivo,
+  videoSenzaAudio,
 }
 
 /// Un messaggio da mostrare: [id] cresce a ogni messaggio nuovo, così l'interfaccia riconosce i nuovi.
@@ -197,6 +205,7 @@ class StatoEditor {
     this.mostraGuide = true,
     this.aggancioAttivo = true,
     this.selezionePiu = false,
+    this.videoInRiproduzione = const {},
   });
 
   final History cronologia;
@@ -235,6 +244,10 @@ class StatoEditor {
   /// Modalità «Seleziona più»: ogni tocco su un elemento lo aggiunge alla selezione o lo toglie.
   final bool selezionePiu;
 
+  /// Video (`uid`) che si stanno riproducendo sulla tela, senza audio e a ripetizione: una preferenza di vista,
+  /// non entra in Annulla né nel progetto.
+  final Set<int> videoInRiproduzione;
+
   /// Ciò che si vede: la bozza se c'è, altrimenti l'ultimo passo.
   Snapshot get snapshot => bozza ?? cronologia.current;
 
@@ -261,6 +274,7 @@ class StatoEditor {
     bool? mostraGuide,
     bool? aggancioAttivo,
     bool? selezionePiu,
+    Set<int>? videoInRiproduzione,
   }) => StatoEditor(
     cronologia: cronologia ?? this.cronologia,
     bozza: bozza != null ? bozza() : this.bozza,
@@ -277,6 +291,7 @@ class StatoEditor {
     mostraGuide: mostraGuide ?? this.mostraGuide,
     aggancioAttivo: aggancioAttivo ?? this.aggancioAttivo,
     selezionePiu: selezionePiu ?? this.selezionePiu,
+    videoInRiproduzione: videoInRiproduzione ?? this.videoInRiproduzione,
   );
 }
 
@@ -298,11 +313,8 @@ class AppuntiApp {
   /// Quante volte sono già stati incollati nella pagina d'origine (ogni copia si sposta di 30 unità; −1 dopo «Taglia»).
   final int ripetizione;
 
-  AppuntiApp conRipetizione(int r) => AppuntiApp(
-    dati: dati,
-    cartellaOrigine: cartellaOrigine,
-    ripetizione: r,
-  );
+  AppuntiApp conRipetizione(int r) =>
+      AppuntiApp(dati: dati, cartellaOrigine: cartellaOrigine, ripetizione: r);
 }
 
 class AppuntiNotifier extends Notifier<AppuntiApp?> {
@@ -372,8 +384,19 @@ class ControlloEditor extends Notifier<StatoEditor> {
 
   void apriStrumento(Strumento s) {
     if (s == state.strumento) return;
+    // Copertina: si vede il fotogramma scelto, non quello della riproduzione
+    final gira = s == Strumento.videoCopertina
+        ? state.videoInRiproduzione.difference({
+            for (final p in videoSelezionati) p.uid,
+          })
+        : null;
     // Una bozza rimasta di un altro strumento non entra in cronologia
-    state = state.copia(strumento: s, bozza: () => null, contagocce: false);
+    state = state.copia(
+      strumento: s,
+      bozza: () => null,
+      contagocce: false,
+      videoInRiproduzione: gira,
+    );
   }
 
   /// La selezione senza gli elementi che nel documento [s] non ci sono (un testo nato solo in bozza e scartato).
@@ -495,6 +518,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
       selezione: sel,
       pagina: pagina,
       avviso: avviso,
+      videoInRiproduzione: _videoPresenti(snap),
     );
     if (c.added) _programmaSalvataggio();
   }
@@ -532,8 +556,20 @@ class ControlloEditor extends Notifier<StatoEditor> {
           if (elementoDi(h.current, r) != null) r,
       },
       pagina: state.pagina.clamp(0, h.current.canvas.numFrames - 1),
+      videoInRiproduzione: _videoPresenti(h.current),
     );
     _programmaSalvataggio();
+  }
+
+  /// I video in riproduzione che nel documento [s] ci sono ancora (un video eliminato o annullato si ferma).
+  Set<int> _videoPresenti(Snapshot s) {
+    final r = state.videoInRiproduzione;
+    if (r.isEmpty) return r;
+    final ci = {
+      for (final p in s.items)
+        if (p.isVideo && r.contains(p.uid)) p.uid,
+    };
+    return ci.length == r.length ? r : ci;
   }
 
   // ---------- Comandi sugli elementi selezionati ----------
@@ -650,6 +686,59 @@ class ControlloEditor extends Notifier<StatoEditor> {
       incollaStile(state.snapshot, uids, stile),
       messaggio: MessaggioEditor.stileIncollato,
     );
+  }
+
+  // ---------- Video (Fase 8) ----------
+  /// I video selezionati, come nel documento che si vede.
+  List<PhotoItem> get videoSelezionati =>
+      fotoSelezionate.where((p) => p.isVideo).toList();
+
+  /// Durata del video [p] in secondi (0 finché non si conosce).
+  double durataVideo(PhotoItem p) => _s.risorse.durataVideo(p);
+
+  /// Applica [f] (con la durata di ciascun video) ai video selezionati, come bozza: con ✓ diventa un passo.
+  void modificaVideoSelezionati(PhotoItem Function(PhotoItem, double) f) {
+    final uids = [for (final p in videoSelezionati) p.uid];
+    if (uids.isEmpty) return;
+    anteprima(modificaFoto(state.snapshot, uids, (p) => f(p, durataVideo(p))));
+  }
+
+  /// «Audio»: acceso o spento nell'MP4 esportato, per tutti i video selezionati (un tocco = un passo).
+  void alternaAudioVideo() {
+    final v = videoSelezionati;
+    if (v.isEmpty) return;
+    final acceso = !(v.first.muted);
+    _commit(
+      modificaFoto(state.snapshot, [
+        for (final p in v) p.uid,
+      ], (p) => conAudio(p, !acceso)),
+    );
+  }
+
+  /// «Riproduci» / «Pausa» (`_toggle_video_play`): se uno dei video selezionati gira si fermano tutti, altrimenti
+  /// partono tutti.
+  void alternaRiproduzione() {
+    final v = {for (final p in videoSelezionati) p.uid};
+    if (v.isEmpty) return;
+    final r = state.videoInRiproduzione;
+    state = state.copia(
+      videoInRiproduzione: v.any(r.contains) ? r.difference(v) : r.union(v),
+    );
+  }
+
+  /// Il video [uid] non si può riprodurre (file mancante o illeggibile): si ferma.
+  void fermaVideo(int uid) {
+    final r = state.videoInRiproduzione;
+    if (r.contains(uid)) {
+      state = state.copia(videoInRiproduzione: {...r}..remove(uid));
+    }
+  }
+
+  /// Ferma tutti i video (esportazione, app in secondo piano), come `_stop_all_videos`.
+  void fermaTuttiVideo() {
+    if (state.videoInRiproduzione.isNotEmpty) {
+      state = state.copia(videoInRiproduzione: const {});
+    }
   }
 
   // ---------- Testo (Fase 5) ----------
@@ -863,9 +952,8 @@ class ControlloEditor extends Notifier<StatoEditor> {
       _comandoPagina(setAspectRatio(state.snapshot, indice, _s.ctx));
 
   /// Misure del formato Personalizzato (200–6000 px).
-  void impostaMisure(int larghezza, int altezza) => _comandoPagina(
-    setCustomSize(state.snapshot, larghezza, altezza, _s.ctx),
-  );
+  void impostaMisure(int larghezza, int altezza) =>
+      _comandoPagina(setCustomSize(state.snapshot, larghezza, altezza, _s.ctx));
 
   // ---------- Selezione multipla e comandi sulla selezione (Fase 6) ----------
   /// «Seleziona più»: da ora ogni tocco su un elemento lo aggiunge alla selezione o lo toglie.

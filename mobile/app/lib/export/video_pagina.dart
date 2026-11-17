@@ -10,6 +10,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrl_engine/scrl_engine.dart';
 import 'package:scrl_video/scrl_video.dart';
 
@@ -36,6 +37,40 @@ class EsitoVideo {
   double get msPerFotogramma =>
       fotogrammi == 0 ? 0 : tempo.inMicroseconds / 1000.0 / fotogrammi;
 }
+
+/// Firma di [esportaPaginaVideo] (le prove la sostituiscono).
+typedef EsportaPaginaVideo = Future<EsitoVideo> Function({
+  required Snapshot s,
+  required int k,
+  required String percorso,
+  required CacheMedia cache,
+  required String cartellaProgetto,
+  required TestiDisegno testi,
+  void Function(int fatti, int totale)? avanzamento,
+  bool Function()? annullato,
+});
+
+/// Chi scrive l'MP4 di una pagina: il telefono vero; le prove lo sostituiscono.
+final esportaPaginaVideoProvider = Provider<EsportaPaginaVideo>(
+  (ref) => esportaPaginaVideo,
+);
+
+/// Il telefono sa scrivere MP4 (vero su Android; su iOS dalla Fase 9): altrimenti le pagine con video escono come
+/// immagine con la copertina, e il foglio di esportazione lo dice.
+final videoDisponibileProvider = Provider<Future<bool> Function()>(
+  (ref) => ScrlVideo.disponibile,
+);
+
+/// Video della pagina [k] che si trovano (`_page_videos`: i mancanti restano col segnaposto, come le foto).
+Future<List<PhotoItem>> videoTrovati(
+  Snapshot s,
+  int k,
+  CacheMedia cache,
+  String cartellaProgetto,
+) async => [
+  for (final v in videoDellaPagina(s, k))
+    if (await cache.sorgenteVideo(sorgenteDi(v, cartellaProgetto)) != null) v,
+];
 
 class _Video {
   final PhotoItem p;
@@ -87,14 +122,12 @@ Future<EsitoVideo> esportaPaginaVideo({
   );
   final lettori = <int, LettoreFotogrammi>{};
   ScrittoreMp4? scrittore;
+  ui.Image? sotto, sopra;
   var fatto = false;
   var n = 0;
   try {
     final video = <_Video>[];
-    for (final p in RisorsePagina.fotoDellaPagina(
-      s,
-      k,
-    ).where((p) => p.isVideo)) {
+    for (final p in videoDellaPagina(s, k)) {
       final src = await cache.sorgenteVideo(sorgenteDi(p, cartellaProgetto));
       if (src == null) {
         continue; // Video mancante: resta il segnaposto (o la copertina)
@@ -104,18 +137,16 @@ Future<EsitoVideo> esportaPaginaVideo({
     if (video.isEmpty) {
       return EsitoVideo(false, errore: StateError('Nessun video nella pagina'));
     }
-    final piuLungo = video.map((v) => v.durata).reduce(math.max);
-    n = math.max(
-      1,
-      (math.min(piuLungo, RegoleVideo.secondiMassimi) * RegoleVideo.fps)
-          .round(),
-    );
+    n = fotogrammiPaginaVideo(video.map((v) => v.durata));
     final secondi = n / RegoleVideo.fps;
 
-    await risorse.preparaEsportazione(s, k, px);
+    await risorse.preparaEsportazione(s, k, px, annullato: annullato);
+    if (annullato?.call() ?? false) {
+      return EsitoVideo(null, tempo: cronometro.elapsed);
+    }
     final zLo = video.map((v) => v.p.z).reduce(math.min);
     final zHi = video.map((v) => v.p.z).reduce(math.max);
-    final sotto = await _strato(
+    sotto = await _strato(
       s,
       k,
       out.w,
@@ -129,7 +160,7 @@ Future<EsitoVideo> esportaPaginaVideo({
         filtro: (e) => e.z < zLo,
       ),
     );
-    final sopra = await _strato(
+    sopra = await _strato(
       s,
       k,
       out.w,
@@ -228,6 +259,8 @@ Future<EsitoVideo> esportaPaginaVideo({
       errore: e,
     );
   } finally {
+    sotto?.dispose();
+    sopra?.dispose();
     for (final l in lettori.values) {
       try {
         await l.chiudi();
@@ -239,7 +272,8 @@ Future<EsitoVideo> esportaPaginaVideo({
       f.dispose();
     }
     risorse.fotogrammi.clear();
-    risorse.dispose();
+    // Originali, copertine e strati letti per questa pagina si liberano subito
+    risorse.termina();
     if (scrittore != null) {
       try {
         await scrittore.annulla();

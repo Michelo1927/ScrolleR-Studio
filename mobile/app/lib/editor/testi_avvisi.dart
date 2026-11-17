@@ -52,6 +52,7 @@ String testoAvviso(Testi t, Avviso a) {
     MessaggioEditor.selezionaPiu => t.selezionaPiuAiuto,
     MessaggioEditor.sfondoSenzaFoto => t.sfSenzaFoto,
     MessaggioEditor.inArrivo => t.inArrivo,
+    MessaggioEditor.videoSenzaAudio => t.videoSenzaAudioAvviso,
     null => '',
   };
 }

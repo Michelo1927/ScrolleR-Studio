@@ -199,12 +199,17 @@ class CacheMedia {
           ? await _sorgenteVideoGalleria(p.asset!)
           : p.file;
       if (sorgente == null) return null;
-      final f = await ScrlVideo.fotogramma(
-        sorgente,
-        0,
-        latoMassimo: lato ?? 1 << 14,
-      );
-      return immagineDaPixel(f.rgba, f.larghezza, f.altezza);
+      try {
+        final f = await ScrlVideo.fotogramma(
+          sorgente,
+          0,
+          latoMassimo: lato ?? 1 << 14,
+        );
+        return await immagineDaPixel(f.rgba, f.larghezza, f.altezza);
+      } on Exception {
+        // Video illeggibile (o telefono senza video): come una foto che non si decodifica, non blocca le altre
+        return null;
+      }
     }
     File? file;
     if (p.source == MediaSource.asset) {

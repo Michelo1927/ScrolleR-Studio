@@ -10,9 +10,11 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:scrl_engine/scrl_engine.dart';
+import 'package:scrl_video/scrl_video.dart';
 
 import '../media/cache_media.dart';
 import '../media/galleria.dart';
+import '../media/riproduzione_video.dart';
 import '../project/archivio.dart';
 import '../render/disegno.dart';
 import '../render/risorse_pagina.dart';
@@ -28,9 +30,16 @@ class SessioneEditor {
     required this.inizio,
     this.libreriaIniziale = const [],
     this.extraFile = const {},
+    LeggiInfoVideo? leggiInfoVideo,
+    ApriLettore? apriLettoreVideo,
   }) : nome = dati.nome,
-       misure = {...dati.misure} {
-    risorse = RisorsePagina(cache: cache, cartellaProgetto: cartella.path);
+       misure = {...dati.misure},
+       apriLettoreVideo = apriLettoreVideo ?? apriLettoreDiSistema {
+    risorse = RisorsePagina(
+      cache: cache,
+      cartellaProgetto: cartella.path,
+      leggiInfo: leggiInfoVideo ?? ScrlVideo.info,
+    );
     ctx = EngineContext(
       imageSize: (p) => misure[chiaveMedia(p)],
       textSize: misuraTesto,
@@ -47,6 +56,9 @@ class SessioneEditor {
   final List<LibraryEntry> libreriaIniziale;
 
   late final RisorsePagina risorse;
+
+  /// Apre i fotogrammi di un video per la riproduzione sulla tela (le prove lo sostituiscono).
+  final ApriLettore apriLettoreVideo;
   late final EngineContext ctx;
 
   /// Nome del progetto (si cambia dalla Home).

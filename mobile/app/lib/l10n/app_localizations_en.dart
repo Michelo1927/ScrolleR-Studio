@@ -1678,10 +1678,6 @@ class TestiEn extends Testi {
   String get espNessunaPagina => 'Choose at least one page';
 
   @override
-  String get espVideoCopertina =>
-      'Pages with a video are exported as an image, with the cover: MP4 export comes later.';
-
-  @override
   String get espDestinazione => 'Save to';
 
   @override
@@ -1830,4 +1826,79 @@ class TestiEn extends Testi {
 
   @override
   String get espFine => 'Done';
+
+  @override
+  String get videoMuto => 'muted';
+
+  @override
+  String get videoRiproduci => 'Play';
+
+  @override
+  String get videoPausa => 'Pause';
+
+  @override
+  String get strTaglia => 'Trim';
+
+  @override
+  String get strCopertina => 'Cover';
+
+  @override
+  String get strAudio => 'Audio';
+
+  @override
+  String get parInizio => 'Start';
+
+  @override
+  String get parFine => 'End';
+
+  @override
+  String videoInfoDurata(String durata, String usati) {
+    return 'Length $durata  ·  used $usati';
+  }
+
+  @override
+  String get videoSenzaAudio => 'no audio';
+
+  @override
+  String get videoSenzaAudioAvviso => 'This video has no audio';
+
+  @override
+  String videoLimiteInstagram(int secondi) {
+    return 'Instagram accepts slides up to $secondi s: the exported page stops there.';
+  }
+
+  @override
+  String espFaseVideo(
+    int pagina,
+    int indice,
+    int totale,
+    int fotogramma,
+    int fotogrammi,
+  ) {
+    return 'Page $pagina ($indice of $totale) · MP4 video, frame $fotogramma of $fotogrammi…';
+  }
+
+  @override
+  String espVideoMp4(int larghezza, int altezza, int fps) {
+    return 'Pages with a video are exported as MP4 ($larghezza×$altezza px, $fps fps), with the audio of the videos that have it on.';
+  }
+
+  @override
+  String get espVideoCollage =>
+      'In the whole collage, videos appear with their cover.';
+
+  @override
+  String get espVideoNonDisponibile =>
+      'This phone can\'t export MP4 videos yet: pages with a video are exported as an image, with the cover.';
+
+  @override
+  String espVideoSalvati(int n, int larghezza, int altezza) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'The $n pages with a video are MP4s',
+      one: 'The page with a video is an MP4',
+    );
+    return '$_temp0 ($larghezza×$altezza px, 30 fps)';
+  }
 }

@@ -285,6 +285,7 @@ class CursoreGrande extends StatefulWidget {
     required this.etichetta,
     this.daCentro = false,
     this.unita = '',
+    this.formato,
   });
 
   final double valore;
@@ -298,6 +299,9 @@ class CursoreGrande extends StatefulWidget {
 
   /// Simbolo dopo il valore («%», «°»).
   final String unita;
+
+  /// Testo del valore, se non è un numero semplice (per esempio i decimi di secondo dei video: «0:04,5»).
+  final String Function(int valore)? formato;
 
   @override
   State<CursoreGrande> createState() => _CursoreGrandeState();
@@ -355,7 +359,8 @@ class _CursoreGrandeState extends State<CursoreGrande> {
           SizedBox(
             width: 64,
             child: Text(
-              '${daCentro && valore.round() > 0 ? '+' : ''}${valore.round()}${w.unita}',
+              w.formato?.call(valore.round()) ??
+                  '${daCentro && valore.round() > 0 ? '+' : ''}${valore.round()}${w.unita}',
               textAlign: TextAlign.end,
               style: const TextStyle(
                 fontSize: TestoScrl.grande,

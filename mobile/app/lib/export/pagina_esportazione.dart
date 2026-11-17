@@ -29,6 +29,14 @@ String testoFase(Testi t, Avanzamento a, Destinazione d, bool collage) {
       return t.espFaseFoto(a.pagina, a.indice, a.totale);
     case FaseEsportazione.pagina:
       return t.espFasePagina(a.pagina, a.indice, a.totale);
+    case FaseEsportazione.video:
+      return t.espFaseVideo(
+        a.pagina,
+        a.indice,
+        a.totale,
+        a.fotogramma,
+        a.fotogrammi,
+      );
     case FaseEsportazione.composizione:
       return t.espFaseComposizione;
     case FaseEsportazione.consegna:
@@ -51,7 +59,12 @@ String testoFase(Testi t, Avanzamento a, Destinazione d, bool collage) {
     Destinazione.condividi => t.espSalvatoCondiviso(n),
     Destinazione.file => t.espSalvatoFile(n),
   };
-  final misure = '${e.larghezza}×${e.altezza} px';
+  // Misure delle immagini e, se ci sono, degli MP4 (`n_mp4` del desktop)
+  final soloVideo = e.mp4 > 0 && e.mp4 == n;
+  final misure = [
+    if (!soloVideo) '${e.larghezza}×${e.altezza} px',
+    if (e.mp4 > 0) t.espVideoSalvati(e.mp4, e.videoLarghezza, e.videoAltezza),
+  ].join('\n');
   switch (e.stato) {
     case StatoEsito.fatto:
       return (

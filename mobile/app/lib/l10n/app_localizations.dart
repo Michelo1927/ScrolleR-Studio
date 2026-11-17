@@ -2869,12 +2869,6 @@ abstract class Testi {
   /// **'Scegli almeno una pagina'**
   String get espNessunaPagina;
 
-  /// Esportazione: nota sui video
-  ///
-  /// In it, this message translates to:
-  /// **'Le pagine con un video escono come immagine, con la copertina: l\'MP4 arriva più avanti.'**
-  String get espVideoCopertina;
-
   /// Esportazione: etichetta delle destinazioni
   ///
   /// In it, this message translates to:
@@ -3072,6 +3066,114 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Fine'**
   String get espFine;
+
+  /// Etichetta dei video sulla tela: l'MP4 esce senza audio
+  ///
+  /// In it, this message translates to:
+  /// **'muto'**
+  String get videoMuto;
+
+  /// Guarda il video sulla tela, senza audio (si ripete da capo)
+  ///
+  /// In it, this message translates to:
+  /// **'Riproduci'**
+  String get videoRiproduci;
+
+  /// Ferma il video sulla tela
+  ///
+  /// In it, this message translates to:
+  /// **'Pausa'**
+  String get videoPausa;
+
+  /// Strumento Video: inizio e fine
+  ///
+  /// In it, this message translates to:
+  /// **'Taglia'**
+  String get strTaglia;
+
+  /// Strumento Video: fotogramma mostrato sulla tela e nel collage
+  ///
+  /// In it, this message translates to:
+  /// **'Copertina'**
+  String get strCopertina;
+
+  /// Strumento Video: audio nell'MP4 esportato
+  ///
+  /// In it, this message translates to:
+  /// **'Audio'**
+  String get strAudio;
+
+  /// Da che punto parte il video nella pagina esportata
+  ///
+  /// In it, this message translates to:
+  /// **'Inizio'**
+  String get parInizio;
+
+  /// Dove finisce il video (poi ricomincia se un altro video della pagina dura di più)
+  ///
+  /// In it, this message translates to:
+  /// **'Fine'**
+  String get parFine;
+
+  /// Riga sotto i cursori del video
+  ///
+  /// In it, this message translates to:
+  /// **'Durata {durata}  ·  usati {usati}'**
+  String videoInfoDurata(String durata, String usati);
+
+  /// Il video non ha traccia audio
+  ///
+  /// In it, this message translates to:
+  /// **'senza audio'**
+  String get videoSenzaAudio;
+
+  /// Tocco su Audio con un video senza traccia audio
+  ///
+  /// In it, this message translates to:
+  /// **'Questo video non ha audio'**
+  String get videoSenzaAudioAvviso;
+
+  /// Taglio più lungo del massimo
+  ///
+  /// In it, this message translates to:
+  /// **'Instagram accetta slide fino a {secondi} s: la pagina esportata si ferma lì.'**
+  String videoLimiteInstagram(int secondi);
+
+  /// Avanzamento di una pagina con video
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {pagina} ({indice} di {totale}) · video MP4, fotogramma {fotogramma} di {fotogrammi}…'**
+  String espFaseVideo(
+    int pagina,
+    int indice,
+    int totale,
+    int fotogramma,
+    int fotogrammi,
+  );
+
+  /// Esportazione: nota sui video
+  ///
+  /// In it, this message translates to:
+  /// **'Le pagine con un video escono in MP4 ({larghezza}×{altezza} px, {fps} fps), con l\'audio dei video accesi.'**
+  String espVideoMp4(int larghezza, int altezza, int fps);
+
+  /// Esportazione del collage: nota sui video
+  ///
+  /// In it, this message translates to:
+  /// **'Nel collage intero i video compaiono con la copertina.'**
+  String get espVideoCollage;
+
+  /// Esportazione: MP4 non disponibile sul telefono
+  ///
+  /// In it, this message translates to:
+  /// **'Su questo telefono i video non si esportano ancora in MP4: le pagine con un video escono come immagine, con la copertina.'**
+  String get espVideoNonDisponibile;
+
+  /// Esito: pagine salvate come MP4
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{La pagina con video è un MP4} other{Le {n} pagine con video sono MP4}} ({larghezza}×{altezza} px, 30 fps)'**
+  String espVideoSalvati(int n, int larghezza, int altezza);
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

@@ -18,6 +18,7 @@ import 'pagina_ritaglio.dart';
 import 'pannelli_forma.dart';
 import 'pannelli_foto.dart';
 import 'pannelli_testo.dart';
+import 'pannelli_video.dart';
 import 'pannello_aggiungi.dart';
 import 'pannello_cronologia.dart';
 import 'pannello_disponi.dart';
@@ -83,6 +84,7 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
     if (stato == AppLifecycleState.paused ||
         stato == AppLifecycleState.inactive ||
         stato == AppLifecycleState.hidden) {
+      _ctrl.fermaTuttiVideo();
       unawaited(_ctrl.salvaOra());
     }
   }
@@ -298,6 +300,12 @@ class _ZonaInferiore extends ConsumerWidget {
       Strumento.allinea => const PannelloAllinea(key: ValueKey('allinea')),
       Strumento.distribuisci => const PannelloDistribuisci(
         key: ValueKey('distribuisci'),
+      ),
+      Strumento.videoTaglia => const PannelloTaglioVideo(
+        key: ValueKey('videoTaglia'),
+      ),
+      Strumento.videoCopertina => const PannelloCopertinaVideo(
+        key: ValueKey('videoCopertina'),
       ),
       Strumento.nessuno =>
         haSelezione
@@ -529,7 +537,8 @@ class _BarraInferiore extends ConsumerWidget {
 
 /// Con un elemento selezionato la barra diventa una striscia di strumenti, con ✕ a sinistra per deselezionare.
 /// Foto: Ritaglia · Inquadra · Filtri · Regola · Effetti · Cornice · Ombra · Ruota · Libera · Copia stile ·
-/// Incolla stile · Duplica · Elimina (un video non ha Filtri, Regola ed Effetti).
+/// Incolla stile · Duplica · Elimina (un video non ha Filtri, Regola ed Effetti, e ha in testa Riproduci · Taglia ·
+/// Copertina · Audio).
 /// Testo: Modifica · Carattere · Dimensione · Formato · Colore · Contorno · Ombra · Etichetta · Spaziatura · Opacità ·
 /// Ruota · Duplica · Elimina. Forma: Tipo · Riempimento · Bordo · Angoli · Opacità · Ruota · Duplica · Elimina
 /// (le linee non hanno Riempimento né Angoli, il rettangolo ha gli Angoli, gli altri tipi no).
@@ -545,6 +554,10 @@ class _BarraSelezione extends ConsumerWidget {
     final foto = sel.whereType<PhotoItem>().toList();
     final tutteLibere = foto.isNotEmpty && foto.every((p) => p.free);
     final conColori = foto.any((p) => !p.isVideo);
+    final conVideo = foto.any((p) => p.isVideo);
+    final videoGira =
+        conVideo &&
+        foto.any((p) => p.isVideo && stato.videoInRiproduzione.contains(p.uid));
     final testi = sel.whereType<TextItem>().toList();
     final forme = sel.whereType<ShapeItem>().toList();
     // Gli strumenti di foto, testi e forme valgono quando la selezione è fatta di un solo tipo; con tipi diversi restano
@@ -577,249 +590,273 @@ class _BarraSelezione extends ConsumerWidget {
             )
           else
             Expanded(
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                if (soloFoto) ...[
-                  VoceBarra(
-                    icona: Icons.crop_rounded,
-                    etichetta: t.strRitaglia,
-                    onTap: () => _ritaglia(context, ref),
-                  ),
-                  VoceBarra(
-                    icona: Icons.center_focus_strong_outlined,
-                    etichetta: t.strInquadra,
-                    onTap: () => ctrl.apriStrumento(Strumento.inquadra),
-                  ),
-                  if (conColori) ...[
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  if (soloFoto && conVideo) ...[
                     VoceBarra(
-                      icona: Icons.auto_awesome_outlined,
-                      etichetta: t.strFiltri,
-                      onTap: () => ctrl.apriStrumento(Strumento.filtri),
+                      key: const ValueKey('voce-riproduci'),
+                      icona: videoGira
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      etichetta: videoGira ? t.videoPausa : t.videoRiproduci,
+                      attiva: videoGira,
+                      onTap: ctrl.alternaRiproduzione,
                     ),
                     VoceBarra(
-                      icona: Icons.tune_rounded,
-                      etichetta: t.strRegola,
-                      onTap: () => ctrl.apriStrumento(Strumento.regola),
+                      key: const ValueKey('voce-taglia'),
+                      icona: Icons.content_cut_rounded,
+                      etichetta: t.strTaglia,
+                      onTap: () => apri(Strumento.videoTaglia),
                     ),
                     VoceBarra(
-                      icona: Icons.auto_fix_high_rounded,
-                      etichetta: t.strEffetti,
-                      onTap: () => ctrl.apriStrumento(Strumento.effetti),
+                      key: const ValueKey('voce-copertina'),
+                      icona: Icons.image_outlined,
+                      etichetta: t.strCopertina,
+                      onTap: () => apri(Strumento.videoCopertina),
                     ),
+                    const _VoceAudio(key: ValueKey('voce-audio')),
                   ],
-                  VoceBarra(
-                    icona: Icons.rounded_corner_rounded,
-                    etichetta: t.strCornice,
-                    onTap: () => ctrl.apriStrumento(Strumento.cornice),
-                  ),
-                  VoceBarra(
-                    icona: Icons.blur_on_rounded,
-                    etichetta: t.strOmbra,
-                    onTap: () => ctrl.apriStrumento(Strumento.ombra),
-                  ),
-                  VoceBarra(
-                    icona: Icons.rotate_right_rounded,
-                    etichetta: t.strRuota,
-                    onTap: () => ctrl.apriStrumento(Strumento.ruota),
-                  ),
-                  VoceBarra(
-                    icona: Icons.layers_outlined,
-                    etichetta: t.strDisponi,
-                    onTap: () => ctrl.apriStrumento(Strumento.disponi),
-                  ),
-                  VoceBarra(
-                    icona: tutteLibere
-                        ? Icons.grid_view_rounded
-                        : Icons.open_with_rounded,
-                    etichetta: tutteLibere ? t.inDisposizione : t.libera,
-                    onTap: ctrl.liberaSelezione,
-                  ),
-                  VoceBarra(
-                    icona: Icons.drive_file_move_outlined,
-                    etichetta: t.menuSpostaInPagina,
-                    onTap: () => unawaited(
-                      mostraMenuElemento(context, soloPagina: true),
-                    ),
-                  ),
-                  VoceBarra(
-                    icona: Icons.colorize_rounded,
-                    etichetta: t.strCopiaStile,
-                    onTap: ctrl.copiaStile,
-                  ),
-                  VoceBarra(
-                    icona: Icons.format_paint_rounded,
-                    etichetta: t.strIncollaStile,
-                    onTap: ctrl.incollaStileCopiato,
-                    spenta: stato.stileCopiato == null,
-                  ),
-                ],
-                if (soloTesti) ...[
-                  VoceBarra(
-                    icona: Icons.edit_outlined,
-                    etichetta: t.strModifica,
-                    onTap: () => apri(Strumento.testoModifica),
-                  ),
-                  VoceBarra(
-                    icona: Icons.font_download_outlined,
-                    etichetta: t.strCarattere,
-                    onTap: () => apri(Strumento.testoCarattere),
-                  ),
-                  VoceBarra(
-                    icona: Icons.format_size_rounded,
-                    etichetta: t.strDimensione,
-                    onTap: () => apri(Strumento.testoDimensione),
-                  ),
-                  VoceBarra(
-                    icona: Icons.format_bold_rounded,
-                    etichetta: t.strFormato,
-                    onTap: () => apri(Strumento.testoFormato),
-                  ),
-                  VoceBarra(
-                    icona: Icons.format_color_text_rounded,
-                    etichetta: t.parColore,
-                    onTap: () => apri(Strumento.testoColore),
-                  ),
-                  VoceBarra(
-                    icona: Icons.border_color_outlined,
-                    etichetta: t.strContorno,
-                    onTap: () => apri(Strumento.testoContorno),
-                  ),
-                  VoceBarra(
-                    icona: Icons.blur_on_rounded,
-                    etichetta: t.strOmbra,
-                    attiva: testi.first.shadow,
-                    onTap: ctrl.alternaOmbraTesto,
-                  ),
-                  VoceBarra(
-                    icona: Icons.label_outline_rounded,
-                    etichetta: t.strEtichetta,
-                    attiva: testi.first.box,
-                    onTap: () => apri(Strumento.testoEtichetta),
-                  ),
-                  VoceBarra(
-                    icona: Icons.format_line_spacing_rounded,
-                    etichetta: t.strSpaziatura,
-                    onTap: () => apri(Strumento.testoSpaziatura),
-                  ),
-                  VoceBarra(
-                    icona: Icons.opacity_rounded,
-                    etichetta: t.parOpacita,
-                    onTap: () => apri(Strumento.testoOpacita),
-                  ),
-                  VoceBarra(
-                    icona: Icons.rotate_right_rounded,
-                    etichetta: t.strRuota,
-                    onTap: () => apri(Strumento.testoRuota),
-                  ),
-                  VoceBarra(
-                    icona: Icons.layers_outlined,
-                    etichetta: t.strDisponi,
-                    onTap: () => apri(Strumento.disponi),
-                  ),
-                ],
-                if (soloForme) ...[
-                  VoceBarra(
-                    icona: Icons.category_outlined,
-                    etichetta: t.strTipo,
-                    onTap: () => apri(Strumento.formaTipo),
-                  ),
-                  if (!tutteLinee)
+                  if (soloFoto) ...[
                     VoceBarra(
-                      icona: Icons.format_color_fill_rounded,
-                      etichetta: t.strRiempimento,
-                      onTap: () => apri(Strumento.formaRiempimento),
+                      icona: Icons.crop_rounded,
+                      etichetta: t.strRitaglia,
+                      onTap: () => _ritaglia(context, ref),
                     ),
-                  VoceBarra(
-                    icona: Icons.line_weight_rounded,
-                    etichetta: tutteLinee ? t.parLinea : t.parBordo,
-                    onTap: () => apri(Strumento.formaBordo),
-                  ),
-                  if (conAngoli)
+                    VoceBarra(
+                      icona: Icons.center_focus_strong_outlined,
+                      etichetta: t.strInquadra,
+                      onTap: () => ctrl.apriStrumento(Strumento.inquadra),
+                    ),
+                    if (conColori) ...[
+                      VoceBarra(
+                        icona: Icons.auto_awesome_outlined,
+                        etichetta: t.strFiltri,
+                        onTap: () => ctrl.apriStrumento(Strumento.filtri),
+                      ),
+                      VoceBarra(
+                        icona: Icons.tune_rounded,
+                        etichetta: t.strRegola,
+                        onTap: () => ctrl.apriStrumento(Strumento.regola),
+                      ),
+                      VoceBarra(
+                        icona: Icons.auto_fix_high_rounded,
+                        etichetta: t.strEffetti,
+                        onTap: () => ctrl.apriStrumento(Strumento.effetti),
+                      ),
+                    ],
                     VoceBarra(
                       icona: Icons.rounded_corner_rounded,
-                      etichetta: t.parAngoli,
-                      onTap: () => apri(Strumento.formaAngoli),
+                      etichetta: t.strCornice,
+                      onTap: () => ctrl.apriStrumento(Strumento.cornice),
                     ),
-                  VoceBarra(
-                    icona: Icons.opacity_rounded,
-                    etichetta: t.parOpacita,
-                    onTap: () => apri(Strumento.formaOpacita),
-                  ),
-                  VoceBarra(
-                    icona: Icons.rotate_right_rounded,
-                    etichetta: t.strRuota,
-                    onTap: () => apri(Strumento.formaRuota),
-                  ),
-                  VoceBarra(
-                    icona: Icons.layers_outlined,
-                    etichetta: t.strDisponi,
-                    onTap: () => apri(Strumento.disponi),
-                  ),
-                ],
-                if (multi && !soloFoto && !soloTesti && !soloForme)
-                  VoceBarra(
-                    icona: Icons.layers_outlined,
-                    etichetta: t.strDisponi,
-                    onTap: () => apri(Strumento.disponi),
-                  ),
-                VoceBarra(
-                  icona: Icons.align_horizontal_left_rounded,
-                  etichetta: t.strAllinea,
-                  onTap: () => apri(Strumento.allinea),
-                ),
-                if (multi) ...[
-                  VoceBarra(
-                    icona: Icons.horizontal_distribute_rounded,
-                    etichetta: t.strDistribuisci,
-                    onTap: () => apri(Strumento.distribuisci),
-                  ),
-                  if (!unGruppo)
                     VoceBarra(
-                      icona: Icons.workspaces_outline,
-                      etichetta: t.strRaggruppa,
-                      onTap: ctrl.raggruppaSelezione,
+                      icona: Icons.blur_on_rounded,
+                      etichetta: t.strOmbra,
+                      onTap: () => ctrl.apriStrumento(Strumento.ombra),
                     ),
-                  if (inGruppi)
+                    VoceBarra(
+                      icona: Icons.rotate_right_rounded,
+                      etichetta: t.strRuota,
+                      onTap: () => ctrl.apriStrumento(Strumento.ruota),
+                    ),
+                    VoceBarra(
+                      icona: Icons.layers_outlined,
+                      etichetta: t.strDisponi,
+                      onTap: () => ctrl.apriStrumento(Strumento.disponi),
+                    ),
+                    VoceBarra(
+                      icona: tutteLibere
+                          ? Icons.grid_view_rounded
+                          : Icons.open_with_rounded,
+                      etichetta: tutteLibere ? t.inDisposizione : t.libera,
+                      onTap: ctrl.liberaSelezione,
+                    ),
+                    VoceBarra(
+                      icona: Icons.drive_file_move_outlined,
+                      etichetta: t.menuSpostaInPagina,
+                      onTap: () => unawaited(
+                        mostraMenuElemento(context, soloPagina: true),
+                      ),
+                    ),
+                    VoceBarra(
+                      icona: Icons.colorize_rounded,
+                      etichetta: t.strCopiaStile,
+                      onTap: ctrl.copiaStile,
+                    ),
+                    VoceBarra(
+                      icona: Icons.format_paint_rounded,
+                      etichetta: t.strIncollaStile,
+                      onTap: ctrl.incollaStileCopiato,
+                      spenta: stato.stileCopiato == null,
+                    ),
+                  ],
+                  if (soloTesti) ...[
+                    VoceBarra(
+                      icona: Icons.edit_outlined,
+                      etichetta: t.strModifica,
+                      onTap: () => apri(Strumento.testoModifica),
+                    ),
+                    VoceBarra(
+                      icona: Icons.font_download_outlined,
+                      etichetta: t.strCarattere,
+                      onTap: () => apri(Strumento.testoCarattere),
+                    ),
+                    VoceBarra(
+                      icona: Icons.format_size_rounded,
+                      etichetta: t.strDimensione,
+                      onTap: () => apri(Strumento.testoDimensione),
+                    ),
+                    VoceBarra(
+                      icona: Icons.format_bold_rounded,
+                      etichetta: t.strFormato,
+                      onTap: () => apri(Strumento.testoFormato),
+                    ),
+                    VoceBarra(
+                      icona: Icons.format_color_text_rounded,
+                      etichetta: t.parColore,
+                      onTap: () => apri(Strumento.testoColore),
+                    ),
+                    VoceBarra(
+                      icona: Icons.border_color_outlined,
+                      etichetta: t.strContorno,
+                      onTap: () => apri(Strumento.testoContorno),
+                    ),
+                    VoceBarra(
+                      icona: Icons.blur_on_rounded,
+                      etichetta: t.strOmbra,
+                      attiva: testi.first.shadow,
+                      onTap: ctrl.alternaOmbraTesto,
+                    ),
+                    VoceBarra(
+                      icona: Icons.label_outline_rounded,
+                      etichetta: t.strEtichetta,
+                      attiva: testi.first.box,
+                      onTap: () => apri(Strumento.testoEtichetta),
+                    ),
+                    VoceBarra(
+                      icona: Icons.format_line_spacing_rounded,
+                      etichetta: t.strSpaziatura,
+                      onTap: () => apri(Strumento.testoSpaziatura),
+                    ),
+                    VoceBarra(
+                      icona: Icons.opacity_rounded,
+                      etichetta: t.parOpacita,
+                      onTap: () => apri(Strumento.testoOpacita),
+                    ),
+                    VoceBarra(
+                      icona: Icons.rotate_right_rounded,
+                      etichetta: t.strRuota,
+                      onTap: () => apri(Strumento.testoRuota),
+                    ),
+                    VoceBarra(
+                      icona: Icons.layers_outlined,
+                      etichetta: t.strDisponi,
+                      onTap: () => apri(Strumento.disponi),
+                    ),
+                  ],
+                  if (soloForme) ...[
+                    VoceBarra(
+                      icona: Icons.category_outlined,
+                      etichetta: t.strTipo,
+                      onTap: () => apri(Strumento.formaTipo),
+                    ),
+                    if (!tutteLinee)
+                      VoceBarra(
+                        icona: Icons.format_color_fill_rounded,
+                        etichetta: t.strRiempimento,
+                        onTap: () => apri(Strumento.formaRiempimento),
+                      ),
+                    VoceBarra(
+                      icona: Icons.line_weight_rounded,
+                      etichetta: tutteLinee ? t.parLinea : t.parBordo,
+                      onTap: () => apri(Strumento.formaBordo),
+                    ),
+                    if (conAngoli)
+                      VoceBarra(
+                        icona: Icons.rounded_corner_rounded,
+                        etichetta: t.parAngoli,
+                        onTap: () => apri(Strumento.formaAngoli),
+                      ),
+                    VoceBarra(
+                      icona: Icons.opacity_rounded,
+                      etichetta: t.parOpacita,
+                      onTap: () => apri(Strumento.formaOpacita),
+                    ),
+                    VoceBarra(
+                      icona: Icons.rotate_right_rounded,
+                      etichetta: t.strRuota,
+                      onTap: () => apri(Strumento.formaRuota),
+                    ),
+                    VoceBarra(
+                      icona: Icons.layers_outlined,
+                      etichetta: t.strDisponi,
+                      onTap: () => apri(Strumento.disponi),
+                    ),
+                  ],
+                  if (multi && !soloFoto && !soloTesti && !soloForme)
+                    VoceBarra(
+                      icona: Icons.layers_outlined,
+                      etichetta: t.strDisponi,
+                      onTap: () => apri(Strumento.disponi),
+                    ),
+                  VoceBarra(
+                    icona: Icons.align_horizontal_left_rounded,
+                    etichetta: t.strAllinea,
+                    onTap: () => apri(Strumento.allinea),
+                  ),
+                  if (multi) ...[
+                    VoceBarra(
+                      icona: Icons.horizontal_distribute_rounded,
+                      etichetta: t.strDistribuisci,
+                      onTap: () => apri(Strumento.distribuisci),
+                    ),
+                    if (!unGruppo)
+                      VoceBarra(
+                        icona: Icons.workspaces_outline,
+                        etichetta: t.strRaggruppa,
+                        onTap: ctrl.raggruppaSelezione,
+                      ),
+                    if (inGruppi)
+                      VoceBarra(
+                        icona: Icons.workspaces_filled,
+                        etichetta: t.strSepara,
+                        onTap: ctrl.separaSelezione,
+                      ),
+                    if (foto.length == 2 && sel.length == 2)
+                      VoceBarra(
+                        icona: Icons.swap_horiz_rounded,
+                        etichetta: t.strScambia,
+                        onTap: ctrl.scambiaFoto,
+                      ),
+                    VoceBarra(
+                      icona: bloccati
+                          ? Icons.lock_open_rounded
+                          : Icons.lock_outline,
+                      etichetta: bloccati ? t.strSblocca : t.strBlocca,
+                      attiva: bloccati,
+                      onTap: ctrl.bloccaSelezione,
+                    ),
+                  ] else if (inGruppi)
                     VoceBarra(
                       icona: Icons.workspaces_filled,
                       etichetta: t.strSepara,
                       onTap: ctrl.separaSelezione,
                     ),
-                  if (foto.length == 2 && sel.length == 2)
-                    VoceBarra(
-                      icona: Icons.swap_horiz_rounded,
-                      etichetta: t.strScambia,
-                      onTap: ctrl.scambiaFoto,
-                    ),
                   VoceBarra(
-                    icona: bloccati
-                        ? Icons.lock_open_rounded
-                        : Icons.lock_outline,
-                    etichetta: bloccati ? t.strSblocca : t.strBlocca,
-                    attiva: bloccati,
-                    onTap: ctrl.bloccaSelezione,
+                    icona: Icons.copy_rounded,
+                    etichetta: t.duplica,
+                    onTap: ctrl.duplicaSelezione,
                   ),
-                ] else if (inGruppi)
                   VoceBarra(
-                    icona: Icons.workspaces_filled,
-                    etichetta: t.strSepara,
-                    onTap: ctrl.separaSelezione,
+                    icona: Icons.delete_outline_rounded,
+                    etichetta: t.elimina,
+                    onTap: ctrl.eliminaSelezione,
+                    colore: ColoriScrl.pericolo,
                   ),
-                VoceBarra(
-                  icona: Icons.copy_rounded,
-                  etichetta: t.duplica,
-                  onTap: ctrl.duplicaSelezione,
-                ),
-                VoceBarra(
-                  icona: Icons.delete_outline_rounded,
-                  etichetta: t.elimina,
-                  onTap: ctrl.eliminaSelezione,
-                  colore: ColoriScrl.pericolo,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -840,5 +877,43 @@ class _BarraSelezione extends ConsumerWidget {
     if (r != null) {
       ctrl.applicaRitaglio(r.ritaglio, adattaRiquadro: r.adattaRiquadro);
     }
+  }
+}
+
+/// «Audio» del video selezionato (`chk_video_audio`): acceso o spento nell'MP4 esportato, un tocco = un passo.
+/// Un video senza traccia audio ha la voce spenta, e il tocco lo dice.
+class _VoceAudio extends ConsumerWidget {
+  const _VoceAudio({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Testi.of(context);
+    final ctrl = ref.read(editorProvider.notifier);
+    final risorse = ref.read(sessioneProvider).risorse;
+    final video = ref.watch(
+      editorProvider.select(
+        (s) => s.elementiSelezionati
+            .whereType<PhotoItem>()
+            .where((p) => p.isVideo)
+            .firstOrNull,
+      ),
+    );
+    if (video == null) return const SizedBox.shrink();
+    return ListenableBuilder(
+      listenable: risorse,
+      builder: (context, _) {
+        final audio = risorse.infoVideo(video)?.audio ?? false;
+        final acceso = audio && !video.muted;
+        return VoceBarra(
+          icona: acceso ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+          etichetta: t.strAudio,
+          attiva: acceso,
+          spenta: !audio,
+          onTap: audio
+              ? ctrl.alternaAudioVideo
+              : () => ctrl.messaggio(MessaggioEditor.videoSenzaAudio),
+        );
+      },
+    );
   }
 }

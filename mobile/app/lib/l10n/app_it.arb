@@ -2294,10 +2294,6 @@
   "@espNessunaPagina": {
     "description": "Esportazione: nessuna pagina scelta"
   },
-  "espVideoCopertina": "Le pagine con un video escono come immagine, con la copertina: l'MP4 arriva più avanti.",
-  "@espVideoCopertina": {
-    "description": "Esportazione: nota sui video"
-  },
   "espDestinazione": "Salva in",
   "@espDestinazione": {
     "description": "Esportazione: etichetta delle destinazioni"
@@ -2533,5 +2529,139 @@
   "espFine": "Fine",
   "@espFine": {
     "description": "Chiude la schermata dell'esito"
+  },
+  "videoMuto": "muto",
+  "@videoMuto": {
+    "description": "Etichetta dei video sulla tela: l'MP4 esce senza audio"
+  },
+  "videoRiproduci": "Riproduci",
+  "@videoRiproduci": {
+    "description": "Guarda il video sulla tela, senza audio (si ripete da capo)"
+  },
+  "videoPausa": "Pausa",
+  "@videoPausa": {
+    "description": "Ferma il video sulla tela"
+  },
+  "strTaglia": "Taglia",
+  "@strTaglia": {
+    "description": "Strumento Video: inizio e fine"
+  },
+  "strCopertina": "Copertina",
+  "@strCopertina": {
+    "description": "Strumento Video: fotogramma mostrato sulla tela e nel collage"
+  },
+  "strAudio": "Audio",
+  "@strAudio": {
+    "description": "Strumento Video: audio nell'MP4 esportato"
+  },
+  "parInizio": "Inizio",
+  "@parInizio": {
+    "description": "Da che punto parte il video nella pagina esportata"
+  },
+  "parFine": "Fine",
+  "@parFine": {
+    "description": "Dove finisce il video (poi ricomincia se un altro video della pagina dura di più)"
+  },
+  "videoInfoDurata": "Durata {durata}  ·  usati {usati}",
+  "@videoInfoDurata": {
+    "description": "Riga sotto i cursori del video",
+    "placeholders": {
+      "durata": {
+        "type": "String",
+        "example": "0:12"
+      },
+      "usati": {
+        "type": "String",
+        "example": "0:07"
+      }
+    }
+  },
+  "videoSenzaAudio": "senza audio",
+  "@videoSenzaAudio": {
+    "description": "Il video non ha traccia audio"
+  },
+  "videoSenzaAudioAvviso": "Questo video non ha audio",
+  "@videoSenzaAudioAvviso": {
+    "description": "Tocco su Audio con un video senza traccia audio"
+  },
+  "videoLimiteInstagram": "Instagram accetta slide fino a {secondi} s: la pagina esportata si ferma lì.",
+  "@videoLimiteInstagram": {
+    "description": "Taglio più lungo del massimo",
+    "placeholders": {
+      "secondi": {
+        "type": "int",
+        "example": "60"
+      }
+    }
+  },
+  "espFaseVideo": "Pagina {pagina} ({indice} di {totale}) · video MP4, fotogramma {fotogramma} di {fotogrammi}…",
+  "@espFaseVideo": {
+    "description": "Avanzamento di una pagina con video",
+    "placeholders": {
+      "pagina": {
+        "type": "int",
+        "example": "2"
+      },
+      "indice": {
+        "type": "int",
+        "example": "1"
+      },
+      "totale": {
+        "type": "int",
+        "example": "3"
+      },
+      "fotogramma": {
+        "type": "int",
+        "example": "120"
+      },
+      "fotogrammi": {
+        "type": "int",
+        "example": "300"
+      }
+    }
+  },
+  "espVideoMp4": "Le pagine con un video escono in MP4 ({larghezza}×{altezza} px, {fps} fps), con l'audio dei video accesi.",
+  "@espVideoMp4": {
+    "description": "Esportazione: nota sui video",
+    "placeholders": {
+      "larghezza": {
+        "type": "int",
+        "example": "1080"
+      },
+      "altezza": {
+        "type": "int",
+        "example": "1350"
+      },
+      "fps": {
+        "type": "int",
+        "example": "30"
+      }
+    }
+  },
+  "espVideoCollage": "Nel collage intero i video compaiono con la copertina.",
+  "@espVideoCollage": {
+    "description": "Esportazione del collage: nota sui video"
+  },
+  "espVideoNonDisponibile": "Su questo telefono i video non si esportano ancora in MP4: le pagine con un video escono come immagine, con la copertina.",
+  "@espVideoNonDisponibile": {
+    "description": "Esportazione: MP4 non disponibile sul telefono"
+  },
+  "espVideoSalvati": "{n, plural, =1{La pagina con video è un MP4} other{Le {n} pagine con video sono MP4}} ({larghezza}×{altezza} px, 30 fps)",
+  "@espVideoSalvati": {
+    "description": "Esito: pagine salvate come MP4",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      },
+      "larghezza": {
+        "type": "int",
+        "example": "1080"
+      },
+      "altezza": {
+        "type": "int",
+        "example": "1350"
+      }
+    }
   }
 }

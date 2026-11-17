@@ -15,6 +15,7 @@ import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 import 'package:scrl_engine/scrl_engine.dart' as motore show Rect;
 
 import '../l10n/app_localizations.dart';
+import '../media/riproduzione_video.dart';
 import '../render/campiona.dart';
 import '../render/disegno.dart';
 import '../render/risorse_pagina.dart';
@@ -71,6 +72,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     with SingleTickerProviderStateMixin {
   late final AnimationController _scorrimento;
   late final SessioneEditor _sessione;
+  late final RiproduzioneVideo _riproduzione;
   final ValueNotifier<Aggancio> _aggancio = ValueNotifier(Aggancio.nessuno);
   GeometriaTela? _geo;
   Timer? _timerPrepara;
@@ -126,10 +128,20 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     )..addListener(_alloScorrimento);
     WidgetsBinding.instance.addPostFrameCallback((_) => _prepara());
     _sessione.risorse.ripristinaQualita = _prepara;
+    _riproduzione = RiproduzioneVideo(
+      risorse: _sessione.risorse,
+      cache: _sessione.cache,
+      cartellaProgetto: _sessione.cartella.path,
+      apriLettore: _sessione.apriLettoreVideo,
+      onErrore: (uid) {
+        if (mounted) _ctrl.fermaVideo(uid);
+      },
+    );
   }
 
   @override
   void dispose() {
+    _riproduzione.chiudi();
     _sessione.risorse.ripristinaQualita = null;
     _timerPrepara?.cancel();
     _timerBordo?.cancel();
@@ -142,7 +154,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
 
   // ---------- Risorse ----------
   void _preparaConRitardo() {
-    if (_stato.strumento.eFoto) {
+    if (_stato.strumento.eFoto || _stato.strumento.eVideo) {
       // Con uno strumento Foto aperto un cursore in movimento cambia il documento a ogni istante: non si aspetta
       // che il dito si fermi (come per il ritardo normale) ma si colora a ritmo costante, sull'ultimo valore.
       if (_timerPrepara?.isActive ?? false) return;
@@ -622,10 +634,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       case PhotoItem():
         final r = trasformaFoto(el, scala: scala, gradi: gradi);
         agganciata = r.agganciata;
-        nuovo = _con(
-          base,
-          r.foto.copyWith(x: r.foto.x + dx, y: r.foto.y + dy),
-        );
+        nuovo = _con(base, r.foto.copyWith(x: r.foto.x + dx, y: r.foto.y + dy));
       case ShapeItem():
         final r = trasformaForma(el, scala: scala, gradi: gradi);
         agganciata = r.agganciata;
@@ -634,12 +643,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
           r.forma.copyWith(x: r.forma.x + dx, y: r.forma.y + dy),
         );
       case TextItem():
-        final r = trasformaTesto(
-          el,
-          _sessione.ctx,
-          scala: scala,
-          gradi: gradi,
-        );
+        final r = trasformaTesto(el, _sessione.ctx, scala: scala, gradi: gradi);
         agganciata = r.agganciata;
         nuovo = _conTesto(
           base,
@@ -753,6 +757,11 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     ref.listen(editorProvider.select((s) => s.snapshot), (_, _) {
       _preparaConRitardo();
     });
+    // Video in riproduzione: partono, si fermano e seguono il taglio (anche quello in bozza)
+    ref.listen(
+      editorProvider.select((s) => (s.snapshot, s.videoInRiproduzione)),
+      (_, v) => _riproduzione.sincronizza(v.$1, v.$2),
+    );
     final s = stato.snapshot;
     final testi = testiDisegno(context);
     return LayoutBuilder(
