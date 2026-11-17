@@ -51,9 +51,13 @@ SorgenteMedia sorgenteDi(PhotoItem p, String cartellaProgetto) {
     platform: Galleria.piattaforma,
     fileExists: (f) => File(f).existsSync(),
   );
+  return SorgenteMedia(chiaveMedia(p), pos, video: p.isVideo);
+}
+
+/// Chiave stabile di una foto, senza toccare il disco: identificativo della galleria oppure percorso nel progetto.
+String chiaveMedia(PhotoItem p) {
   final a = p.asset;
-  final chiave = a != null ? 'a:${a.platform}:${a.id}' : 'f:${p.rel ?? p.path}';
-  return SorgenteMedia(chiave, pos, video: p.isVideo);
+  return a != null ? 'a:${a.platform}:${a.id}' : 'f:${p.rel ?? p.path}';
 }
 
 /// Immagine caricata e se l'originale manca (si vede l'anteprima salvata).

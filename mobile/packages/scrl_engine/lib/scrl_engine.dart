@@ -4,7 +4,10 @@
 library;
 
 export 'src/color/colore.dart';
+export 'src/edit/aggancio.dart';
+export 'src/edit/elementi.dart';
 export 'src/edit/geometria_foto.dart';
+export 'src/edit/trasforma.dart';
 export 'src/history/describe.dart';
 export 'src/history/history.dart';
 export 'src/layout/layout.dart'

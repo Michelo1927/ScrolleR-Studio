@@ -1,0 +1,491 @@
+/// Schermata dell'editor (piano §4.1): barra superiore, tela a pagina singola, striscia pagine e barra inferiore.
+/// Gli strumenti salgono dal basso e la pagina si rimpicciolisce per restare sempre visibile (§3.4).
+library;
+
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:scrl_engine/scrl_engine.dart' hide Rect;
+
+import '../l10n/app_localizations.dart';
+import '../theme/tokens.dart';
+import 'pannello_aggiungi.dart';
+import 'pannello_disposizione.dart';
+import 'pannello_libreria.dart';
+import 'sessione.dart';
+import 'stato.dart';
+import 'tela.dart';
+import 'testi_avvisi.dart';
+import 'widget_comuni.dart';
+
+/// L'editor di un progetto aperto. Porta con sé la sessione (immagini, contesto del motore, salvataggio).
+class EditorPage extends StatefulWidget {
+  const EditorPage({super.key, required this.sessione});
+
+  final SessioneEditor sessione;
+
+  @override
+  State<EditorPage> createState() => _EditorPageState();
+}
+
+class _EditorPageState extends State<EditorPage> {
+  @override
+  void dispose() {
+    unawaited(widget.sessione.chiudi());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ProviderScope(
+    overrides: [sessioneProvider.overrideWithValue(widget.sessione)],
+    child: const _Editor(),
+  );
+}
+
+class _Editor extends ConsumerStatefulWidget {
+  const _Editor();
+
+  @override
+  ConsumerState<_Editor> createState() => _EditorState();
+}
+
+class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
+  ControlloEditor get _ctrl => ref.read(editorProvider.notifier);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState stato) {
+    // L'app va in secondo piano: si salva subito, senza aspettare il ritardo di 1 s
+    if (stato == AppLifecycleState.paused ||
+        stato == AppLifecycleState.inactive ||
+        stato == AppLifecycleState.hidden) {
+      unawaited(_ctrl.salvaOra());
+    }
+  }
+
+  @override
+  void didHaveMemoryPressure() => ref.read(sessioneProvider).memoriaScarsa();
+
+  Future<void> _esci() async {
+    await _ctrl.salvaOra(attendiMiniatura: true);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  /// Gesto «indietro» di sistema: chiude lo strumento (scartando), poi toglie la selezione, poi esce.
+  void _indietro() {
+    final s = ref.read(editorProvider);
+    if (s.strumento != Strumento.nessuno) {
+      _ctrl.chiudiStrumento();
+    } else if (s.selezione.isNotEmpty) {
+      _ctrl.deseleziona();
+    } else {
+      unawaited(_esci());
+    }
+  }
+
+  void _arrivera() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(Testi.of(context).inArrivo)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Testi.of(context);
+    ref.listen(editorProvider.select((s) => s.avviso), (_, a) {
+      if (a == null) return;
+      final m = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+      m.showSnackBar(
+        SnackBar(
+          content: Text(testoAvviso(t, a)),
+          duration: const Duration(seconds: 4),
+          action: a.annullabile
+              ? SnackBarAction(label: t.annulla, onPressed: _ctrl.annulla)
+              : null,
+        ),
+      );
+    });
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (esce, _) {
+        if (!esce) _indietro();
+      },
+      child: Scaffold(
+        backgroundColor: ColoriScrl.fondo,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(MisureScrl.barraSuperiore),
+          child: SafeArea(
+            bottom: false,
+            child: _BarraSuperiore(onIndietro: _esci, onArrivera: _arrivera),
+          ),
+        ),
+        body: const TelaEditor(),
+        bottomNavigationBar: _ZonaInferiore(onArrivera: _arrivera),
+      ),
+    );
+  }
+}
+
+class _BarraSuperiore extends ConsumerWidget {
+  const _BarraSuperiore({required this.onIndietro, required this.onArrivera});
+
+  final VoidCallback onIndietro;
+  final VoidCallback onArrivera;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Testi.of(context);
+    final stato = ref.watch(editorProvider);
+    final ctrl = ref.read(editorProvider.notifier);
+    return Container(
+      height: MisureScrl.barraSuperiore,
+      color: ColoriScrl.barra,
+      child: Row(
+        children: [
+          PulsanteIcona(
+            icona: Icons.arrow_back_rounded,
+            etichetta: t.indietro,
+            onTap: onIndietro,
+          ),
+          PulsanteIcona(
+            icona: Icons.undo_rounded,
+            etichetta: t.annulla,
+            onTap: stato.puoAnnullare ? ctrl.annulla : null,
+          ),
+          PulsanteIcona(
+            icona: Icons.redo_rounded,
+            etichetta: t.ripeti,
+            onTap: stato.puoRipetere ? ctrl.ripeti : null,
+          ),
+          const Spacer(),
+          PulsanteIcona(
+            icona: Icons.play_arrow_rounded,
+            etichetta: t.anteprima,
+            onTap: onArrivera,
+          ),
+          PulsanteIcona(
+            icona: Icons.ios_share_rounded,
+            etichetta: t.esporta,
+            onTap: onArrivera,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Striscia pagine e, sotto, la barra inferiore o il pannello dello strumento aperto. Il passaggio si anima
+/// e la pagina nella tela si ridimensiona insieme.
+class _ZonaInferiore extends ConsumerWidget {
+  const _ZonaInferiore({required this.onArrivera});
+
+  final VoidCallback onArrivera;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strumento = ref.watch(editorProvider.select((s) => s.strumento));
+    final haSelezione = ref.watch(
+      editorProvider.select((s) => s.selezione.isNotEmpty),
+    );
+    final Widget sotto = switch (strumento) {
+      Strumento.libreria => const PannelloLibreria(key: ValueKey('libreria')),
+      Strumento.disposizione => const PannelloDisposizione(
+        key: ValueKey('disposizione'),
+      ),
+      Strumento.aggiungi => const PannelloAggiungi(key: ValueKey('aggiungi')),
+      Strumento.nessuno =>
+        haSelezione
+            ? const _BarraSelezione(key: ValueKey('selezione'))
+            : _BarraInferiore(
+                key: const ValueKey('barra'),
+                onArrivera: onArrivera,
+              ),
+    };
+    final durata = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : MotoScrl.pannello;
+    return ColoredBox(
+      color: ColoriScrl.barra,
+      child: SafeArea(
+        top: false,
+        // Con un pannello aperto è lui a occuparsi dell'area dei gesti di sistema
+        bottom: strumento == Strumento.nessuno,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _StrisciaPagine(onArrivera: onArrivera),
+            AnimatedSize(
+              duration: durata,
+              curve: MotoScrl.curva,
+              alignment: Alignment.topCenter,
+              child: sotto,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Puntini delle pagine: tocco = vai alla pagina; lucchetto sulle bloccate, trattino tra le pagine unite.
+class _StrisciaPagine extends ConsumerWidget {
+  const _StrisciaPagine({required this.onArrivera});
+
+  final VoidCallback onArrivera;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Testi.of(context);
+    final stato = ref.watch(editorProvider);
+    final c = stato.snapshot.canvas;
+    final ctrl = ref.read(editorProvider.notifier);
+    final k = stato.pagina;
+    return SizedBox(
+      height: MisureScrl.strisciaPagine,
+      child: Row(
+        children: [
+          _Freccia(
+            Icons.chevron_left_rounded,
+            t.paginaPrecedente,
+            k > 0 ? () => ctrl.vaiAPagina(k - 1) : null,
+          ),
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (var i = 0; i < c.numFrames; i++) ...[
+                      _Puntino(
+                        attivo: i == k,
+                        bloccata: c.pageLocked(i),
+                        etichetta: t.vaiAllaPagina(i + 1),
+                        onTap: () => ctrl.vaiAPagina(i),
+                      ),
+                      if (i < c.numFrames - 1 && c.joined(i))
+                        Container(
+                          width: 6,
+                          height: 2,
+                          color: ColoriScrl.testoSecondario,
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Text(
+            '${k + 1}/${c.numFrames}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          _Freccia(
+            Icons.chevron_right_rounded,
+            t.paginaSuccessiva,
+            k < c.numFrames - 1 ? () => ctrl.vaiAPagina(k + 1) : null,
+          ),
+          _Freccia(Icons.grid_view_rounded, t.panoramica, onArrivera),
+        ],
+      ),
+    );
+  }
+}
+
+class _Freccia extends StatelessWidget {
+  const _Freccia(this.icona, this.etichetta, this.onTap);
+
+  final IconData icona;
+  final String etichetta;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: onTap != null,
+    label: etichetta,
+    excludeSemantics: true,
+    child: InkResponse(
+      onTap: onTap,
+      child: SizedBox(
+        width: MisureScrl.tocco,
+        height: MisureScrl.strisciaPagine,
+        child: Icon(
+          icona,
+          size: 22,
+          color: onTap == null ? ColoriScrl.testoSpento : ColoriScrl.testo,
+        ),
+      ),
+    ),
+  );
+}
+
+class _Puntino extends StatelessWidget {
+  const _Puntino({
+    required this.attivo,
+    required this.bloccata,
+    required this.etichetta,
+    required this.onTap,
+  });
+
+  final bool attivo;
+  final bool bloccata;
+  final String etichetta;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: attivo,
+    label: etichetta,
+    excludeSemantics: true,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 28,
+        height: MisureScrl.strisciaPagine,
+        child: Center(
+          child: bloccata
+              ? Icon(
+                  Icons.lock_rounded,
+                  size: 12,
+                  color: attivo
+                      ? ColoriScrl.accento
+                      : ColoriScrl.testoSecondario,
+                )
+              : AnimatedContainer(
+                  duration: MotoScrl.breve,
+                  width: attivo ? 10 : 7,
+                  height: attivo ? 10 : 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: attivo
+                        ? ColoriScrl.accento
+                        : ColoriScrl.testoSecondario,
+                  ),
+                ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Barra inferiore con niente selezionato: le 5 voci del piano (§4.3).
+class _BarraInferiore extends ConsumerWidget {
+  const _BarraInferiore({super.key, required this.onArrivera});
+
+  final VoidCallback onArrivera;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Testi.of(context);
+    final ctrl = ref.read(editorProvider.notifier);
+    return SizedBox(
+      height: MisureScrl.barraInferiore,
+      child: Row(
+        children: [
+          Expanded(
+            child: VoceBarra(
+              icona: Icons.photo_library_outlined,
+              etichetta: t.barraFoto,
+              onTap: () => ctrl.apriStrumento(Strumento.libreria),
+            ),
+          ),
+          Expanded(
+            child: VoceBarra(
+              icona: Icons.dashboard_outlined,
+              etichetta: t.barraDisposizione,
+              onTap: () => ctrl.apriStrumento(Strumento.disposizione),
+            ),
+          ),
+          Expanded(
+            child: VoceBarra(
+              icona: Icons.add_circle_outline_rounded,
+              etichetta: t.barraAggiungi,
+              onTap: () => ctrl.apriStrumento(Strumento.aggiungi),
+            ),
+          ),
+          Expanded(
+            child: VoceBarra(
+              icona: Icons.view_carousel_outlined,
+              etichetta: t.barraPagine,
+              onTap: onArrivera,
+              spenta: true,
+            ),
+          ),
+          Expanded(
+            child: VoceBarra(
+              icona: Icons.palette_outlined,
+              etichetta: t.barraStile,
+              onTap: onArrivera,
+              spenta: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Con un elemento selezionato la barra diventa una striscia di strumenti, con ✕ a sinistra per deselezionare.
+class _BarraSelezione extends ConsumerWidget {
+  const _BarraSelezione({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Testi.of(context);
+    final ctrl = ref.read(editorProvider.notifier);
+    final sel = ref.watch(editorProvider.select((s) => s.elementiSelezionati));
+    final foto = sel.whereType<PhotoItem>().toList();
+    final tutteLibere = foto.isNotEmpty && foto.every((p) => p.free);
+    return SizedBox(
+      height: MisureScrl.barraInferiore,
+      child: Row(
+        children: [
+          PulsanteIcona(
+            icona: Icons.close_rounded,
+            etichetta: t.deseleziona,
+            onTap: ctrl.deseleziona,
+          ),
+          Expanded(
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                if (foto.isNotEmpty)
+                  VoceBarra(
+                    icona: tutteLibere
+                        ? Icons.grid_view_rounded
+                        : Icons.open_with_rounded,
+                    etichetta: tutteLibere ? t.inDisposizione : t.libera,
+                    onTap: ctrl.liberaSelezione,
+                  ),
+                VoceBarra(
+                  icona: Icons.copy_rounded,
+                  etichetta: t.duplica,
+                  onTap: ctrl.duplicaSelezione,
+                ),
+                VoceBarra(
+                  icona: Icons.delete_outline_rounded,
+                  etichetta: t.elimina,
+                  onTap: ctrl.eliminaSelezione,
+                  colore: ColoriScrl.pericolo,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

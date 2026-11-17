@@ -125,4 +125,482 @@ class TestiEn extends Testi {
 
   @override
   String get progettoNonValido => 'Unreadable project';
+
+  @override
+  String get rinomina => 'Rename';
+
+  @override
+  String get duplica => 'Duplicate';
+
+  @override
+  String get elimina => 'Delete';
+
+  @override
+  String copiaDi(String nome) {
+    return 'Copy of $nome';
+  }
+
+  @override
+  String eliminaProgettoChiede(String nome) {
+    return 'Delete “$nome”?';
+  }
+
+  @override
+  String get eliminaProgettoAiuto =>
+      'The project is removed from this phone. Photos in your gallery are not touched.';
+
+  @override
+  String get nomeProgetto => 'Project name';
+
+  @override
+  String get fatto => 'Done';
+
+  @override
+  String numeroPagine(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n pages',
+      one: '1 page',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String nomeProgettoNuovo(int n) {
+    return 'Project $n';
+  }
+
+  @override
+  String get passoFormato => 'Format';
+
+  @override
+  String get passoFoto => 'Choose photos';
+
+  @override
+  String creaConFoto(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Create with $n photos',
+      one: 'Create with 1 photo',
+      zero: 'Create',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get formato0 => '3:4 portrait';
+
+  @override
+  String get formato1 => '4:3 landscape';
+
+  @override
+  String get formato2 => '4:5 Instagram';
+
+  @override
+  String get formato3 => '1:1 square';
+
+  @override
+  String get formato4 => '9:16 story';
+
+  @override
+  String get formato5 => '16:9 widescreen';
+
+  @override
+  String get formato6 => '2:3 portrait photo';
+
+  @override
+  String get formato7 => '3:2 landscape photo';
+
+  @override
+  String get formato8 => 'Custom';
+
+  @override
+  String get larghezzaPixel => 'Width (px)';
+
+  @override
+  String get altezzaPixel => 'Height (px)';
+
+  @override
+  String get formatoAiuto =>
+      'The format applies to every page of the carousel.';
+
+  @override
+  String get continua => 'Continue';
+
+  @override
+  String get salta => 'Skip';
+
+  @override
+  String fotoNumero(int n) {
+    return 'Photo $n';
+  }
+
+  @override
+  String aggiungiNFoto(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Add $n photos',
+      one: 'Add 1 photo',
+      zero: 'Add',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get tela => 'Canvas';
+
+  @override
+  String etichettaPagina(int n) {
+    return 'Page $n';
+  }
+
+  @override
+  String get etichettaBloccata => 'Locked';
+
+  @override
+  String etichettaACavallo(int a, int b) {
+    return 'Spanning $a–$b';
+  }
+
+  @override
+  String etichettaFoto(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n photos',
+      one: '1 photo',
+      zero: 'No photos',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get paginaVuota => 'Tap ＋ to add photos';
+
+  @override
+  String get indietro => 'Back';
+
+  @override
+  String get ripeti => 'Redo';
+
+  @override
+  String get anteprima => 'Preview';
+
+  @override
+  String get esporta => 'Export';
+
+  @override
+  String get paginaPrecedente => 'Previous page';
+
+  @override
+  String get paginaSuccessiva => 'Next page';
+
+  @override
+  String vaiAllaPagina(int n) {
+    return 'Go to page $n';
+  }
+
+  @override
+  String get panoramica => 'Overview';
+
+  @override
+  String get barraFoto => 'Photos';
+
+  @override
+  String get barraDisposizione => 'Layout';
+
+  @override
+  String get barraAggiungi => 'Add';
+
+  @override
+  String get barraPagine => 'Pages';
+
+  @override
+  String get barraStile => 'Style';
+
+  @override
+  String get deseleziona => 'Deselect';
+
+  @override
+  String get inDisposizione => 'In layout';
+
+  @override
+  String get libera => 'Free';
+
+  @override
+  String get conferma => 'Confirm';
+
+  @override
+  String get chiudi => 'Close';
+
+  @override
+  String get strumentoDisposizione => 'Layout';
+
+  @override
+  String get parDisposizione => 'Layout';
+
+  @override
+  String get parMosaico => 'Mosaic';
+
+  @override
+  String get parPagine => 'Pages';
+
+  @override
+  String get parFotoPerPagina => 'Photos per page';
+
+  @override
+  String get parFotoQui => 'Photos here';
+
+  @override
+  String get parSpaziatura => 'Spacing';
+
+  @override
+  String get parMargine => 'Margin';
+
+  @override
+  String get auto => 'Auto';
+
+  @override
+  String get unaPerPagina => 'One per page';
+
+  @override
+  String get rimescola => 'Shuffle';
+
+  @override
+  String numeroFoto(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n photos',
+      one: '1 photo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get menoPagine => 'One page less';
+
+  @override
+  String get piuPagine => 'One page more';
+
+  @override
+  String get menoFoto => 'One photo less';
+
+  @override
+  String get piuFoto => 'One photo more';
+
+  @override
+  String get ambitoTutto => 'Whole carousel';
+
+  @override
+  String get ambitoPagina => 'This page only';
+
+  @override
+  String get dispGriglia => 'Grid';
+
+  @override
+  String get dispMosaico => 'Mosaic';
+
+  @override
+  String get dispRighe => 'Rows';
+
+  @override
+  String get dispColonne => 'Columns';
+
+  @override
+  String get dispPolaroid => 'Polaroid';
+
+  @override
+  String get dispACavallo => 'Seamless';
+
+  @override
+  String get stileAutomatico => 'Automatic';
+
+  @override
+  String get stileInAlto => 'Large on top';
+
+  @override
+  String get stileInBasso => 'Large at bottom';
+
+  @override
+  String get stileASinistra => 'Large on left';
+
+  @override
+  String get stileADestra => 'Large on right';
+
+  @override
+  String get stileAlCentro => 'Large in center';
+
+  @override
+  String get stileDueGrandi => 'Two large';
+
+  @override
+  String get stileMuratura => 'Masonry';
+
+  @override
+  String libreriaTitolo(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Library · $n photos',
+      one: 'Library · 1 photo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String fotoScelte(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n photos selected',
+      one: '1 photo selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get libreriaVuota => 'Add photos from your phone';
+
+  @override
+  String get aggiungiDalTelefono => 'Add from phone';
+
+  @override
+  String get aggiungiAllaTela => 'Add to canvas';
+
+  @override
+  String get comeFotoLibera => 'As free photo';
+
+  @override
+  String get soloQueste => 'Only these';
+
+  @override
+  String get rimuoviDallaLibreria => 'Remove from library';
+
+  @override
+  String get mettiTutte => 'Put all';
+
+  @override
+  String get svuotaTela => 'Clear canvas';
+
+  @override
+  String get fotoOVideo => 'Photo or video';
+
+  @override
+  String get paginaNuova => 'New page';
+
+  @override
+  String get testo => 'Text';
+
+  @override
+  String get forma => 'Shape';
+
+  @override
+  String avvisoFotoAggiunte(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n photos added',
+      one: '1 photo added',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get avvisoEliminato => 'Item deleted';
+
+  @override
+  String avvisoEliminati(int n) {
+    return '$n items deleted';
+  }
+
+  @override
+  String get avvisoDuplicato => 'Item duplicated';
+
+  @override
+  String get avvisoTelaSvuotata => 'Canvas cleared';
+
+  @override
+  String get avvisoFotoLibera => 'Free photo: the layout no longer moves it';
+
+  @override
+  String get avvisoFotoInDisposizione => 'Photo put back in the layout';
+
+  @override
+  String get avvisoPaginaAggiunta => 'Page added';
+
+  @override
+  String get avvisoSalvataggioNonRiuscito =>
+      'Could not save: will retry at the next change';
+
+  @override
+  String noticeSeamAddedPages(int n) {
+    return '“Seamless” raised the pages to $n';
+  }
+
+  @override
+  String noticeSeamRestoredPages(int n) {
+    return 'Back to $n pages';
+  }
+
+  @override
+  String get noticeAddedPageForPhotos => 'Page added for the photos';
+
+  @override
+  String noticePageLocked(int n) {
+    return 'Page $n is locked: unlock it first';
+  }
+
+  @override
+  String noticeSeamPagesLocked(int n) {
+    return 'The seamless pages around position $n are locked';
+  }
+
+  @override
+  String noticeSeamPageLocked(int n) {
+    return 'Page $n is seamless and locked';
+  }
+
+  @override
+  String noticeLockedSeamMustStayTogether(int a, int b) {
+    return 'Pages $a and $b are seamless and locked: they must stay together';
+  }
+
+  @override
+  String noticeMaxPages(int n) {
+    return 'Maximum of $n pages reached';
+  }
+
+  @override
+  String get noticeSinglePage => 'It is the only page: it cannot be deleted';
+
+  @override
+  String get noticeNothingToReorder =>
+      'There is only one page: nothing to reorder';
+
+  @override
+  String get noticePageAtEdge => 'The page is already at the edge';
+
+  @override
+  String get noticeLastPage => 'It is the last page: nothing to join';
+
+  @override
+  String get noticeLockedPagesNoResize =>
+      'Some pages are locked: the format cannot change';
+
+  @override
+  String get noticePerPageBackToAuto => '“Photos per page” goes back to Auto';
+
+  @override
+  String get noticeSeamIgnoresPageSettings =>
+      'With “Seamless” per-page choices do not apply';
+
+  @override
+  String get noticeVideoKeptInPage => 'Videos cannot span two pages';
+
+  @override
+  String get noticeSwapNeedsTwo => 'Swapping needs exactly 2 photos';
 }

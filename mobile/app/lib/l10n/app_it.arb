@@ -169,5 +169,651 @@
   "progettoNonValido": "Progetto non leggibile",
   "@progettoNonValido": {
     "description": "Errore nell'aprire un .scrlproj"
+  },
+  "rinomina": "Rinomina",
+  "@rinomina": {
+    "description": "Azione di un progetto nella Home"
+  },
+  "duplica": "Duplica",
+  "@duplica": {
+    "description": "Azione: copia un progetto o un elemento"
+  },
+  "elimina": "Elimina",
+  "@elimina": {
+    "description": "Azione distruttiva"
+  },
+  "copiaDi": "Copia di {nome}",
+  "@copiaDi": {
+    "description": "Nome di un progetto duplicato",
+    "placeholders": {
+      "nome": {
+        "type": "String",
+        "example": "Viaggio"
+      }
+    }
+  },
+  "eliminaProgettoChiede": "Eliminare «{nome}»?",
+  "@eliminaProgettoChiede": {
+    "description": "Conferma di eliminazione di un progetto",
+    "placeholders": {
+      "nome": {
+        "type": "String",
+        "example": "Viaggio"
+      }
+    }
+  },
+  "eliminaProgettoAiuto": "Il progetto sparisce da questo telefono. Le foto della galleria non vengono toccate.",
+  "@eliminaProgettoAiuto": {
+    "description": "Spiegazione della conferma di eliminazione"
+  },
+  "nomeProgetto": "Nome del progetto",
+  "@nomeProgetto": {
+    "description": "Campo per rinominare un progetto"
+  },
+  "fatto": "Fatto",
+  "@fatto": {
+    "description": "Conferma di un campo di testo"
+  },
+  "numeroPagine": "{n, plural, =1{1 pagina} other{{n} pagine}}",
+  "@numeroPagine": {
+    "description": "Numero di pagine di un progetto",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "nomeProgettoNuovo": "Progetto {n}",
+  "@nomeProgettoNuovo": {
+    "description": "Nome di partenza di un progetto nuovo",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "passoFormato": "Formato",
+  "@passoFormato": {
+    "description": "Primo passo di Nuovo progetto"
+  },
+  "passoFoto": "Scegli le foto",
+  "@passoFoto": {
+    "description": "Secondo passo di Nuovo progetto e titolo della scelta foto"
+  },
+  "creaConFoto": "{n, plural, =0{Crea} =1{Crea con 1 foto} other{Crea con {n} foto}}",
+  "@creaConFoto": {
+    "description": "Pulsante che crea il progetto",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "formato0": "3:4 verticale",
+  "@formato0": {
+    "description": "Formato della pagina n. 0 (come ASPECT_RATIOS del desktop)"
+  },
+  "formato1": "4:3 orizzontale",
+  "@formato1": {
+    "description": "Formato della pagina n. 1 (come ASPECT_RATIOS del desktop)"
+  },
+  "formato2": "4:5 Instagram",
+  "@formato2": {
+    "description": "Formato della pagina n. 2 (come ASPECT_RATIOS del desktop)"
+  },
+  "formato3": "1:1 quadrato",
+  "@formato3": {
+    "description": "Formato della pagina n. 3 (come ASPECT_RATIOS del desktop)"
+  },
+  "formato4": "9:16 storia",
+  "@formato4": {
+    "description": "Formato della pagina n. 4 (come ASPECT_RATIOS del desktop)"
+  },
+  "formato5": "16:9 panoramico",
+  "@formato5": {
+    "description": "Formato della pagina n. 5 (come ASPECT_RATIOS del desktop)"
+  },
+  "formato6": "2:3 foto verticale",
+  "@formato6": {
+    "description": "Formato della pagina n. 6 (come ASPECT_RATIOS del desktop)"
+  },
+  "formato7": "3:2 foto orizzontale",
+  "@formato7": {
+    "description": "Formato della pagina n. 7 (come ASPECT_RATIOS del desktop)"
+  },
+  "formato8": "Personalizzato",
+  "@formato8": {
+    "description": "Formato della pagina n. 8 (come ASPECT_RATIOS del desktop)"
+  },
+  "larghezzaPixel": "Larghezza (px)",
+  "@larghezzaPixel": {
+    "description": "Misura personalizzata della pagina"
+  },
+  "altezzaPixel": "Altezza (px)",
+  "@altezzaPixel": {
+    "description": "Misura personalizzata della pagina"
+  },
+  "formatoAiuto": "Il formato vale per ogni pagina del carosello.",
+  "@formatoAiuto": {
+    "description": "Riga di aiuto del passo Formato"
+  },
+  "continua": "Continua",
+  "@continua": {
+    "description": "Va al passo dopo"
+  },
+  "salta": "Salta",
+  "@salta": {
+    "description": "Salta la scelta delle foto"
+  },
+  "fotoNumero": "Foto {n}",
+  "@fotoNumero": {
+    "description": "Etichetta per i lettori di schermo di una miniatura",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "aggiungiNFoto": "{n, plural, =0{Aggiungi} =1{Aggiungi 1 foto} other{Aggiungi {n} foto}}",
+  "@aggiungiNFoto": {
+    "description": "Pulsante che aggiunge le foto scelte",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "tela": "Tela",
+  "@tela": {
+    "description": "Etichetta per i lettori di schermo della tela"
+  },
+  "etichettaPagina": "Pagina {n}",
+  "@etichettaPagina": {
+    "description": "Etichetta sopra la pagina",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "etichettaBloccata": "Bloccata",
+  "@etichettaBloccata": {
+    "description": "Etichetta sopra una pagina bloccata"
+  },
+  "etichettaACavallo": "A cavallo {a}–{b}",
+  "@etichettaACavallo": {
+    "description": "Etichetta sopra una pagina unita «a cavallo»",
+    "placeholders": {
+      "a": {
+        "type": "int",
+        "example": "3"
+      },
+      "b": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "etichettaFoto": "{n, plural, =0{Nessuna foto} =1{1 foto} other{{n} foto}}",
+  "@etichettaFoto": {
+    "description": "Foto presenti in una pagina",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "paginaVuota": "Tocca ＋ per aggiungere le foto",
+  "@paginaVuota": {
+    "description": "Invito sulla pagina vuota"
+  },
+  "indietro": "Indietro",
+  "@indietro": {
+    "description": "Torna alla Home"
+  },
+  "ripeti": "Ripeti",
+  "@ripeti": {
+    "description": "Ripeti l'ultimo passo annullato"
+  },
+  "anteprima": "Anteprima",
+  "@anteprima": {
+    "description": "Anteprima del carosello a schermo intero"
+  },
+  "esporta": "Esporta",
+  "@esporta": {
+    "description": "Esporta il carosello"
+  },
+  "paginaPrecedente": "Pagina precedente",
+  "@paginaPrecedente": {
+    "description": "Freccia della striscia pagine"
+  },
+  "paginaSuccessiva": "Pagina successiva",
+  "@paginaSuccessiva": {
+    "description": "Freccia della striscia pagine"
+  },
+  "vaiAllaPagina": "Vai alla pagina {n}",
+  "@vaiAllaPagina": {
+    "description": "Puntino della striscia pagine",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "panoramica": "Panoramica",
+  "@panoramica": {
+    "description": "Griglia di tutte le pagine"
+  },
+  "barraFoto": "Foto",
+  "@barraFoto": {
+    "description": "Voce della barra inferiore: libreria"
+  },
+  "barraDisposizione": "Disposizione",
+  "@barraDisposizione": {
+    "description": "Voce della barra inferiore"
+  },
+  "barraAggiungi": "Aggiungi",
+  "@barraAggiungi": {
+    "description": "Voce della barra inferiore (＋)"
+  },
+  "barraPagine": "Pagine",
+  "@barraPagine": {
+    "description": "Voce della barra inferiore"
+  },
+  "barraStile": "Stile",
+  "@barraStile": {
+    "description": "Voce della barra inferiore"
+  },
+  "deseleziona": "Deseleziona",
+  "@deseleziona": {
+    "description": "Toglie la selezione"
+  },
+  "inDisposizione": "In disposizione",
+  "@inDisposizione": {
+    "description": "Rimette la foto libera nella disposizione"
+  },
+  "libera": "Libera",
+  "@libera": {
+    "description": "Rende libera la foto: la disposizione non la tocca"
+  },
+  "conferma": "Conferma",
+  "@conferma": {
+    "description": "Conferma di uno strumento (✓)"
+  },
+  "chiudi": "Chiudi",
+  "@chiudi": {
+    "description": "Chiude un pannello"
+  },
+  "strumentoDisposizione": "Disposizione",
+  "@strumentoDisposizione": {
+    "description": "Nome dello strumento Disposizione"
+  },
+  "parDisposizione": "Disposizione",
+  "@parDisposizione": {
+    "description": "Parametro: la disposizione"
+  },
+  "parMosaico": "Mosaico",
+  "@parMosaico": {
+    "description": "Parametro: stile del mosaico"
+  },
+  "parPagine": "Pagine",
+  "@parPagine": {
+    "description": "Parametro: numero di pagine"
+  },
+  "parFotoPerPagina": "Foto per pagina",
+  "@parFotoPerPagina": {
+    "description": "Parametro"
+  },
+  "parFotoQui": "Foto qui",
+  "@parFotoQui": {
+    "description": "Parametro: foto nella pagina corrente"
+  },
+  "parSpaziatura": "Spaziatura",
+  "@parSpaziatura": {
+    "description": "Parametro (0–80)"
+  },
+  "parMargine": "Margine",
+  "@parMargine": {
+    "description": "Parametro (0–120)"
+  },
+  "auto": "Auto",
+  "@auto": {
+    "description": "Valore automatico"
+  },
+  "unaPerPagina": "Una per pagina",
+  "@unaPerPagina": {
+    "description": "Interruttore: una disposizione per ogni pagina"
+  },
+  "rimescola": "Rimescola",
+  "@rimescola": {
+    "description": "Rimescola l'ordine delle foto"
+  },
+  "numeroFoto": "{n, plural, =1{1 foto} other{{n} foto}}",
+  "@numeroFoto": {
+    "description": "Numero di foto",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "menoPagine": "Una pagina in meno",
+  "@menoPagine": {
+    "description": "Per i lettori di schermo"
+  },
+  "piuPagine": "Una pagina in più",
+  "@piuPagine": {
+    "description": "Per i lettori di schermo"
+  },
+  "menoFoto": "Una foto in meno",
+  "@menoFoto": {
+    "description": "Per i lettori di schermo"
+  },
+  "piuFoto": "Una foto in più",
+  "@piuFoto": {
+    "description": "Per i lettori di schermo"
+  },
+  "ambitoTutto": "Tutto il carosello",
+  "@ambitoTutto": {
+    "description": "Ambito della disposizione"
+  },
+  "ambitoPagina": "Solo questa pagina",
+  "@ambitoPagina": {
+    "description": "Ambito della disposizione"
+  },
+  "dispGriglia": "Griglia",
+  "@dispGriglia": {
+    "description": "Nome di una disposizione (come LAYOUTS del desktop)"
+  },
+  "dispMosaico": "Mosaico",
+  "@dispMosaico": {
+    "description": "Nome di una disposizione (come LAYOUTS del desktop)"
+  },
+  "dispRighe": "Righe",
+  "@dispRighe": {
+    "description": "Nome di una disposizione (come LAYOUTS del desktop)"
+  },
+  "dispColonne": "Colonne",
+  "@dispColonne": {
+    "description": "Nome di una disposizione (come LAYOUTS del desktop)"
+  },
+  "dispPolaroid": "Polaroid",
+  "@dispPolaroid": {
+    "description": "Nome di una disposizione (come LAYOUTS del desktop)"
+  },
+  "dispACavallo": "A cavallo",
+  "@dispACavallo": {
+    "description": "Nome di una disposizione (come LAYOUTS del desktop)"
+  },
+  "stileAutomatico": "Automatico",
+  "@stileAutomatico": {
+    "description": "Stile del mosaico (come MOSAIC_STYLES del desktop)"
+  },
+  "stileInAlto": "Grande in alto",
+  "@stileInAlto": {
+    "description": "Stile del mosaico (come MOSAIC_STYLES del desktop)"
+  },
+  "stileInBasso": "Grande in basso",
+  "@stileInBasso": {
+    "description": "Stile del mosaico (come MOSAIC_STYLES del desktop)"
+  },
+  "stileASinistra": "Grande a sinistra",
+  "@stileASinistra": {
+    "description": "Stile del mosaico (come MOSAIC_STYLES del desktop)"
+  },
+  "stileADestra": "Grande a destra",
+  "@stileADestra": {
+    "description": "Stile del mosaico (come MOSAIC_STYLES del desktop)"
+  },
+  "stileAlCentro": "Grande al centro",
+  "@stileAlCentro": {
+    "description": "Stile del mosaico (come MOSAIC_STYLES del desktop)"
+  },
+  "stileDueGrandi": "Due grandi",
+  "@stileDueGrandi": {
+    "description": "Stile del mosaico (come MOSAIC_STYLES del desktop)"
+  },
+  "stileMuratura": "Muratura",
+  "@stileMuratura": {
+    "description": "Stile del mosaico (come MOSAIC_STYLES del desktop)"
+  },
+  "libreriaTitolo": "{n, plural, =1{Libreria · 1 foto} other{Libreria · {n} foto}}",
+  "@libreriaTitolo": {
+    "description": "Titolo del pannello Foto",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "fotoScelte": "{n, plural, =1{1 foto scelta} other{{n} foto scelte}}",
+  "@fotoScelte": {
+    "description": "Titolo del pannello Foto con una selezione",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "libreriaVuota": "Aggiungi le foto dal telefono",
+  "@libreriaVuota": {
+    "description": "Libreria vuota"
+  },
+  "aggiungiDalTelefono": "Aggiungi dal telefono",
+  "@aggiungiDalTelefono": {
+    "description": "Azione della libreria"
+  },
+  "aggiungiAllaTela": "Aggiungi alla tela",
+  "@aggiungiAllaTela": {
+    "description": "Azione della libreria"
+  },
+  "comeFotoLibera": "Come foto libera",
+  "@comeFotoLibera": {
+    "description": "Azione della libreria"
+  },
+  "soloQueste": "Solo queste",
+  "@soloQueste": {
+    "description": "Azione della libreria: sostituisce le foto sulla tela"
+  },
+  "rimuoviDallaLibreria": "Rimuovi dalla libreria",
+  "@rimuoviDallaLibreria": {
+    "description": "Azione della libreria"
+  },
+  "mettiTutte": "Metti tutte",
+  "@mettiTutte": {
+    "description": "Azione della libreria: tutte le foto sulla tela"
+  },
+  "svuotaTela": "Svuota tela",
+  "@svuotaTela": {
+    "description": "Azione della libreria"
+  },
+  "fotoOVideo": "Foto o video",
+  "@fotoOVideo": {
+    "description": "Voce del pannello ＋"
+  },
+  "paginaNuova": "Pagina nuova",
+  "@paginaNuova": {
+    "description": "Voce del pannello ＋"
+  },
+  "testo": "Testo",
+  "@testo": {
+    "description": "Voce del pannello ＋ (arriva con la Fase 5)"
+  },
+  "forma": "Forma",
+  "@forma": {
+    "description": "Voce del pannello ＋ (arriva con la Fase 5)"
+  },
+  "avvisoFotoAggiunte": "{n, plural, =1{1 foto aggiunta} other{{n} foto aggiunte}}",
+  "@avvisoFotoAggiunte": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoEliminato": "Elemento eliminato",
+  "@avvisoEliminato": {
+    "description": "Messaggio breve"
+  },
+  "avvisoEliminati": "{n} elementi eliminati",
+  "@avvisoEliminati": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoDuplicato": "Elemento duplicato",
+  "@avvisoDuplicato": {
+    "description": "Messaggio breve"
+  },
+  "avvisoTelaSvuotata": "Tela svuotata",
+  "@avvisoTelaSvuotata": {
+    "description": "Messaggio breve"
+  },
+  "avvisoFotoLibera": "Foto libera: la disposizione non la tocca più",
+  "@avvisoFotoLibera": {
+    "description": "Messaggio breve"
+  },
+  "avvisoFotoInDisposizione": "Foto rimessa nella disposizione",
+  "@avvisoFotoInDisposizione": {
+    "description": "Messaggio breve"
+  },
+  "avvisoPaginaAggiunta": "Pagina aggiunta",
+  "@avvisoPaginaAggiunta": {
+    "description": "Messaggio breve"
+  },
+  "avvisoSalvataggioNonRiuscito": "Salvataggio non riuscito: riprovo alla prossima modifica",
+  "@avvisoSalvataggioNonRiuscito": {
+    "description": "Messaggio breve"
+  },
+  "noticeSeamAddedPages": "«A cavallo» ha portato le pagine a {n}",
+  "@noticeSeamAddedPages": {
+    "description": "Avviso del motore",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "noticeSeamRestoredPages": "Tornate a {n} pagine",
+  "@noticeSeamRestoredPages": {
+    "description": "Avviso del motore",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "noticeAddedPageForPhotos": "Pagina aggiunta per le foto",
+  "@noticeAddedPageForPhotos": {
+    "description": "Avviso del motore"
+  },
+  "noticePageLocked": "La pagina {n} è bloccata: sbloccala prima",
+  "@noticePageLocked": {
+    "description": "Avviso del motore",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "noticeSeamPagesLocked": "Le pagine «a cavallo» intorno alla posizione {n} sono bloccate",
+  "@noticeSeamPagesLocked": {
+    "description": "Avviso del motore",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "noticeSeamPageLocked": "La pagina {n} è «a cavallo» e bloccata",
+  "@noticeSeamPageLocked": {
+    "description": "Avviso del motore",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "noticeLockedSeamMustStayTogether": "Le pagine {a} e {b} sono «a cavallo» e bloccate: devono restare vicine",
+  "@noticeLockedSeamMustStayTogether": {
+    "description": "Avviso del motore",
+    "placeholders": {
+      "a": {
+        "type": "int",
+        "example": "3"
+      },
+      "b": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "noticeMaxPages": "Massimo di {n} pagine raggiunto",
+  "@noticeMaxPages": {
+    "description": "Avviso del motore",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "noticeSinglePage": "È l'unica pagina: non si elimina",
+  "@noticeSinglePage": {
+    "description": "Avviso del motore"
+  },
+  "noticeNothingToReorder": "C'è una sola pagina: niente da riordinare",
+  "@noticeNothingToReorder": {
+    "description": "Avviso del motore"
+  },
+  "noticePageAtEdge": "La pagina è già al bordo",
+  "@noticePageAtEdge": {
+    "description": "Avviso del motore"
+  },
+  "noticeLastPage": "È l'ultima pagina: niente da unire",
+  "@noticeLastPage": {
+    "description": "Avviso del motore"
+  },
+  "noticeLockedPagesNoResize": "Ci sono pagine bloccate: il formato non si cambia",
+  "@noticeLockedPagesNoResize": {
+    "description": "Avviso del motore"
+  },
+  "noticePerPageBackToAuto": "«Foto per pagina» torna su Auto",
+  "@noticePerPageBackToAuto": {
+    "description": "Avviso del motore"
+  },
+  "noticeSeamIgnoresPageSettings": "Con «A cavallo» le scelte per singola pagina non valgono",
+  "@noticeSeamIgnoresPageSettings": {
+    "description": "Avviso del motore"
+  },
+  "noticeVideoKeptInPage": "I video non possono stare a cavallo di due pagine",
+  "@noticeVideoKeptInPage": {
+    "description": "Avviso del motore"
+  },
+  "noticeSwapNeedsTwo": "Per scambiare servono esattamente 2 foto",
+  "@noticeSwapNeedsTwo": {
+    "description": "Avviso del motore"
   }
 }

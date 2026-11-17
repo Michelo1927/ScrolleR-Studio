@@ -1,0 +1,759 @@
+/// La tela dell'editor: una pagina alla volta con scorrimento a scatti, selezione, spostamento con aggancio,
+/// ridimensionamento con le maniglie, pizzico e rotazione (piano §4.2 e §4.5).
+///
+/// Qui c'è solo l'interazione: ogni numero (aggancio, nuove misure, rotazione con scatti) lo calcola il motore.
+/// I gesti producono una **bozza** durante il movimento e un passo di cronologia alla fine.
+library;
+
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:scrl_engine/scrl_engine.dart' hide Rect;
+import 'package:scrl_engine/scrl_engine.dart' as motore show Rect;
+
+import '../l10n/app_localizations.dart';
+import '../render/disegno.dart';
+import '../render/risorse_pagina.dart';
+import '../theme/tokens.dart';
+import 'geometria_tela.dart';
+import 'sessione.dart';
+import 'stato.dart';
+import 'vista_pagina.dart';
+
+enum _Modo { nessuno, scorri, sposta, maniglia, pizzica }
+
+/// Raggio dell'area toccabile di una maniglia (area di 48 dp, piano §4.5: almeno 44).
+const double _raggioTocco = MisureScrl.tocco / 2;
+
+/// Fascia ai lati dello schermo che, trascinando un elemento, porta alla pagina vicina, e attesa prima del cambio.
+const double _fasciaBordo = 36;
+const Duration _attesaBordo = Duration(milliseconds: 450);
+
+class TelaEditor extends ConsumerStatefulWidget {
+  const TelaEditor({super.key});
+
+  @override
+  ConsumerState<TelaEditor> createState() => _TelaEditorState();
+}
+
+class _TelaEditorState extends ConsumerState<TelaEditor>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scorrimento;
+  late final SessioneEditor _sessione;
+  final ValueNotifier<Aggancio> _aggancio = ValueNotifier(Aggancio.nessuno);
+  GeometriaTela? _geo;
+  Timer? _timerPrepara;
+  Timer? _timerBordo;
+
+  // Stato del gesto in corso
+  _Modo _modo = _Modo.nessuno;
+  int _punti = 1;
+  Snapshot? _base;
+  Offset _focaleUltima = Offset.zero;
+  (double, double) _stripInizio = (0, 0);
+  CanvasElement? _primario;
+  Maniglia? _maniglia;
+  PhotoItem? _fotoBase;
+  double _scalaRif = 1, _rotRif = 0;
+  Offset _focaleRif = Offset.zero;
+  bool _agganciataRotazione = false;
+  int _paginaInizio = 0;
+  bool _bordoArmato = true;
+
+  /// Dove il primo dito ha toccato: il riconoscitore parte solo dopo un piccolo spostamento, ma per sapere
+  /// cosa si è toccato (e per non perdere quei pixel) conta il punto del contatto.
+  Offset _posGiu = Offset.zero;
+  int _dita = 0;
+
+  ControlloEditor get _ctrl => ref.read(editorProvider.notifier);
+  StatoEditor get _stato => ref.read(editorProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    _sessione = ref.read(sessioneProvider);
+    _scorrimento = AnimationController.unbounded(
+      vsync: this,
+      value: _stato.pagina.toDouble(),
+    )..addListener(_alloScorrimento);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prepara());
+  }
+
+  @override
+  void dispose() {
+    _timerPrepara?.cancel();
+    _timerBordo?.cancel();
+    _scorrimento.dispose();
+    _aggancio.dispose();
+    super.dispose();
+  }
+
+  double get _pos => _scorrimento.value;
+
+  // ---------- Risorse ----------
+  void _preparaConRitardo() {
+    _timerPrepara?.cancel();
+    _timerPrepara = Timer(const Duration(milliseconds: 120), _prepara);
+  }
+
+  void _prepara() {
+    if (!mounted) return;
+    final g = _geo;
+    final s = _stato.snapshot;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final k = _stato.pagina;
+    for (var i = k - 1; i <= k + 1; i++) {
+      if (i < 0 || i >= s.canvas.numFrames) continue;
+      unawaited(
+        _sessione.risorse.prepara(s, i, pixelPerUnita: (g?.scala ?? 0.3) * dpr),
+      );
+    }
+  }
+
+  // ---------- Scorrimento a scatti ----------
+  void _alloScorrimento() {
+    if (_modo == _Modo.sposta) _aggiornaSposta(_focaleUltima);
+  }
+
+  bool get _senzaAnimazioni => MediaQuery.disableAnimationsOf(context);
+
+  void _animaA(int pagina) {
+    final n = _stato.snapshot.canvas.numFrames;
+    final p = pagina.clamp(0, n - 1);
+    if (_senzaAnimazioni) {
+      _scorrimento.value = p.toDouble();
+    } else {
+      unawaited(
+        _scorrimento.animateTo(
+          p.toDouble(),
+          duration: MotoScrl.pannello,
+          curve: MotoScrl.curva,
+        ),
+      );
+    }
+    if (p != _stato.pagina) {
+      HapticFeedback.selectionClick();
+      _ctrl.vaiAPagina(p);
+    }
+  }
+
+  // ---------- Ricerca degli elementi ----------
+  CanvasElement? _elementoSotto(Offset p) {
+    final g = _geo;
+    if (g == null) return null;
+    final (sx, sy) = g.daSchermo(p);
+    final ordine = elementiInOrdine(_stato.snapshot).reversed;
+    for (final e in ordine) {
+      if (e.pageLocked) continue; // Le pagine bloccate non si selezionano
+      if (colpisceElemento(e, sx, sy, _sessione.ctx.textSize, g.scala)) {
+        return e;
+      }
+    }
+    return null;
+  }
+
+  /// La sola foto selezionata, se si può ridimensionare (non bloccata).
+  PhotoItem? _fotoSingola() {
+    final el = _stato.elementiSelezionati;
+    if (el.length != 1) return null;
+    final e = el.first;
+    return e is PhotoItem && !e.locked ? e : null;
+  }
+
+  Offset _posManiglia(PhotoItem p, Maniglia m) {
+    final (fx, fy) = m.frazione;
+    final (sx, sy) = localeInScena(p, fx * p.w, fy * p.h);
+    return _geo!.aSchermo(sx, sy);
+  }
+
+  Maniglia? _maniglieSotto(Offset punto) {
+    final p = _fotoSingola();
+    if (p == null || _geo == null) return null;
+    Maniglia? migliore;
+    var dist = double.infinity;
+    for (final m in Maniglia.values) {
+      final d = (_posManiglia(p, m) - punto).distance;
+      // Su un elemento piccolo vince la maniglia più vicina al dito
+      if (d <= _raggioTocco && d < dist) {
+        dist = d;
+        migliore = m;
+      }
+    }
+    return migliore;
+  }
+
+  // ---------- Tocco ----------
+  void _alTocco(TapUpDetails d) {
+    final e = _elementoSotto(d.localPosition);
+    if (e == null) {
+      _ctrl.deseleziona();
+    } else {
+      _ctrl.seleziona(conGruppo(_stato.snapshot, e));
+      HapticFeedback.selectionClick();
+    }
+  }
+
+  // ---------- Gesto ----------
+  void _inizioGesto(ScaleStartDetails d) {
+    if (_geo == null) return;
+    _scorrimento.stop();
+    _punti = d.pointerCount;
+    final punto = d.pointerCount == 1 ? _posGiu : d.localFocalPoint;
+    _focaleUltima = punto;
+    _paginaInizio = _pos.round();
+    _base = _stato.snapshot;
+    _modo = _Modo.nessuno;
+    _bordoArmato = true;
+    final sel = _stato.selezione;
+    if (sel.isNotEmpty) {
+      final m = d.pointerCount == 1 ? _maniglieSotto(punto) : null;
+      if (m != null) {
+        _modo = _Modo.maniglia;
+        _maniglia = m;
+        _fotoBase = _fotoSingola();
+        return;
+      }
+      final e = _elementoSotto(punto);
+      if (e != null && sel.contains(rifDi(e)) && !e.locked) {
+        _primario = e;
+        _iniziaSposta(punto);
+        if (d.pointerCount >= 2 && _fotoSingola() != null) {
+          _iniziaPizzica(null);
+        }
+        return;
+      }
+    }
+    _modo = _Modo.scorri;
+  }
+
+  void _iniziaSposta(Offset focale) {
+    _modo = _Modo.sposta;
+    _base = _stato.snapshot;
+    _stripInizio = _geo!.daSchermo(focale);
+  }
+
+  void _iniziaPizzica(ScaleUpdateDetails? d) {
+    _modo = _Modo.pizzica;
+    _base = _stato.snapshot;
+    _fotoBase = _fotoSingola();
+    _scalaRif = d?.scale ?? 1;
+    _rotRif = d?.rotation ?? 0;
+    _focaleRif = d?.localFocalPoint ?? _focaleUltima;
+    _agganciataRotazione = false;
+    _aggancio.value = Aggancio.nessuno;
+  }
+
+  void _aggiornaGesto(ScaleUpdateDetails d) {
+    if (_geo == null || _modo == _Modo.nessuno) return;
+    if (d.pointerCount != _punti) {
+      _punti = d.pointerCount;
+      // Un secondo dito su una foto selezionata: da spostamento a pizzico (e viceversa)
+      if (_modo == _Modo.sposta && _punti >= 2 && _fotoSingola() != null) {
+        _iniziaPizzica(d);
+      } else if (_modo == _Modo.pizzica && _punti < 2) {
+        _iniziaSposta(d.localFocalPoint);
+      }
+    }
+    final precedente = _focaleUltima;
+    _focaleUltima = d.localFocalPoint;
+    switch (_modo) {
+      case _Modo.scorri:
+        _aggiornaScorri(d.localFocalPoint.dx - precedente.dx);
+      case _Modo.sposta:
+        _aggiornaSposta(d.localFocalPoint);
+        _controllaBordo(d.localFocalPoint);
+      case _Modo.maniglia:
+        _aggiornaManiglia(d.localFocalPoint);
+      case _Modo.pizzica:
+        _aggiornaPizzica(d);
+      case _Modo.nessuno:
+        break;
+    }
+  }
+
+  void _aggiornaScorri(double spostamento) {
+    final n = _stato.snapshot.canvas.numFrames;
+    final g = _geo!;
+    // Un po' di elasticità oltre la prima e l'ultima pagina
+    _scorrimento.value = (_pos - spostamento / g.passo).clamp(
+      -0.2,
+      n - 1 + 0.2,
+    );
+  }
+
+  void _aggiornaSposta(Offset focale) {
+    final g = _geo?.conPos(_pos);
+    final base = _base;
+    if (g == null || base == null) return;
+    final (sx, sy) = g.daSchermo(focale);
+    var dx = sx - _stripInizio.$1;
+    var dy = sy - _stripInizio.$2;
+    final p = _primario;
+    var agg = Aggancio.nessuno;
+    if (p != null && (p is PhotoItem || p is ShapeItem)) {
+      final r = ingombroElemento(base, p, _sessione.ctx);
+      agg = calcolaAggancio(
+        base,
+        motore.Rect(r.x + dx, r.y + dy, r.w, r.h),
+        _stato.selezione,
+        aggancioPixel / g.scala,
+      );
+      dx += agg.dx;
+      dy += agg.dy;
+    }
+    final prima = _aggancio.value;
+    _aggancio.value = agg;
+    if (agg.attivo &&
+        (agg.lineeX.join() != prima.lineeX.join() ||
+            agg.lineeY.join() != prima.lineeY.join())) {
+      HapticFeedback.selectionClick();
+    }
+    _ctrl.anteprima(spostaElementi(base, _stato.selezione, dx, dy));
+  }
+
+  void _aggiornaManiglia(Offset focale) {
+    final g = _geo?.conPos(_pos);
+    final base = _base, foto = _fotoBase, m = _maniglia;
+    if (g == null || base == null || foto == null || m == null) return;
+    final (sx, sy) = g.daSchermo(focale);
+    _ctrl.anteprima(_con(base, ridimensionaFoto(foto, m, sx, sy)));
+  }
+
+  void _aggiornaPizzica(ScaleUpdateDetails d) {
+    final g = _geo?.conPos(_pos);
+    final base = _base, foto = _fotoBase;
+    if (g == null || base == null || foto == null) return;
+    final r = trasformaFoto(
+      foto,
+      scala: d.scale / _scalaRif,
+      gradi: (d.rotation - _rotRif) * 180.0 / math.pi,
+    );
+    // Con le dita che si spostano, la foto le segue
+    final a = g.daSchermo(_focaleRif), b = g.daSchermo(d.localFocalPoint);
+    final f = r.foto.copyWith(
+      x: r.foto.x + b.$1 - a.$1,
+      y: r.foto.y + b.$2 - a.$2,
+    );
+    if (r.agganciata && !_agganciataRotazione) HapticFeedback.selectionClick();
+    _agganciataRotazione = r.agganciata;
+    _ctrl.anteprima(_con(base, f));
+  }
+
+  /// [base] con la foto [nuova] al posto di quella con lo stesso `uid`.
+  Snapshot _con(Snapshot base, PhotoItem nuova) => base.copyWith(
+    items: [for (final p in base.items) p.uid == nuova.uid ? nuova : p],
+  );
+
+  // ---------- Cambio pagina trascinando un elemento ----------
+  void _controllaBordo(Offset focale) {
+    final g = _geo;
+    if (g == null) return;
+    final aSinistra = focale.dx < _fasciaBordo;
+    final aDestra = focale.dx > g.larghezza - _fasciaBordo;
+    if (!aSinistra && !aDestra) {
+      _timerBordo?.cancel();
+      _timerBordo = null;
+      _bordoArmato = true;
+      return;
+    }
+    if (_timerBordo != null || !_bordoArmato) return;
+    _timerBordo = Timer(_attesaBordo, () {
+      _timerBordo = null;
+      if (_modo != _Modo.sposta) return;
+      _bordoArmato = false;
+      _animaA(_stato.pagina + (aSinistra ? -1 : 1));
+    });
+  }
+
+  void _fineGesto(ScaleEndDetails d) {
+    _timerBordo?.cancel();
+    _timerBordo = null;
+    final modo = _modo;
+    _modo = _Modo.nessuno;
+    _aggancio.value = Aggancio.nessuno;
+    final g = _geo;
+    switch (modo) {
+      case _Modo.scorri:
+        if (g == null) return;
+        final v = d.velocity.pixelsPerSecond.dx;
+        // A scatti: al massimo una pagina per gesto, decisa da dove si è arrivati e dalla spinta
+        var t = (_pos - v * 0.12 / g.passo).round();
+        t = t.clamp(_paginaInizio - 1, _paginaInizio + 1);
+        _animaA(t);
+      case _Modo.sposta:
+        _concludiSposta();
+      case _Modo.maniglia || _Modo.pizzica:
+        _ctrl.conferma();
+      case _Modo.nessuno:
+        break;
+    }
+    _base = null;
+    _primario = null;
+  }
+
+  /// Fine dello spostamento: le foto rilasciate su un'altra pagina passano a quella pagina (`photosDropped`).
+  void _concludiSposta() {
+    final bozza = _stato.bozza;
+    if (bozza == null) return;
+    final uids = [
+      for (final r in _stato.selezione)
+        if (r.tipo == ElementKind.photo) r.uid,
+    ];
+    if (uids.isEmpty) {
+      _ctrl.conferma();
+      return;
+    }
+    final r = photosDropped(bozza, uids, _sessione.ctx);
+    _ctrl.conferma(r.snapshot, r.notices);
+    // La pagina può essere cambiata (foto rilasciata su un'altra pagina): la vista la segue
+    _animaA(_pos.round());
+  }
+
+  void _annullaGesto() {
+    _timerBordo?.cancel();
+    _modo = _Modo.nessuno;
+    _aggancio.value = Aggancio.nessuno;
+    _ctrl.scarta();
+  }
+
+  // ---------- Costruzione ----------
+  @override
+  Widget build(BuildContext context) {
+    final stato = ref.watch(editorProvider);
+    ref.listen(editorProvider.select((s) => s.pagina), (prima, pagina) {
+      if (_modo == _Modo.scorri) return;
+      if ((_pos - pagina).abs() > 0.01) _animaA(pagina);
+      _preparaConRitardo();
+    });
+    ref.listen(editorProvider.select((s) => s.snapshot), (_, _) {
+      _preparaConRitardo();
+    });
+    final s = stato.snapshot;
+    final testi = testiDisegno(context);
+    return LayoutBuilder(
+      builder: (context, vincoli) {
+        final geo = GeometriaTela.adatta(
+          larghezza: vincoli.maxWidth,
+          altezza: vincoli.maxHeight,
+          frameW: s.canvas.frameW,
+          frameH: s.canvas.frameH,
+          pos: _pos,
+        );
+        _geo = geo;
+        return Semantics(
+          label: Testi.of(context).tela,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (e) {
+              if (_dita == 0) _posGiu = e.localPosition;
+              _dita++;
+            },
+            onPointerUp: (_) => _dita = math.max(0, _dita - 1),
+            onPointerCancel: (_) => _dita = math.max(0, _dita - 1),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapUp: _alTocco,
+              onScaleStart: _inizioGesto,
+              onScaleUpdate: _aggiornaGesto,
+              onScaleEnd: _fineGesto,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  AnimatedBuilder(
+                    animation: Listenable.merge([
+                      _scorrimento,
+                      _sessione.risorse,
+                    ]),
+                    builder: (context, _) => CustomPaint(
+                      painter: _PitturaPagine(
+                        s,
+                        geo.conPos(_pos),
+                        _sessione.risorse,
+                        testi,
+                      ),
+                    ),
+                  ),
+                  _Etichetta(
+                    geo: geo,
+                    pos: _scorrimento,
+                    snapshot: s,
+                    sessione: _sessione,
+                  ),
+                  IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: Listenable.merge([_scorrimento, _aggancio]),
+                      builder: (context, _) => CustomPaint(
+                        painter: _PitturaSelezione(
+                          snapshot: s,
+                          selezione: stato.elementiSelezionati,
+                          geo: geo.conPos(_pos),
+                          misura: _sessione.ctx.textSize,
+                          aggancio: _aggancio.value,
+                          maniglie: _fotoSingola() != null,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void deactivate() {
+    if (_modo != _Modo.nessuno) _annullaGesto();
+    super.deactivate();
+  }
+}
+
+/// Disegna le pagine visibili con lo stesso modulo dell'esportazione, più le guide di centro.
+class _PitturaPagine extends CustomPainter {
+  _PitturaPagine(this.s, this.geo, this.risorse, this.testi);
+
+  final Snapshot s;
+  final GeometriaTela geo;
+  final RisorsePagina risorse;
+  final TestiDisegno testi;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final haElementi = s.allElements.isNotEmpty;
+    for (final i in geo.pagineVisibili(s.canvas.numFrames)) {
+      canvas.save();
+      canvas.translate(geo.sinistraPagina(i), geo.y0);
+      canvas.clipRect(Rect.fromLTWH(0, 0, geo.pw, geo.ph));
+      disegnaPagina(
+        canvas,
+        s,
+        i,
+        risorse,
+        OpzioniDisegno(testi: testi),
+        scala: geo.scala,
+      );
+      if (haElementi) _guide(canvas);
+      canvas.restore();
+    }
+  }
+
+  /// Linee di centro leggere, tratteggiate (`show_guides` del desktop).
+  void _guide(Canvas canvas) {
+    final p = Paint()
+      ..color = ColoriScrl.guida.withAlpha(130)
+      ..strokeWidth = 1;
+    const tratto = 5.0, vuoto = 4.0;
+    for (var y = 0.0; y < geo.ph; y += tratto + vuoto) {
+      canvas.drawLine(
+        Offset(geo.pw / 2, y),
+        Offset(geo.pw / 2, math.min(y + tratto, geo.ph)),
+        p,
+      );
+    }
+    for (var x = 0.0; x < geo.pw; x += tratto + vuoto) {
+      canvas.drawLine(
+        Offset(x, geo.ph / 2),
+        Offset(math.min(x + tratto, geo.pw), geo.ph / 2),
+        p,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PitturaPagine old) =>
+      old.s != s || old.geo.pos != geo.pos || old.geo.scala != geo.scala;
+}
+
+/// Riquadro di selezione, maniglie, lucchetto e linee di aggancio: sopra la pagina, non ritagliati.
+class _PitturaSelezione extends CustomPainter {
+  _PitturaSelezione({
+    required this.snapshot,
+    required this.selezione,
+    required this.geo,
+    required this.misura,
+    required this.aggancio,
+    required this.maniglie,
+  });
+
+  final Snapshot snapshot;
+  final List<CanvasElement> selezione;
+  final GeometriaTela geo;
+  final TextSizeOf misura;
+  final Aggancio aggancio;
+  final bool maniglie;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linea = Paint()
+      ..color = ColoriScrl.accento
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = selezione.length > 1 ? 1.5 : 2;
+    for (final e in selezione) {
+      final a = [
+        for (final (x, y) in angoliElemento(e, misura)) geo.aSchermo(x, y),
+      ];
+      canvas.drawPath(Path()..addPolygon(a, true), linea);
+      if (e.locked) _lucchetto(canvas, a.first);
+    }
+    if (maniglie && selezione.length == 1 && selezione.first is PhotoItem) {
+      _disegnaManiglie(canvas, selezione.first as PhotoItem);
+    }
+    _linee(canvas);
+  }
+
+  void _disegnaManiglie(Canvas canvas, PhotoItem p) {
+    final riempi = Paint()..color = ColoriScrl.suAccento;
+    final bordo = Paint()
+      ..color = ColoriScrl.accento
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    for (final m in Maniglia.values) {
+      final (fx, fy) = m.frazione;
+      final (sx, sy) = localeInScena(p, fx * p.w, fy * p.h);
+      final c = geo.aSchermo(sx, sy);
+      final r = m.angolo ? 8.0 : 6.0;
+      canvas.drawCircle(c, r, riempi);
+      canvas.drawCircle(c, r, bordo);
+    }
+  }
+
+  /// Lucchetto piccolo, in alto a sinistra di un elemento con «Blocca posizione».
+  void _lucchetto(Canvas canvas, Offset angolo) {
+    final c = angolo + const Offset(10, 10);
+    final fondo = Paint()..color = ColoriScrl.accento;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: c + const Offset(0, 2), width: 11, height: 8),
+        const Radius.circular(2),
+      ),
+      fondo,
+    );
+    canvas.drawArc(
+      Rect.fromCenter(center: c + const Offset(0, -2), width: 7, height: 8),
+      math.pi,
+      math.pi,
+      false,
+      Paint()
+        ..color = ColoriScrl.accento
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6,
+    );
+  }
+
+  void _linee(Canvas canvas) {
+    if (!aggancio.attivo) return;
+    final p = Paint()
+      ..color = ColoriScrl.aggancio
+      ..strokeWidth = 1.2;
+    for (final x in aggancio.lineeX) {
+      canvas.drawLine(
+        geo.aSchermo(x, 0),
+        geo.aSchermo(x, geo.frameH.toDouble()),
+        p,
+      );
+    }
+    for (final y in aggancio.lineeY) {
+      final a = geo.aSchermo(geo.pos.round() * geo.frameW.toDouble(), y);
+      canvas.drawLine(Offset(0, a.dy), Offset(geo.larghezza, a.dy), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PitturaSelezione old) => true;
+}
+
+/// Etichetta sopra la pagina («Pagina 2 · Bloccata · A cavallo 2–4 · 3 foto») e invito se la pagina è vuota.
+class _Etichetta extends StatelessWidget {
+  const _Etichetta({
+    required this.geo,
+    required this.pos,
+    required this.snapshot,
+    required this.sessione,
+  });
+
+  final GeometriaTela geo;
+  final Animation<double> pos;
+  final Snapshot snapshot;
+  final SessioneEditor sessione;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Testi.of(context);
+    final stili = Theme.of(context).textTheme;
+    return AnimatedBuilder(
+      animation: pos,
+      builder: (context, _) {
+        final c = snapshot.canvas;
+        final k = pos.value.round().clamp(0, c.numFrames - 1);
+        final parti = <String>[t.etichettaPagina(k + 1)];
+        if (c.pageLocked(k)) parti.add(t.etichettaBloccata);
+        final g = c.seamGroups().firstWhere((g) => g.$1 <= k && k <= g.$2);
+        if (g.$2 > g.$1) parti.add(t.etichettaACavallo(g.$1 + 1, g.$2 + 1));
+        final foto = RisorsePagina.fotoDellaPagina(snapshot, k).length;
+        parti.add(t.etichettaFoto(foto));
+        final vuota = _paginaVuota(snapshot, k);
+        return Stack(
+          children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: altezzaEtichetta,
+              child: Center(
+                child: Text(
+                  parti.join(' · '),
+                  style: stili.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            if (vuota)
+              Positioned(
+                left: geo.x0,
+                top: geo.y0,
+                width: geo.pw,
+                height: geo.ph,
+                child: IgnorePointer(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: MisureScrl.tocco,
+                        color: ColoriScrl.testoSpento,
+                      ),
+                      const SizedBox(height: MisureScrl.spazioPiccolo),
+                      Text(
+                        t.paginaVuota,
+                        style: stili.bodySmall?.copyWith(
+                          color: ColoriScrl.testoSpento,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  bool _paginaVuota(Snapshot s, int k) {
+    final fw = s.canvas.frameW.toDouble();
+    bool tocca(CanvasElement e) {
+      final a = angoliElemento(e, sessione.ctx.textSize);
+      final xs = a.map((p) => p.$1);
+      return xs.reduce(math.max) > k * fw && xs.reduce(math.min) < (k + 1) * fw;
+    }
+
+    return !s.allElements.any(tocca);
+  }
+}

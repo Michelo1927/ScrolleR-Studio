@@ -13,6 +13,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_riverpod: ^3.5.0
   image_picker: ^1.2.4
   intl: any
   material_ui: ^1.1.0
