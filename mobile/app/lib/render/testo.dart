@@ -8,6 +8,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
+import 'caratteri.dart';
+
 /// Riga di testo già impaginata (testo e larghezza).
 class RigaTesto {
   final String testo;
@@ -68,9 +70,10 @@ class ImpaginazioneTesto {
   return (w: l.larghezza, h: l.altezza);
 }
 
-/// Stile del carattere (`_font`): dimensione in pixel intera, grassetto, corsivo, spaziatura.
+/// Stile del carattere (`_font`): dimensione in pixel intera, grassetto, corsivo, spaziatura. Se il carattere del
+/// testo non è tra quelli inclusi si disegna con il predefinito (il nome nel progetto non cambia).
 TextStyle _stile(TextItem t, {Color? colore, Paint? primoPiano}) => TextStyle(
-  fontFamily: t.font,
+  fontFamily: Caratteri.perDisegno(t.font),
   fontSize: math.max(4, pyRound(t.size)).toDouble(),
   fontWeight: t.bold ? FontWeight.w700 : FontWeight.w400,
   fontStyle: t.italic ? FontStyle.italic : FontStyle.normal,

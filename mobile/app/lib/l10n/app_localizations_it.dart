@@ -817,4 +817,153 @@ class TestiIt extends Testi {
   String ritMisura(int w, int h) {
     return 'Ritaglio: $w × $h px';
   }
+
+  @override
+  String coloreEtichetta(String hex) {
+    return 'Colore #$hex';
+  }
+
+  @override
+  String get azContagocce => 'Contagocce';
+
+  @override
+  String get azAltroColore => 'Altro';
+
+  @override
+  String get azColori => 'Colori';
+
+  @override
+  String get contagocceAiuto =>
+      'Tocca un punto della pagina per prelevarne il colore';
+
+  @override
+  String get nessuno => 'Nessuno';
+
+  @override
+  String get parEsadecimale => 'Esadecimale';
+
+  @override
+  String get esadecimaleNonValido => 'Scrivi 6 cifre, da 0 a F';
+
+  @override
+  String get parTintaColore => 'Tinta';
+
+  @override
+  String get testoSuggerimento => 'Scrivi qui il testo';
+
+  @override
+  String get strModifica => 'Modifica';
+
+  @override
+  String get catSenzaGrazie => 'Senza grazie';
+
+  @override
+  String get catConGrazie => 'Con grazie';
+
+  @override
+  String get catTitolo => 'Titolo';
+
+  @override
+  String get catAMano => 'A mano';
+
+  @override
+  String get catMonospazio => 'Monospazio';
+
+  @override
+  String avvisoCarattereMancante(String nome, String predefinito) {
+    return '«$nome» non c’è su questo telefono: si usa «$predefinito». Il nome resta nel file finché non scegli un altro carattere.';
+  }
+
+  @override
+  String get strCarattere => 'Carattere';
+
+  @override
+  String get strDimensione => 'Dimensione';
+
+  @override
+  String get strSpaziatura => 'Spaziatura';
+
+  @override
+  String get parInterlinea => 'Interlinea';
+
+  @override
+  String get parSpaziaturaLettere => 'Lettere';
+
+  @override
+  String get strFormato => 'Formato';
+
+  @override
+  String get azGrassetto => 'Grassetto';
+
+  @override
+  String get azCorsivo => 'Corsivo';
+
+  @override
+  String get azSinistra => 'Sinistra';
+
+  @override
+  String get azCentro => 'Centro';
+
+  @override
+  String get azDestra => 'Destra';
+
+  @override
+  String get strContorno => 'Contorno';
+
+  @override
+  String get parSpessore => 'Spessore';
+
+  @override
+  String get strEtichetta => 'Etichetta';
+
+  @override
+  String get formaRettangolo => 'Rettangolo';
+
+  @override
+  String get formaEllisse => 'Ellisse';
+
+  @override
+  String get formaTriangolo => 'Triangolo';
+
+  @override
+  String get formaRombo => 'Rombo';
+
+  @override
+  String get formaStella => 'Stella';
+
+  @override
+  String get formaCuore => 'Cuore';
+
+  @override
+  String get formaLinea => 'Linea';
+
+  @override
+  String get formaFreccia => 'Freccia';
+
+  @override
+  String get formaDoppiaFreccia => 'Doppia freccia';
+
+  @override
+  String get strTipo => 'Tipo';
+
+  @override
+  String get strRiempimento => 'Riempimento';
+
+  @override
+  String get parTratto => 'Tratto';
+
+  @override
+  String get parLinea => 'Linea';
+
+  @override
+  String get trattoContinuo => 'Continuo';
+
+  @override
+  String get trattoTratteggiato => 'Tratteggiato';
+
+  @override
+  String get trattoPuntini => 'A puntini';
+
+  @override
+  String get avvisoFormaAggiunta => 'Forma aggiunta';
 }

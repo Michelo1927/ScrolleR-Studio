@@ -12,10 +12,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrl_engine/scrl_engine.dart';
 
+import '../render/caratteri.dart';
 import 'sessione.dart';
 
-/// Pannello aperto dal basso. Dal terzo in poi sono gli strumenti Foto della foto selezionata (piano §4.3);
-/// il Ritaglio non è un pannello ma una pagina a schermo intero.
+/// Pannello aperto dal basso. Da `inquadra` a `ruota` sono gli strumenti Foto della foto selezionata, poi quelli del
+/// Testo e delle Forme (piano §4.3); il Ritaglio non è un pannello ma una pagina a schermo intero.
 enum Strumento {
   nessuno,
   libreria,
@@ -27,10 +28,44 @@ enum Strumento {
   effetti,
   cornice,
   ombra,
-  ruota;
+  ruota,
+
+  // Testo
+  testoModifica,
+  testoCarattere,
+  testoDimensione,
+  testoFormato,
+  testoColore,
+  testoContorno,
+  testoEtichetta,
+  testoSpaziatura,
+  testoOpacita,
+  testoRuota,
+
+  // Forme
+  formaNuova,
+  formaTipo,
+  formaRiempimento,
+  formaBordo,
+  formaAngoli,
+  formaOpacita,
+  formaRuota;
 
   /// Strumento Foto che lavora sulla foto selezionata.
-  bool get eFoto => index >= Strumento.inquadra.index;
+  bool get eFoto => index >= inquadra.index && index <= ruota.index;
+
+  /// Strumento Testo che lavora sul testo selezionato.
+  bool get eTesto => index >= testoModifica.index && index <= testoRuota.index;
+
+  /// Strumento Forme che lavora sulla forma selezionata (la scelta del tipo per una forma nuova non conta).
+  bool get eForma => index >= formaTipo.index && index <= formaRuota.index;
+
+  /// Strumento che lavora sull'elemento selezionato: la selezione resta ferma finché è aperto.
+  bool get suElemento => eFoto || eTesto || eForma;
+
+  /// Lo stile scelto con questo strumento diventa quello delle prossime forme (`_remember_shape_style`).
+  bool get ricordaStileForma =>
+      this == formaRiempimento || this == formaBordo || this == formaAngoli;
 
   /// Strumento che cambia i colori: ha il confronto prima/dopo `◐`.
   bool get eColore =>
@@ -55,6 +90,7 @@ enum MessaggioEditor {
   ritaglioApplicato,
   ritaglioTolto,
   modificaScartata,
+  formaAggiunta,
 }
 
 /// Un messaggio da mostrare: [id] cresce a ogni messaggio nuovo, così l'interfaccia riconosce i nuovi.
@@ -75,7 +111,8 @@ class Avviso {
       messaggio == MessaggioEditor.telaSvuotata ||
       messaggio == MessaggioEditor.stileIncollato ||
       messaggio == MessaggioEditor.ritaglioApplicato ||
-      messaggio == MessaggioEditor.ritaglioTolto;
+      messaggio == MessaggioEditor.ritaglioTolto ||
+      messaggio == MessaggioEditor.formaAggiunta;
 
   /// Dopo l'avviso si può rimettere la modifica appena scartata con «Ripristina».
   bool get ripristinabile => messaggio == MessaggioEditor.modificaScartata;
@@ -92,6 +129,9 @@ class StatoEditor {
     this.avviso,
     this.deforma = false,
     this.stileCopiato,
+    this.stiliForma = const StiliForma(),
+    this.contagocce = false,
+    this.colorePreso,
   });
 
   final History cronologia;
@@ -109,6 +149,16 @@ class StatoEditor {
 
   /// Stile copiato con «Copia stile» (non entra in Annulla né nel progetto, come sul desktop).
   final StileFoto? stileCopiato;
+
+  /// Ultimi stili scelti per le forme piene e per le linee: le forme nuove li riprendono (come `_last_shape_style`,
+  /// che sul desktop sta in memoria: non entra in Annulla né nel progetto).
+  final StiliForma stiliForma;
+
+  /// Contagocce acceso: il prossimo tocco sulla pagina preleva il colore di quel punto.
+  final bool contagocce;
+
+  /// L'ultimo colore prelevato con il contagocce; [n] cresce a ogni prelievo, così il selettore riconosce i nuovi.
+  final ({int n, int argb})? colorePreso;
 
   /// Ciò che si vede: la bozza se c'è, altrimenti l'ultimo passo.
   Snapshot get snapshot => bozza ?? cronologia.current;
@@ -130,6 +180,9 @@ class StatoEditor {
     Avviso? avviso,
     bool? deforma,
     StileFoto? stileCopiato,
+    StiliForma? stiliForma,
+    bool? contagocce,
+    ({int n, int argb})? colorePreso,
   }) => StatoEditor(
     cronologia: cronologia ?? this.cronologia,
     bozza: bozza != null ? bozza() : this.bozza,
@@ -140,6 +193,9 @@ class StatoEditor {
     avviso: avviso ?? this.avviso,
     deforma: deforma ?? this.deforma,
     stileCopiato: stileCopiato ?? this.stileCopiato,
+    stiliForma: stiliForma ?? this.stiliForma,
+    contagocce: contagocce ?? this.contagocce,
+    colorePreso: colorePreso ?? this.colorePreso,
   );
 }
 
@@ -196,14 +252,22 @@ class ControlloEditor extends Notifier<StatoEditor> {
   void apriStrumento(Strumento s) {
     if (s == state.strumento) return;
     // Una bozza rimasta di un altro strumento non entra in cronologia
-    state = state.copia(strumento: s, bozza: () => null);
+    state = state.copia(strumento: s, bozza: () => null, contagocce: false);
   }
+
+  /// La selezione senza gli elementi che nel documento [s] non ci sono (un testo nato solo in bozza e scartato).
+  Set<RifElemento> _selezioneIn(Snapshot s) => {
+    for (final r in state.selezione)
+      if (elementoDi(s, r) != null) r,
+  };
 
   /// ✕: scarta la bozza e chiude il pannello.
   void chiudiStrumento() => state = state.copia(
     strumento: Strumento.nessuno,
+    selezione: _selezioneIn(state.cronologia.current),
     bozza: () => null,
     deforma: false,
+    contagocce: false,
   );
 
   Snapshot? _scartata;
@@ -218,8 +282,10 @@ class ControlloEditor extends Notifier<StatoEditor> {
       _baseScartata = state.cronologia.current;
       state = state.copia(
         strumento: Strumento.nessuno,
+        selezione: _selezioneIn(state.cronologia.current),
         bozza: () => null,
         deforma: false,
+        contagocce: false,
         avviso: Avviso(
           _prossimoAvviso++,
           messaggio: MessaggioEditor.modificaScartata,
@@ -235,7 +301,9 @@ class ControlloEditor extends Notifier<StatoEditor> {
     final s = _scartata;
     final base = _baseScartata;
     _scartata = _baseScartata = null;
-    if (s == null || base == null || !identical(base, state.cronologia.current)) {
+    if (s == null ||
+        base == null ||
+        !identical(base, state.cronologia.current)) {
       return;
     }
     _commit(s);
@@ -257,8 +325,14 @@ class ControlloEditor extends Notifier<StatoEditor> {
   /// ✓ di uno strumento: la bozza diventa un passo di cronologia e il pannello si chiude.
   void confermaEChiudi([List<Notice> notice = const []]) {
     final b = state.bozza;
+    final ricorda = state.strumento.ricordaStileForma;
     if (b != null) _commit(b, notice: notice);
-    state = state.copia(strumento: Strumento.nessuno, deforma: false);
+    state = state.copia(
+      strumento: Strumento.nessuno,
+      deforma: false,
+      contagocce: false,
+    );
+    if (ricorda) _ricordaStileForma();
   }
 
   /// Applica il risultato di un'operazione del motore come passo di cronologia, con i suoi avvisi.
@@ -418,11 +492,9 @@ class ControlloEditor extends Notifier<StatoEditor> {
   void applicaRitaglio(List<double> ritaglio, {required bool adattaRiquadro}) {
     final p = fotoSelezionate;
     if (p.isEmpty) return;
-    final dopo = modificaFoto(
-      state.snapshot,
-      [for (final f in p) f.uid],
-      (f) => conRitaglio(f, ritaglio, adattaRiquadro, _s.misuraDi(f)),
-    );
+    final dopo = modificaFoto(state.snapshot, [
+      for (final f in p) f.uid,
+    ], (f) => conRitaglio(f, ritaglio, adattaRiquadro, _s.misuraDi(f)));
     final primo = dopo.items.firstWhere((f) => f.uid == p.first.uid);
     _commit(
       dopo,
@@ -438,7 +510,10 @@ class ControlloEditor extends Notifier<StatoEditor> {
     if (p.isEmpty) return;
     state = state.copia(
       stileCopiato: StileFoto.di(p.first),
-      avviso: Avviso(_prossimoAvviso++, messaggio: MessaggioEditor.stileCopiato),
+      avviso: Avviso(
+        _prossimoAvviso++,
+        messaggio: MessaggioEditor.stileCopiato,
+      ),
     );
   }
 
@@ -452,6 +527,98 @@ class ControlloEditor extends Notifier<StatoEditor> {
       messaggio: MessaggioEditor.stileIncollato,
     );
   }
+
+  // ---------- Testo (Fase 5) ----------
+  /// I testi selezionati, come nel documento che si vede.
+  List<TextItem> get testiSelezionati =>
+      state.elementiSelezionati.whereType<TextItem>().toList();
+
+  /// Contesto del motore: misura dei testi (dipende dai caratteri) e contatori degli `uid`.
+  EngineContext get contesto => _s.ctx;
+
+  /// «＋ → Testo»: un testo nuovo al centro della pagina corrente, selezionato, con la tastiera pronta a scriverci.
+  /// Nasce come **bozza**: con ✓ diventa un solo passo di cronologia (testo compreso), con ✕ non è mai esistito.
+  void nuovoTesto() {
+    final r = aggiungiTesto(
+      state.snapshot,
+      _s.ctx,
+      pagina: state.pagina,
+      carattere: Caratteri.predefinito,
+    );
+    state = state.copia(
+      bozza: () => r.snapshot,
+      selezione: {r.ref},
+      strumento: Strumento.testoModifica,
+      contagocce: false,
+    );
+  }
+
+  /// Applica [f] ai testi selezionati e mostra il risultato come bozza (non entra in Annulla finché non c'è ✓).
+  void modificaTestiSelezionati(TextItem Function(TextItem) f) {
+    final uids = [for (final t in testiSelezionati) t.uid];
+    if (uids.isEmpty) return;
+    anteprima(modificaTesti(state.snapshot, uids, f));
+  }
+
+  /// Comando singolo: ombra del testo accesa o spenta, subito, in un passo di cronologia.
+  void alternaOmbraTesto() {
+    final t = testiSelezionati;
+    if (t.isEmpty) return;
+    final acceso = !t.first.shadow;
+    _commit(
+      modificaTesti(state.snapshot, [
+        for (final x in t) x.uid,
+      ], (x) => conOmbraTesto(x, acceso)),
+    );
+  }
+
+  // ---------- Forme (Fase 5) ----------
+  /// Le forme selezionate, come nel documento che si vede.
+  List<ShapeItem> get formeSelezionate =>
+      state.elementiSelezionati.whereType<ShapeItem>().toList();
+
+  /// «＋ → Forma → tipo»: una forma nuova al centro della pagina corrente, con l'ultimo stile usato, selezionata.
+  void nuovaForma(String tipo) {
+    final r = aggiungiForma(
+      state.snapshot,
+      _s.ctx,
+      kind: tipo,
+      pagina: state.pagina,
+      stili: state.stiliForma,
+    );
+    _commit(
+      r.snapshot,
+      selezione: {r.ref},
+      messaggio: MessaggioEditor.formaAggiunta,
+    );
+    state = state.copia(strumento: Strumento.nessuno);
+  }
+
+  /// Applica [f] alle forme selezionate e mostra il risultato come bozza (non entra in Annulla finché non c'è ✓).
+  void modificaFormeSelezionate(ShapeItem Function(ShapeItem) f) {
+    final uids = [for (final x in formeSelezionate) x.uid];
+    if (uids.isEmpty) return;
+    anteprima(modificaForme(state.snapshot, uids, f));
+  }
+
+  /// Le prossime forme dello stesso tipo (piene o linee) nascono con lo stile della prima forma selezionata.
+  void _ricordaStileForma() {
+    final f = formeSelezionate;
+    if (f.isEmpty) return;
+    state = state.copia(stiliForma: state.stiliForma.ricorda(f.first));
+  }
+
+  // ---------- Selettore colore ----------
+  /// Accende o spegne il contagocce: da acceso, il prossimo tocco sulla pagina preleva il colore.
+  void attivaContagocce(bool acceso) {
+    if (state.contagocce != acceso) state = state.copia(contagocce: acceso);
+  }
+
+  /// La tela ha prelevato [argb] dal punto toccato: il contagocce si spegne e il selettore riceve il colore.
+  void coloreCampionato(int argb) => state = state.copia(
+    contagocce: false,
+    colorePreso: (n: (state.colorePreso?.n ?? 0) + 1, argb: argb),
+  );
 
   // ---------- Pagine (comandi minimi della Fase 3; il resto arriva con la Fase 6) ----------
   void aggiungiPagina() {

@@ -15,6 +15,7 @@ import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 import 'package:scrl_engine/scrl_engine.dart' as motore show Rect;
 
 import '../l10n/app_localizations.dart';
+import '../render/campiona.dart';
 import '../render/disegno.dart';
 import '../render/risorse_pagina.dart';
 import '../theme/tokens.dart';
@@ -23,7 +24,33 @@ import 'sessione.dart';
 import 'stato.dart';
 import 'vista_pagina.dart';
 
-enum _Modo { nessuno, scorri, sposta, maniglia, pizzica, inquadra }
+enum _Modo {
+  nessuno,
+  scorri,
+  sposta,
+  maniglia,
+  manigliaForma,
+  pizzica,
+  inquadra,
+}
+
+/// Distanza in dp tra il lato alto di una forma e il suo pallino di rotazione.
+const double _distanzaPallino = 32;
+
+/// Cosa si è afferrato di una forma selezionata: una maniglia di lato o d'angolo, un estremo di linea o il pallino.
+class _PresaForma {
+  const _PresaForma.lato(Maniglia this.lato) : estremo = null;
+  const _PresaForma.estremo(EstremoLinea this.estremo) : lato = null;
+  const _PresaForma.pallino() : lato = null, estremo = null;
+
+  final Maniglia? lato;
+  final EstremoLinea? estremo;
+  bool get pallino => lato == null && estremo == null;
+}
+
+/// Due tocchi sullo stesso testo entro questo tempo e questa distanza (dp) aprono la tastiera.
+const Duration _doppioTocco = Duration(milliseconds: 300);
+const double _distanzaDoppioTocco = 40;
 
 /// Raggio dell'area toccabile di una maniglia (area di 48 dp, piano §4.5: almeno 44).
 const double _raggioTocco = MisureScrl.tocco / 2;
@@ -57,6 +84,13 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
   CanvasElement? _primario;
   Maniglia? _maniglia;
   PhotoItem? _fotoBase;
+
+  /// Forma con la sua maniglia (o estremo, o pallino) afferrata, com'era al tocco.
+  ShapeItem? _formaBase;
+  _PresaForma? _presa;
+
+  /// L'elemento (foto, testo o forma) che il pizzico ridimensiona e ruota, com'era all'inizio.
+  CanvasElement? _elBase;
   double _scalaRif = 1, _rotRif = 0;
   Offset _focaleRif = Offset.zero;
   bool _agganciataRotazione = false;
@@ -70,7 +104,13 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
   /// Dove il primo dito ha toccato: il riconoscitore parte solo dopo un piccolo spostamento, ma per sapere
   /// cosa si è toccato (e per non perdere quei pixel) conta il punto del contatto.
   Offset _posGiu = Offset.zero;
+  Duration _tsGiu = Duration.zero;
   int _dita = 0;
+
+  /// Ultimo tocco su un elemento (quando, dove e quale), per riconoscere il doppio tocco su un testo.
+  Duration? _tsUltimoTocco;
+  Offset _posUltimoTocco = Offset.zero;
+  RifElemento? _rifUltimoTocco;
 
   ControlloEditor get _ctrl => ref.read(editorProvider.notifier);
   StatoEditor get _stato => ref.read(editorProvider);
@@ -179,7 +219,58 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
   /// La sola foto selezionata, anche se ha «Blocca posizione» (l'inquadratura interna non la sposta).
   PhotoItem? _fotoInquadrabile() {
     final el = _stato.elementiSelezionati;
-    return el.length == 1 && el.first is PhotoItem ? el.first as PhotoItem : null;
+    return el.length == 1 && el.first is PhotoItem
+        ? el.first as PhotoItem
+        : null;
+  }
+
+  /// La sola forma selezionata, se si può ridimensionare (non bloccata).
+  ShapeItem? _formaSingola() {
+    final el = _stato.elementiSelezionati;
+    if (el.length != 1) return null;
+    final e = el.first;
+    return e is ShapeItem && !e.locked ? e : null;
+  }
+
+  /// L'unico elemento selezionato (foto, testo o forma) se si può ridimensionare e ruotare con due dita.
+  CanvasElement? _pizzicabile() {
+    final el = _stato.elementiSelezionati;
+    return el.length == 1 && !el.first.locked ? el.first : null;
+  }
+
+  /// La maniglia, l'estremo o il pallino di una forma selezionata sotto il dito: il più vicino, entro l'area
+  /// toccabile (su una forma piccola vince quello più vicino al dito).
+  _PresaForma? _presaFormaSotto(Offset punto) {
+    final f = _formaSingola();
+    final g = _geo;
+    if (f == null || g == null) return null;
+    Offset schermo((double, double) p) => g.aSchermo(p.$1, p.$2);
+    final candidati = <(Offset, _PresaForma)>[
+      if (f.isLine)
+        for (final e in EstremoLinea.values)
+          (schermo(estremoInScena(f, e)), _PresaForma.estremo(e))
+      else ...[
+        for (final m in Maniglia.values)
+          (
+            schermo(formaInScena(f, m.frazione.$1 * f.w, m.frazione.$2 * f.h)),
+            _PresaForma.lato(m),
+          ),
+        (
+          schermo(pallinoRotazione(f, _distanzaPallino / g.scala)),
+          const _PresaForma.pallino(),
+        ),
+      ],
+    ];
+    _PresaForma? migliore;
+    var dist = double.infinity;
+    for (final (c, presa) in candidati) {
+      final d = (c - punto).distance;
+      if (d <= _raggioTocco && d < dist) {
+        dist = d;
+        migliore = presa;
+      }
+    }
+    return migliore;
   }
 
   Offset _posManiglia(PhotoItem p, Maniglia m) {
@@ -206,15 +297,57 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
 
   // ---------- Tocco ----------
   void _alTocco(TapUpDetails d) {
-    // Con uno strumento Foto aperto la selezione non cambia: si lavora sulla foto scelta
-    if (_stato.strumento.eFoto) return;
+    // Contagocce acceso: il tocco preleva il colore di quel punto della pagina
+    if (_stato.contagocce) {
+      unawaited(_prelevaColore(d.localPosition));
+      return;
+    }
+    // Con uno strumento aperto la selezione non cambia: si lavora sull'elemento scelto
+    if (_stato.strumento.suElemento) return;
     final e = _elementoSotto(d.localPosition);
+    final ts = _tsGiu;
+    final prima = _tsUltimoTocco;
+    final rif = e == null ? null : rifDi(e);
+    // Doppio tocco su un testo: apre la tastiera per scriverci
+    final doppio =
+        e is TextItem &&
+        prima != null &&
+        rif == _rifUltimoTocco &&
+        ts - prima <= _doppioTocco &&
+        (d.localPosition - _posUltimoTocco).distance <= _distanzaDoppioTocco;
+    _tsUltimoTocco = doppio ? null : ts;
+    _posUltimoTocco = d.localPosition;
+    _rifUltimoTocco = rif;
     if (e == null) {
       _ctrl.deseleziona();
+    } else if (doppio && !e.locked) {
+      _ctrl.seleziona([rif!]);
+      _ctrl.apriStrumento(Strumento.testoModifica);
     } else {
       _ctrl.seleziona(conGruppo(_stato.snapshot, e));
       HapticFeedback.selectionClick();
     }
+  }
+
+  /// Contagocce: legge il colore del disegno nel punto toccato (se cade dentro una pagina).
+  Future<void> _prelevaColore(Offset punto) async {
+    final g = _geo?.conPos(_pos);
+    if (g == null) return;
+    final s = _stato.snapshot;
+    final (sx, sy) = g.daSchermo(punto);
+    final pagina = (sx / s.canvas.frameW).floor();
+    if (pagina < 0 || pagina >= s.canvas.numFrames) return;
+    final argb = await coloreNelPunto(
+      s,
+      pagina,
+      _sessione.risorse,
+      testiDisegno(context),
+      sx - pagina * s.canvas.frameW,
+      sy,
+    );
+    if (!mounted || argb == null) return;
+    unawaited(HapticFeedback.selectionClick());
+    _ctrl.coloreCampionato(argb);
   }
 
   // ---------- Gesto ----------
@@ -228,6 +361,11 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     _base = _stato.snapshot;
     _modo = _Modo.nessuno;
     _bordoArmato = true;
+    // Col contagocce acceso un trascinamento serve solo a cambiare pagina: niente si sposta
+    if (_stato.contagocce) {
+      _modo = _Modo.scorri;
+      return;
+    }
     final sel = _stato.selezione;
     if (sel.isNotEmpty) {
       final m = d.pointerCount == 1 ? _maniglieSotto(punto) : null;
@@ -237,8 +375,16 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
         _fotoBase = _fotoSingola();
         return;
       }
+      final presa = d.pointerCount == 1 ? _presaFormaSotto(punto) : null;
+      if (presa != null) {
+        _modo = _Modo.manigliaForma;
+        _presa = presa;
+        _formaBase = _formaSingola();
+        _agganciataRotazione = false;
+        return;
+      }
       final e = _elementoSotto(punto);
-      if (_stato.strumento.eFoto) {
+      if (_stato.strumento.suElemento) {
         // Strumento Foto aperto: in Inquadra le dita muovono la foto dentro il riquadro; altrimenti si scorre
         if (_stato.strumento == Strumento.inquadra &&
             e != null &&
@@ -253,7 +399,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       if (e != null && sel.contains(rifDi(e)) && !e.locked) {
         _primario = e;
         _iniziaSposta(punto);
-        if (d.pointerCount >= 2 && _fotoSingola() != null) {
+        if (d.pointerCount >= 2 && _pizzicabile() != null) {
           _iniziaPizzica(null);
         }
         return;
@@ -280,7 +426,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
   void _iniziaPizzica(ScaleUpdateDetails? d) {
     _modo = _Modo.pizzica;
     _base = _stato.snapshot;
-    _fotoBase = _fotoSingola();
+    _elBase = _pizzicabile();
     _scalaRif = d?.scale ?? 1;
     _rotRif = d?.rotation ?? 0;
     _focaleRif = d?.localFocalPoint ?? _focaleUltima;
@@ -301,7 +447,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     if (d.pointerCount != _punti) {
       _punti = d.pointerCount;
       // Un secondo dito su una foto selezionata: da spostamento a pizzico (e viceversa)
-      if (_modo == _Modo.sposta && _punti >= 2 && _fotoSingola() != null) {
+      if (_modo == _Modo.sposta && _punti >= 2 && _pizzicabile() != null) {
         _iniziaPizzica(d);
       } else if (_modo == _Modo.pizzica && _punti < 2) {
         _iniziaSposta(d.localFocalPoint);
@@ -317,6 +463,8 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
         _controllaBordo(d.localFocalPoint);
       case _Modo.maniglia:
         _aggiornaManiglia(d.localFocalPoint);
+      case _Modo.manigliaForma:
+        _aggiornaManigliaForma(d.localFocalPoint);
       case _Modo.pizzica:
         _aggiornaPizzica(d);
       case _Modo.inquadra:
@@ -400,29 +548,86 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     _ctrl.anteprima(_con(base, foto));
   }
 
+  /// Maniglia, estremo di linea o pallino di una forma: la forma segue il dito (bozza fino a fine gesto).
+  void _aggiornaManigliaForma(Offset focale) {
+    final g = _geo?.conPos(_pos);
+    final base = _base, forma = _formaBase, presa = _presa;
+    if (g == null || base == null || forma == null || presa == null) return;
+    final (sx, sy) = g.daSchermo(focale);
+    ShapeItem nuova;
+    var agganciata = false;
+    final estremo = presa.estremo;
+    if (estremo != null) {
+      final r = spostaEstremo(forma, estremo, sx, sy);
+      nuova = r.forma;
+      agganciata = r.agganciata;
+    } else if (presa.pallino) {
+      final r = ruotaConPallino(forma, sx, sy);
+      nuova = r.forma;
+      agganciata = r.agganciata;
+    } else {
+      nuova = ridimensionaForma(forma, presa.lato!, sx, sy);
+    }
+    if (agganciata && !_agganciataRotazione) HapticFeedback.selectionClick();
+    _agganciataRotazione = agganciata;
+    _ctrl.anteprima(_conForma(base, nuova));
+  }
+
   void _aggiornaPizzica(ScaleUpdateDetails d) {
     final g = _geo?.conPos(_pos);
-    final base = _base, foto = _fotoBase;
-    if (g == null || base == null || foto == null) return;
-    final r = trasformaFoto(
-      foto,
-      scala: d.scale / _scalaRif,
-      gradi: (d.rotation - _rotRif) * 180.0 / math.pi,
-    );
-    // Con le dita che si spostano, la foto le segue
+    final base = _base, el = _elBase;
+    if (g == null || base == null || el == null) return;
+    final scala = d.scale / _scalaRif;
+    final gradi = (d.rotation - _rotRif) * 180.0 / math.pi;
+    // Con le dita che si spostano, l'elemento le segue
     final a = g.daSchermo(_focaleRif), b = g.daSchermo(d.localFocalPoint);
-    final f = r.foto.copyWith(
-      x: r.foto.x + b.$1 - a.$1,
-      y: r.foto.y + b.$2 - a.$2,
-    );
-    if (r.agganciata && !_agganciataRotazione) HapticFeedback.selectionClick();
-    _agganciataRotazione = r.agganciata;
-    _ctrl.anteprima(_con(base, f));
+    final dx = b.$1 - a.$1, dy = b.$2 - a.$2;
+    bool agganciata;
+    Snapshot nuovo;
+    switch (el) {
+      case PhotoItem():
+        final r = trasformaFoto(el, scala: scala, gradi: gradi);
+        agganciata = r.agganciata;
+        nuovo = _con(
+          base,
+          r.foto.copyWith(x: r.foto.x + dx, y: r.foto.y + dy),
+        );
+      case ShapeItem():
+        final r = trasformaForma(el, scala: scala, gradi: gradi);
+        agganciata = r.agganciata;
+        nuovo = _conForma(
+          base,
+          r.forma.copyWith(x: r.forma.x + dx, y: r.forma.y + dy),
+        );
+      case TextItem():
+        final r = trasformaTesto(
+          el,
+          _sessione.ctx,
+          scala: scala,
+          gradi: gradi,
+        );
+        agganciata = r.agganciata;
+        nuovo = _conTesto(
+          base,
+          r.testo.copyWith(x: r.testo.x + dx, y: r.testo.y + dy),
+        );
+    }
+    if (agganciata && !_agganciataRotazione) HapticFeedback.selectionClick();
+    _agganciataRotazione = agganciata;
+    _ctrl.anteprima(nuovo);
   }
 
   /// [base] con la foto [nuova] al posto di quella con lo stesso `uid`.
   Snapshot _con(Snapshot base, PhotoItem nuova) => base.copyWith(
     items: [for (final p in base.items) p.uid == nuova.uid ? nuova : p],
+  );
+
+  Snapshot _conForma(Snapshot base, ShapeItem nuova) => base.copyWith(
+    shapes: [for (final f in base.shapes) f.uid == nuova.uid ? nuova : f],
+  );
+
+  Snapshot _conTesto(Snapshot base, TextItem nuovo) => base.copyWith(
+    texts: [for (final t in base.texts) t.uid == nuovo.uid ? nuovo : t],
   );
 
   // ---------- Cambio pagina trascinando un elemento ----------
@@ -463,15 +668,18 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
         _animaA(t);
       case _Modo.sposta:
         _concludiSposta();
-      case _Modo.maniglia || _Modo.pizzica:
+      case _Modo.maniglia || _Modo.manigliaForma || _Modo.pizzica:
         // Con uno strumento aperto la modifica resta bozza fino a ✓
-        if (!_stato.strumento.eFoto) _ctrl.conferma();
+        if (!_stato.strumento.suElemento) _ctrl.conferma();
       case _Modo.inquadra || _Modo.nessuno:
         break;
     }
     _base = null;
     _primario = null;
     _inqFoto = null;
+    _formaBase = null;
+    _presa = null;
+    _elBase = null;
   }
 
   /// Fine dello spostamento: le foto rilasciate su un'altra pagina passano a quella pagina (`photosDropped`).
@@ -528,7 +736,10 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
           child: Listener(
             behavior: HitTestBehavior.translucent,
             onPointerDown: (e) {
-              if (_dita == 0) _posGiu = e.localPosition;
+              if (_dita == 0) {
+                _posGiu = e.localPosition;
+                _tsGiu = e.timeStamp;
+              }
               _dita++;
             },
             onPointerUp: (_) => _dita = math.max(0, _dita - 1),
@@ -573,7 +784,8 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
                           geo: geo.conPos(_pos),
                           misura: _sessione.ctx.textSize,
                           aggancio: _aggancio.value,
-                          maniglie: _fotoSingola() != null,
+                          maniglie:
+                              _fotoSingola() != null || _formaSingola() != null,
                         ),
                       ),
                     ),
@@ -687,8 +899,10 @@ class _PitturaSelezione extends CustomPainter {
       canvas.drawPath(Path()..addPolygon(a, true), linea);
       if (e.locked) _lucchetto(canvas, a.first);
     }
-    if (maniglie && selezione.length == 1 && selezione.first is PhotoItem) {
-      _disegnaManiglie(canvas, selezione.first as PhotoItem);
+    if (maniglie && selezione.length == 1) {
+      final e = selezione.first;
+      if (e is PhotoItem) _disegnaManiglie(canvas, e);
+      if (e is ShapeItem) _disegnaManigliaForma(canvas, e);
     }
     _linee(canvas);
   }
@@ -707,6 +921,44 @@ class _PitturaSelezione extends CustomPainter {
       canvas.drawCircle(c, r, riempi);
       canvas.drawCircle(c, r, bordo);
     }
+  }
+
+  /// Forma piena: otto maniglie e il pallino di rotazione sopra il lato alto, unito da un filo. Linea o freccia: i due
+  /// estremi, che la allungano e la orientano.
+  void _disegnaManigliaForma(Canvas canvas, ShapeItem f) {
+    final riempi = Paint()..color = ColoriScrl.suAccento;
+    final bordo = Paint()
+      ..color = ColoriScrl.accento
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    Offset schermo((double, double) p) => geo.aSchermo(p.$1, p.$2);
+    void tondo(Offset c, double r) {
+      canvas.drawCircle(c, r, riempi);
+      canvas.drawCircle(c, r, bordo);
+    }
+
+    if (f.isLine) {
+      for (final e in EstremoLinea.values) {
+        tondo(schermo(estremoInScena(f, e)), 9);
+      }
+      return;
+    }
+    final alto = schermo(formaInScena(f, f.w / 2, 0));
+    final pallino = schermo(pallinoRotazione(f, _distanzaPallino / geo.scala));
+    canvas.drawLine(alto, pallino, bordo);
+    for (final m in Maniglia.values) {
+      final (fx, fy) = m.frazione;
+      tondo(schermo(formaInScena(f, fx * f.w, fy * f.h)), m.angolo ? 8 : 6);
+    }
+    tondo(pallino, 9);
+    // Freccia curva dentro il pallino: dice che serve a ruotare
+    canvas.drawArc(
+      Rect.fromCircle(center: pallino, radius: 4),
+      -math.pi * 0.2,
+      math.pi * 1.5,
+      false,
+      bordo,
+    );
   }
 
   /// Lucchetto piccolo, in alto a sinistra di un elemento con «Blocca posizione».

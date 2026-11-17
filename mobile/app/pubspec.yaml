@@ -36,3 +36,149 @@ flutter:
   generate: true
   shaders:
     - shaders/regolazioni.frag
+  assets:
+    - assets/fonts/LICENZE.txt
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Inter-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat-Regular.ttf
+        - asset: assets/fonts/Montserrat-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Montserrat-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Montserrat-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Poppins-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Poppins-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-Regular.ttf
+        - asset: assets/fonts/Nunito-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Nunito-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Nunito-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Raleway
+      fonts:
+        - asset: assets/fonts/Raleway-Regular.ttf
+        - asset: assets/fonts/Raleway-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Raleway-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Raleway-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Playfair Display
+      fonts:
+        - asset: assets/fonts/PlayfairDisplay-Regular.ttf
+        - asset: assets/fonts/PlayfairDisplay-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/PlayfairDisplay-Italic.ttf
+          style: italic
+        - asset: assets/fonts/PlayfairDisplay-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Lora
+      fonts:
+        - asset: assets/fonts/Lora-Regular.ttf
+        - asset: assets/fonts/Lora-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Lora-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Lora-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Merriweather
+      fonts:
+        - asset: assets/fonts/Merriweather-Regular.ttf
+        - asset: assets/fonts/Merriweather-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Merriweather-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Merriweather-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Cormorant Garamond
+      fonts:
+        - asset: assets/fonts/CormorantGaramond-Regular.ttf
+        - asset: assets/fonts/CormorantGaramond-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/CormorantGaramond-Italic.ttf
+          style: italic
+        - asset: assets/fonts/CormorantGaramond-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Bebas Neue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
+    - family: Anton
+      fonts:
+        - asset: assets/fonts/Anton-Regular.ttf
+    - family: Oswald
+      fonts:
+        - asset: assets/fonts/Oswald-Regular.ttf
+        - asset: assets/fonts/Oswald-Bold.ttf
+          weight: 700
+    - family: Abril Fatface
+      fonts:
+        - asset: assets/fonts/AbrilFatface-Regular.ttf
+    - family: Alfa Slab One
+      fonts:
+        - asset: assets/fonts/AlfaSlabOne-Regular.ttf
+    - family: Pacifico
+      fonts:
+        - asset: assets/fonts/Pacifico-Regular.ttf
+    - family: Dancing Script
+      fonts:
+        - asset: assets/fonts/DancingScript-Regular.ttf
+        - asset: assets/fonts/DancingScript-Bold.ttf
+          weight: 700
+    - family: Caveat
+      fonts:
+        - asset: assets/fonts/Caveat-Regular.ttf
+        - asset: assets/fonts/Caveat-Bold.ttf
+          weight: 700
+    - family: Permanent Marker
+      fonts:
+        - asset: assets/fonts/PermanentMarker-Regular.ttf
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/JetBrainsMono-Italic.ttf
+          style: italic
+        - asset: assets/fonts/JetBrainsMono-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: Space Mono
+      fonts:
+        - asset: assets/fonts/SpaceMono-Regular.ttf
+        - asset: assets/fonts/SpaceMono-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/SpaceMono-Italic.ttf
+          style: italic
+        - asset: assets/fonts/SpaceMono-BoldItalic.ttf
+          weight: 700
+          style: italic

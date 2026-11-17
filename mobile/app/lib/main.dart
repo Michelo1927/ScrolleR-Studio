@@ -11,11 +11,13 @@ import 'home/home.dart';
 import 'l10n/app_localizations.dart';
 import 'project/archivio.dart';
 import 'project/provider.dart';
+import 'render/caratteri.dart';
 import 'theme/tema.dart';
 import 'theme/tokens.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  registraLicenzeCaratteri();
   final documenti = await getApplicationDocumentsDirectory();
   runApp(
     ProviderScope(

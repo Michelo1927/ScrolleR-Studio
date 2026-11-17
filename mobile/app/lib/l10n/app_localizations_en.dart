@@ -816,4 +816,152 @@ class TestiEn extends Testi {
   String ritMisura(int w, int h) {
     return 'Crop: $w × $h px';
   }
+
+  @override
+  String coloreEtichetta(String hex) {
+    return 'Color #$hex';
+  }
+
+  @override
+  String get azContagocce => 'Eyedropper';
+
+  @override
+  String get azAltroColore => 'More';
+
+  @override
+  String get azColori => 'Colors';
+
+  @override
+  String get contagocceAiuto => 'Tap a point on the page to pick its color';
+
+  @override
+  String get nessuno => 'None';
+
+  @override
+  String get parEsadecimale => 'Hex';
+
+  @override
+  String get esadecimaleNonValido => 'Enter 6 digits, 0 to F';
+
+  @override
+  String get parTintaColore => 'Hue';
+
+  @override
+  String get testoSuggerimento => 'Write your text here';
+
+  @override
+  String get strModifica => 'Edit';
+
+  @override
+  String get catSenzaGrazie => 'Sans serif';
+
+  @override
+  String get catConGrazie => 'Serif';
+
+  @override
+  String get catTitolo => 'Display';
+
+  @override
+  String get catAMano => 'Handwriting';
+
+  @override
+  String get catMonospazio => 'Monospace';
+
+  @override
+  String avvisoCarattereMancante(String nome, String predefinito) {
+    return '“$nome” is not available on this phone, so “$predefinito” is used. The name stays in the file until you choose another font.';
+  }
+
+  @override
+  String get strCarattere => 'Font';
+
+  @override
+  String get strDimensione => 'Size';
+
+  @override
+  String get strSpaziatura => 'Spacing';
+
+  @override
+  String get parInterlinea => 'Line spacing';
+
+  @override
+  String get parSpaziaturaLettere => 'Letters';
+
+  @override
+  String get strFormato => 'Format';
+
+  @override
+  String get azGrassetto => 'Bold';
+
+  @override
+  String get azCorsivo => 'Italic';
+
+  @override
+  String get azSinistra => 'Left';
+
+  @override
+  String get azCentro => 'Center';
+
+  @override
+  String get azDestra => 'Right';
+
+  @override
+  String get strContorno => 'Outline';
+
+  @override
+  String get parSpessore => 'Thickness';
+
+  @override
+  String get strEtichetta => 'Label';
+
+  @override
+  String get formaRettangolo => 'Rectangle';
+
+  @override
+  String get formaEllisse => 'Ellipse';
+
+  @override
+  String get formaTriangolo => 'Triangle';
+
+  @override
+  String get formaRombo => 'Diamond';
+
+  @override
+  String get formaStella => 'Star';
+
+  @override
+  String get formaCuore => 'Heart';
+
+  @override
+  String get formaLinea => 'Line';
+
+  @override
+  String get formaFreccia => 'Arrow';
+
+  @override
+  String get formaDoppiaFreccia => 'Double arrow';
+
+  @override
+  String get strTipo => 'Type';
+
+  @override
+  String get strRiempimento => 'Fill';
+
+  @override
+  String get parTratto => 'Stroke';
+
+  @override
+  String get parLinea => 'Line';
+
+  @override
+  String get trattoContinuo => 'Solid';
+
+  @override
+  String get trattoTratteggiato => 'Dashed';
+
+  @override
+  String get trattoPuntini => 'Dotted';
+
+  @override
+  String get avvisoFormaAggiunta => 'Shape added';
 }

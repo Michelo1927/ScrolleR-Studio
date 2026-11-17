@@ -17,6 +17,7 @@ import '../l10n/app_localizations.dart';
 import '../media/cache_media.dart';
 import '../render/regolazioni.dart';
 import '../theme/tokens.dart';
+import 'intelaiatura.dart';
 import 'sessione.dart';
 import 'stato.dart';
 import 'widget_comuni.dart';
@@ -31,63 +32,6 @@ final _fotoPrincipale = Provider.autoDispose<PhotoItem?>((ref) {
 }, dependencies: [editorProvider]);
 
 // ---------------------------------------------------------------- Pezzi comuni
-
-/// Telaio di ogni strumento: pillole dei parametri, contenuto (cursore o tessere), piede con ✕ · nome · ◐ · ✓.
-class _Intelaiatura extends ConsumerWidget {
-  const _Intelaiatura({
-    required this.nome,
-    required this.chips,
-    required this.contenuto,
-    this.confronto = false,
-  });
-
-  final String nome;
-  final List<Widget> chips;
-  final Widget contenuto;
-
-  /// Mostra il pulsante `◐` prima/dopo.
-  final bool confronto;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = Testi.of(context);
-    final ctrl = ref.read(editorProvider.notifier);
-    return PannelloBasso(
-      onScarta: ctrl.chiudiStrumentoDaGesto,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: MisureScrl.spazioPiccolo),
-          SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
-              children: [
-                for (final c in chips)
-                  Padding(
-                    padding: const EdgeInsets.only(right: MisureScrl.spazioPiccolo),
-                    child: Center(child: c),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: MisureScrl.spazioPiccolo),
-          SizedBox(height: 96, child: contenuto),
-          PiedeStrumento(
-            nome: nome,
-            etichettaAnnulla: t.annulla,
-            etichettaConferma: t.conferma,
-            onAnnulla: ctrl.chiudiStrumento,
-            onConferma: ctrl.confermaEChiudi,
-            confronto: confronto ? const PulsanteConfronto() : null,
-          ),
-          SizedBox(height: MediaQuery.paddingOf(context).bottom),
-        ],
-      ),
-    );
-  }
-}
 
 /// `◐`: finché è premuto tutte le foto si vedono senza filtri e regolazioni (`scene.show_original`).
 class PulsanteConfronto extends ConsumerStatefulWidget {
@@ -186,7 +130,8 @@ class _Cursore extends ConsumerWidget {
             ref.read(sessioneProvider).risorse.qualitaRidotta = true;
             ctrl.modificaFotoSelezionate((p) => scrivi(p, v));
           },
-          onFine: () => ref.read(sessioneProvider).risorse.qualitaRidotta = false,
+          onFine: () =>
+              ref.read(sessioneProvider).risorse.qualitaRidotta = false,
         ),
       ),
     );
@@ -246,9 +191,9 @@ class _ConParametriState extends ConsumerState<_ConParametri> {
   Widget build(BuildContext context) {
     final foto = ref.watch(_fotoPrincipale);
     final par = widget.parametri[_attivo];
-    return _Intelaiatura(
+    return Intelaiatura(
       nome: widget.nome,
-      confronto: widget.confronto,
+      confronto: widget.confronto ? const PulsanteConfronto() : null,
       chips: [
         for (var i = 0; i < widget.parametri.length; i++)
           ChipParametro(
@@ -440,9 +385,7 @@ class _PannelloFiltriState extends ConsumerState<PannelloFiltri> {
     final base = await ridimensiona(img.immagine, 108);
     final fatte = <ui.Image>[];
     for (final p in presets) {
-      fatte.add(
-        await r.applica(base, presetAdjust(p.key), detailScale: 0.4),
-      );
+      fatte.add(await r.applica(base, presetAdjust(p.key), detailScale: 0.4));
     }
     if (_chiuso) {
       for (final i in fatte) {
@@ -462,9 +405,9 @@ class _PannelloFiltriState extends ConsumerState<PannelloFiltri> {
     final ctrl = ref.read(editorProvider.notifier);
     final foto = ref.watch(_fotoPrincipale);
     final attivo = foto == null ? null : filtroAttivo(foto.adjust);
-    return _Intelaiatura(
+    return Intelaiatura(
       nome: t.strFiltri,
-      confronto: true,
+      confronto: const PulsanteConfronto(),
       chips: [
         ChipParametro(
           etichetta: t.azApplicaATutte,
@@ -606,7 +549,8 @@ class PannelloInquadra extends ConsumerWidget {
         ChipParametro(
           etichetta: t.azFotoIntera,
           attivo: foto != null && foto.fitMode == 'contain',
-          onTap: () => ctrl.modificaFotoSelezionate((p) => conFit(p, 'contain')),
+          onTap: () =>
+              ctrl.modificaFotoSelezionate((p) => conFit(p, 'contain')),
         ),
         ChipParametro(
           etichetta: t.azDeforma,
@@ -676,7 +620,7 @@ class _PannelloCorniceState extends ConsumerState<PannelloCornice> {
         padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
         children: [
           for (final c in CampioniScrl.rapidi)
-            _Campione(
+            CampioneColore(
               colore: c,
               scelto: foto != null && foto.borderColor == c.toARGB32(),
               onTap: () => ctrl.modificaFotoSelezionate(
@@ -687,7 +631,7 @@ class _PannelloCorniceState extends ConsumerState<PannelloCornice> {
         ],
       ),
     };
-    return _Intelaiatura(
+    return Intelaiatura(
       nome: t.strCornice,
       chips: [
         ChipParametro(
@@ -716,51 +660,6 @@ class _PannelloCorniceState extends ConsumerState<PannelloCornice> {
       contenuto: contenuto,
     );
   }
-}
-
-/// Campione di colore tondo (48 dp toccabili), con un anello se è quello scelto.
-class _Campione extends StatelessWidget {
-  const _Campione({
-    required this.colore,
-    required this.scelto,
-    required this.onTap,
-    required this.etichetta,
-  });
-
-  final Color colore;
-  final bool scelto;
-  final VoidCallback onTap;
-  final String etichetta;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    selected: scelto,
-    label: etichetta,
-    excludeSemantics: true,
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: SizedBox(
-        width: MisureScrl.tocco,
-        height: MisureScrl.tocco,
-        child: Center(
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: colore,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: scelto ? ColoriScrl.accento : ColoriScrl.bordo,
-                width: scelto ? 3 : 1,
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
 }
 
 // ---------------------------------------------------------------- Ombra
@@ -817,7 +716,7 @@ class PannelloRuota extends ConsumerWidget {
     final t = Testi.of(context);
     final ctrl = ref.read(editorProvider.notifier);
     final foto = ref.watch(_fotoPrincipale);
-    return _Intelaiatura(
+    return Intelaiatura(
       nome: t.strRuota,
       chips: [
         ChipParametro(

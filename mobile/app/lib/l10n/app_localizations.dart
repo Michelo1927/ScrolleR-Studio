@@ -877,13 +877,13 @@ abstract class Testi {
   /// **'Pagina nuova'**
   String get paginaNuova;
 
-  /// Voce del pannello ＋ (arriva con la Fase 5)
+  /// Voce del pannello ＋: aggiunge un testo
   ///
   /// In it, this message translates to:
   /// **'Testo'**
   String get testo;
 
-  /// Voce del pannello ＋ (arriva con la Fase 5)
+  /// Voce del pannello ＋: aggiunge una forma; titolo del pannello delle forme
   ///
   /// In it, this message translates to:
   /// **'Forma'**
@@ -1464,6 +1464,294 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Ritaglio: {w} × {h} px'**
   String ritMisura(int w, int h);
+
+  /// Etichetta per i lettori di schermo di un campione di colore
+  ///
+  /// In it, this message translates to:
+  /// **'Colore #{hex}'**
+  String coloreEtichetta(String hex);
+
+  /// Selettore colore: preleva un colore dalla pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Contagocce'**
+  String get azContagocce;
+
+  /// Selettore colore: apre il selettore completo
+  ///
+  /// In it, this message translates to:
+  /// **'Altro'**
+  String get azAltroColore;
+
+  /// Selettore colore: torna ai campioni
+  ///
+  /// In it, this message translates to:
+  /// **'Colori'**
+  String get azColori;
+
+  /// Aiuto mentre il contagocce è acceso
+  ///
+  /// In it, this message translates to:
+  /// **'Tocca un punto della pagina per prelevarne il colore'**
+  String get contagocceAiuto;
+
+  /// Primo campione del riempimento delle forme: nessun colore
+  ///
+  /// In it, this message translates to:
+  /// **'Nessuno'**
+  String get nessuno;
+
+  /// Selettore colore: codice esadecimale
+  ///
+  /// In it, this message translates to:
+  /// **'Esadecimale'**
+  String get parEsadecimale;
+
+  /// Errore del campo esadecimale
+  ///
+  /// In it, this message translates to:
+  /// **'Scrivi 6 cifre, da 0 a F'**
+  String get esadecimaleNonValido;
+
+  /// Selettore colore: tinta (HSL)
+  ///
+  /// In it, this message translates to:
+  /// **'Tinta'**
+  String get parTintaColore;
+
+  /// Suggerimento del campo di testo
+  ///
+  /// In it, this message translates to:
+  /// **'Scrivi qui il testo'**
+  String get testoSuggerimento;
+
+  /// Strumento Testo: scrivere il testo
+  ///
+  /// In it, this message translates to:
+  /// **'Modifica'**
+  String get strModifica;
+
+  /// Gruppo di caratteri
+  ///
+  /// In it, this message translates to:
+  /// **'Senza grazie'**
+  String get catSenzaGrazie;
+
+  /// Gruppo di caratteri
+  ///
+  /// In it, this message translates to:
+  /// **'Con grazie'**
+  String get catConGrazie;
+
+  /// Gruppo di caratteri
+  ///
+  /// In it, this message translates to:
+  /// **'Titolo'**
+  String get catTitolo;
+
+  /// Gruppo di caratteri
+  ///
+  /// In it, this message translates to:
+  /// **'A mano'**
+  String get catAMano;
+
+  /// Gruppo di caratteri
+  ///
+  /// In it, this message translates to:
+  /// **'Monospazio'**
+  String get catMonospazio;
+
+  /// Nota dello strumento Carattere quando il carattere del testo non è tra quelli inclusi
+  ///
+  /// In it, this message translates to:
+  /// **'«{nome}» non c’è su questo telefono: si usa «{predefinito}». Il nome resta nel file finché non scegli un altro carattere.'**
+  String avvisoCarattereMancante(String nome, String predefinito);
+
+  /// Strumento Testo
+  ///
+  /// In it, this message translates to:
+  /// **'Carattere'**
+  String get strCarattere;
+
+  /// Strumento Testo
+  ///
+  /// In it, this message translates to:
+  /// **'Dimensione'**
+  String get strDimensione;
+
+  /// Strumento Testo
+  ///
+  /// In it, this message translates to:
+  /// **'Spaziatura'**
+  String get strSpaziatura;
+
+  /// Parametro di Spaziatura
+  ///
+  /// In it, this message translates to:
+  /// **'Interlinea'**
+  String get parInterlinea;
+
+  /// Parametro di Spaziatura: spazio tra le lettere
+  ///
+  /// In it, this message translates to:
+  /// **'Lettere'**
+  String get parSpaziaturaLettere;
+
+  /// Strumento Testo: grassetto, corsivo, allineamento
+  ///
+  /// In it, this message translates to:
+  /// **'Formato'**
+  String get strFormato;
+
+  /// Azione di Formato
+  ///
+  /// In it, this message translates to:
+  /// **'Grassetto'**
+  String get azGrassetto;
+
+  /// Azione di Formato
+  ///
+  /// In it, this message translates to:
+  /// **'Corsivo'**
+  String get azCorsivo;
+
+  /// Allineamento delle righe
+  ///
+  /// In it, this message translates to:
+  /// **'Sinistra'**
+  String get azSinistra;
+
+  /// Allineamento delle righe
+  ///
+  /// In it, this message translates to:
+  /// **'Centro'**
+  String get azCentro;
+
+  /// Allineamento delle righe
+  ///
+  /// In it, this message translates to:
+  /// **'Destra'**
+  String get azDestra;
+
+  /// Strumento Testo
+  ///
+  /// In it, this message translates to:
+  /// **'Contorno'**
+  String get strContorno;
+
+  /// Parametro di Contorno e Bordo
+  ///
+  /// In it, this message translates to:
+  /// **'Spessore'**
+  String get parSpessore;
+
+  /// Strumento Testo: riquadro dietro al testo
+  ///
+  /// In it, this message translates to:
+  /// **'Etichetta'**
+  String get strEtichetta;
+
+  /// Tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Rettangolo'**
+  String get formaRettangolo;
+
+  /// Tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Ellisse'**
+  String get formaEllisse;
+
+  /// Tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Triangolo'**
+  String get formaTriangolo;
+
+  /// Tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Rombo'**
+  String get formaRombo;
+
+  /// Tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Stella'**
+  String get formaStella;
+
+  /// Tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Cuore'**
+  String get formaCuore;
+
+  /// Tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Linea'**
+  String get formaLinea;
+
+  /// Tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Freccia'**
+  String get formaFreccia;
+
+  /// Tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Doppia freccia'**
+  String get formaDoppiaFreccia;
+
+  /// Strumento Forme: cambia il tipo di forma
+  ///
+  /// In it, this message translates to:
+  /// **'Tipo'**
+  String get strTipo;
+
+  /// Strumento Forme
+  ///
+  /// In it, this message translates to:
+  /// **'Riempimento'**
+  String get strRiempimento;
+
+  /// Strumento Forme: continuo, tratteggiato, a puntini
+  ///
+  /// In it, this message translates to:
+  /// **'Tratto'**
+  String get parTratto;
+
+  /// Strumento Forme: nome del bordo quando la forma è una linea o una freccia
+  ///
+  /// In it, this message translates to:
+  /// **'Linea'**
+  String get parLinea;
+
+  /// Stile del tratto
+  ///
+  /// In it, this message translates to:
+  /// **'Continuo'**
+  String get trattoContinuo;
+
+  /// Stile del tratto
+  ///
+  /// In it, this message translates to:
+  /// **'Tratteggiato'**
+  String get trattoTratteggiato;
+
+  /// Stile del tratto
+  ///
+  /// In it, this message translates to:
+  /// **'A puntini'**
+  String get trattoPuntini;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Forma aggiunta'**
+  String get avvisoFormaAggiunta;
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

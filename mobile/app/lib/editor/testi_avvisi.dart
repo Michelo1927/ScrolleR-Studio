@@ -25,6 +25,7 @@ String testoAvviso(Testi t, Avviso a) {
     MessaggioEditor.ritaglioApplicato => t.avvisoRitaglioApplicato,
     MessaggioEditor.ritaglioTolto => t.avvisoRitaglioTolto,
     MessaggioEditor.modificaScartata => t.avvisoModificaScartata,
+    MessaggioEditor.formaAggiunta => t.avvisoFormaAggiunta,
     null => '',
   };
 }

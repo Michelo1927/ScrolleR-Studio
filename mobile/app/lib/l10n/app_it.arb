@@ -648,11 +648,11 @@
   },
   "testo": "Testo",
   "@testo": {
-    "description": "Voce del pannello ＋ (arriva con la Fase 5)"
+    "description": "Voce del pannello ＋: aggiunge un testo"
   },
   "forma": "Forma",
   "@forma": {
-    "description": "Voce del pannello ＋ (arriva con la Fase 5)"
+    "description": "Voce del pannello ＋: aggiunge una forma; titolo del pannello delle forme"
   },
   "avvisoFotoAggiunte": "{n, plural, =1{1 foto aggiunta} other{{n} foto aggiunte}}",
   "@avvisoFotoAggiunte": {
@@ -1105,5 +1105,213 @@
         "example": "4000"
       }
     }
+  },
+  "coloreEtichetta": "Colore #{hex}",
+  "@coloreEtichetta": {
+    "description": "Etichetta per i lettori di schermo di un campione di colore",
+    "placeholders": {
+      "hex": {
+        "type": "String",
+        "example": "FF3B30"
+      }
+    }
+  },
+  "azContagocce": "Contagocce",
+  "@azContagocce": {
+    "description": "Selettore colore: preleva un colore dalla pagina"
+  },
+  "azAltroColore": "Altro",
+  "@azAltroColore": {
+    "description": "Selettore colore: apre il selettore completo"
+  },
+  "azColori": "Colori",
+  "@azColori": {
+    "description": "Selettore colore: torna ai campioni"
+  },
+  "contagocceAiuto": "Tocca un punto della pagina per prelevarne il colore",
+  "@contagocceAiuto": {
+    "description": "Aiuto mentre il contagocce è acceso"
+  },
+  "nessuno": "Nessuno",
+  "@nessuno": {
+    "description": "Primo campione del riempimento delle forme: nessun colore"
+  },
+  "parEsadecimale": "Esadecimale",
+  "@parEsadecimale": {
+    "description": "Selettore colore: codice esadecimale"
+  },
+  "esadecimaleNonValido": "Scrivi 6 cifre, da 0 a F",
+  "@esadecimaleNonValido": {
+    "description": "Errore del campo esadecimale"
+  },
+  "parTintaColore": "Tinta",
+  "@parTintaColore": {
+    "description": "Selettore colore: tinta (HSL)"
+  },
+  "testoSuggerimento": "Scrivi qui il testo",
+  "@testoSuggerimento": {
+    "description": "Suggerimento del campo di testo"
+  },
+  "strModifica": "Modifica",
+  "@strModifica": {
+    "description": "Strumento Testo: scrivere il testo"
+  },
+  "catSenzaGrazie": "Senza grazie",
+  "@catSenzaGrazie": {
+    "description": "Gruppo di caratteri"
+  },
+  "catConGrazie": "Con grazie",
+  "@catConGrazie": {
+    "description": "Gruppo di caratteri"
+  },
+  "catTitolo": "Titolo",
+  "@catTitolo": {
+    "description": "Gruppo di caratteri"
+  },
+  "catAMano": "A mano",
+  "@catAMano": {
+    "description": "Gruppo di caratteri"
+  },
+  "catMonospazio": "Monospazio",
+  "@catMonospazio": {
+    "description": "Gruppo di caratteri"
+  },
+  "avvisoCarattereMancante": "«{nome}» non c’è su questo telefono: si usa «{predefinito}». Il nome resta nel file finché non scegli un altro carattere.",
+  "@avvisoCarattereMancante": {
+    "description": "Nota dello strumento Carattere quando il carattere del testo non è tra quelli inclusi",
+    "placeholders": {
+      "nome": {
+        "type": "String",
+        "example": "Segoe UI"
+      },
+      "predefinito": {
+        "type": "String",
+        "example": "Inter"
+      }
+    }
+  },
+  "strCarattere": "Carattere",
+  "@strCarattere": {
+    "description": "Strumento Testo"
+  },
+  "strDimensione": "Dimensione",
+  "@strDimensione": {
+    "description": "Strumento Testo"
+  },
+  "strSpaziatura": "Spaziatura",
+  "@strSpaziatura": {
+    "description": "Strumento Testo"
+  },
+  "parInterlinea": "Interlinea",
+  "@parInterlinea": {
+    "description": "Parametro di Spaziatura"
+  },
+  "parSpaziaturaLettere": "Lettere",
+  "@parSpaziaturaLettere": {
+    "description": "Parametro di Spaziatura: spazio tra le lettere"
+  },
+  "strFormato": "Formato",
+  "@strFormato": {
+    "description": "Strumento Testo: grassetto, corsivo, allineamento"
+  },
+  "azGrassetto": "Grassetto",
+  "@azGrassetto": {
+    "description": "Azione di Formato"
+  },
+  "azCorsivo": "Corsivo",
+  "@azCorsivo": {
+    "description": "Azione di Formato"
+  },
+  "azSinistra": "Sinistra",
+  "@azSinistra": {
+    "description": "Allineamento delle righe"
+  },
+  "azCentro": "Centro",
+  "@azCentro": {
+    "description": "Allineamento delle righe"
+  },
+  "azDestra": "Destra",
+  "@azDestra": {
+    "description": "Allineamento delle righe"
+  },
+  "strContorno": "Contorno",
+  "@strContorno": {
+    "description": "Strumento Testo"
+  },
+  "parSpessore": "Spessore",
+  "@parSpessore": {
+    "description": "Parametro di Contorno e Bordo"
+  },
+  "strEtichetta": "Etichetta",
+  "@strEtichetta": {
+    "description": "Strumento Testo: riquadro dietro al testo"
+  },
+  "formaRettangolo": "Rettangolo",
+  "@formaRettangolo": {
+    "description": "Tipo di forma"
+  },
+  "formaEllisse": "Ellisse",
+  "@formaEllisse": {
+    "description": "Tipo di forma"
+  },
+  "formaTriangolo": "Triangolo",
+  "@formaTriangolo": {
+    "description": "Tipo di forma"
+  },
+  "formaRombo": "Rombo",
+  "@formaRombo": {
+    "description": "Tipo di forma"
+  },
+  "formaStella": "Stella",
+  "@formaStella": {
+    "description": "Tipo di forma"
+  },
+  "formaCuore": "Cuore",
+  "@formaCuore": {
+    "description": "Tipo di forma"
+  },
+  "formaLinea": "Linea",
+  "@formaLinea": {
+    "description": "Tipo di forma"
+  },
+  "formaFreccia": "Freccia",
+  "@formaFreccia": {
+    "description": "Tipo di forma"
+  },
+  "formaDoppiaFreccia": "Doppia freccia",
+  "@formaDoppiaFreccia": {
+    "description": "Tipo di forma"
+  },
+  "strTipo": "Tipo",
+  "@strTipo": {
+    "description": "Strumento Forme: cambia il tipo di forma"
+  },
+  "strRiempimento": "Riempimento",
+  "@strRiempimento": {
+    "description": "Strumento Forme"
+  },
+  "parTratto": "Tratto",
+  "@parTratto": {
+    "description": "Strumento Forme: continuo, tratteggiato, a puntini"
+  },
+  "parLinea": "Linea",
+  "@parLinea": {
+    "description": "Strumento Forme: nome del bordo quando la forma è una linea o una freccia"
+  },
+  "trattoContinuo": "Continuo",
+  "@trattoContinuo": {
+    "description": "Stile del tratto"
+  },
+  "trattoTratteggiato": "Tratteggiato",
+  "@trattoTratteggiato": {
+    "description": "Stile del tratto"
+  },
+  "trattoPuntini": "A puntini",
+  "@trattoPuntini": {
+    "description": "Stile del tratto"
+  },
+  "avvisoFormaAggiunta": "Forma aggiunta",
+  "@avvisoFormaAggiunta": {
+    "description": "Messaggio breve"
   }
 }

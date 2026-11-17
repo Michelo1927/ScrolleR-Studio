@@ -11,7 +11,9 @@ import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
 import 'pagina_ritaglio.dart';
+import 'pannelli_forma.dart';
 import 'pannelli_foto.dart';
+import 'pannelli_testo.dart';
 import 'pannello_aggiungi.dart';
 import 'pannello_disposizione.dart';
 import 'pannello_libreria.dart';
@@ -131,6 +133,9 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
       },
       child: Scaffold(
         backgroundColor: ColoriScrl.fondo,
+        // La tastiera (strumento Testo → Modifica) non copre il pannello: la zona inferiore ci sale sopra e la pagina
+        // si ridimensiona, come per ogni altro pannello
+        resizeToAvoidBottomInset: false,
         appBar: PreferredSize(
           preferredSize: const Size.fromHeight(MisureScrl.barraSuperiore),
           child: SafeArea(
@@ -139,7 +144,14 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
           ),
         ),
         body: const TelaEditor(),
-        bottomNavigationBar: _ZonaInferiore(onArrivera: _arrivera),
+        // Il padding porta la zona inferiore sopra la tastiera; restando un bottomNavigationBar, gli avvisi
+        // continuano a comparire sopra la barra
+        bottomNavigationBar: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: _ZonaInferiore(onArrivera: _arrivera),
+        ),
       ),
     );
   }
@@ -219,6 +231,55 @@ class _ZonaInferiore extends ConsumerWidget {
       Strumento.cornice => const PannelloCornice(key: ValueKey('cornice')),
       Strumento.ombra => const PannelloOmbra(key: ValueKey('ombra')),
       Strumento.ruota => const PannelloRuota(key: ValueKey('ruota')),
+      Strumento.testoModifica => const PannelloModificaTesto(
+        key: ValueKey('testoModifica'),
+      ),
+      Strumento.testoCarattere => const PannelloCarattere(
+        key: ValueKey('testoCarattere'),
+      ),
+      Strumento.testoDimensione => const PannelloDimensione(
+        key: ValueKey('testoDimensione'),
+      ),
+      Strumento.testoFormato => const PannelloFormato(
+        key: ValueKey('testoFormato'),
+      ),
+      Strumento.testoColore => const PannelloColoreTesto(
+        key: ValueKey('testoColore'),
+      ),
+      Strumento.testoContorno => const PannelloContornoTesto(
+        key: ValueKey('testoContorno'),
+      ),
+      Strumento.testoEtichetta => const PannelloEtichetta(
+        key: ValueKey('testoEtichetta'),
+      ),
+      Strumento.testoSpaziatura => const PannelloSpaziatura(
+        key: ValueKey('testoSpaziatura'),
+      ),
+      Strumento.testoOpacita => const PannelloOpacitaTesto(
+        key: ValueKey('testoOpacita'),
+      ),
+      Strumento.testoRuota => const PannelloRuotaTesto(
+        key: ValueKey('testoRuota'),
+      ),
+      Strumento.formaNuova => const PannelloNuovaForma(
+        key: ValueKey('formaNuova'),
+      ),
+      Strumento.formaTipo => const PannelloTipoForma(
+        key: ValueKey('formaTipo'),
+      ),
+      Strumento.formaRiempimento => const PannelloRiempimento(
+        key: ValueKey('formaRiempimento'),
+      ),
+      Strumento.formaBordo => const PannelloBordo(key: ValueKey('formaBordo')),
+      Strumento.formaAngoli => const PannelloAngoliForma(
+        key: ValueKey('formaAngoli'),
+      ),
+      Strumento.formaOpacita => const PannelloOpacitaForma(
+        key: ValueKey('formaOpacita'),
+      ),
+      Strumento.formaRuota => const PannelloRuotaForma(
+        key: ValueKey('formaRuota'),
+      ),
       Strumento.nessuno =>
         haSelezione
             ? const _BarraSelezione(key: ValueKey('selezione'))
@@ -455,6 +516,9 @@ class _BarraInferiore extends ConsumerWidget {
 /// Con un elemento selezionato la barra diventa una striscia di strumenti, con ✕ a sinistra per deselezionare.
 /// Foto: Ritaglia · Inquadra · Filtri · Regola · Effetti · Cornice · Ombra · Ruota · Libera · Copia stile ·
 /// Incolla stile · Duplica · Elimina (un video non ha Filtri, Regola ed Effetti).
+/// Testo: Modifica · Carattere · Dimensione · Formato · Colore · Contorno · Ombra · Etichetta · Spaziatura · Opacità ·
+/// Ruota · Duplica · Elimina. Forma: Tipo · Riempimento · Bordo · Angoli · Opacità · Ruota · Duplica · Elimina
+/// (le linee non hanno Riempimento né Angoli, il rettangolo ha gli Angoli, gli altri tipi no).
 class _BarraSelezione extends ConsumerWidget {
   const _BarraSelezione({super.key});
 
@@ -467,6 +531,14 @@ class _BarraSelezione extends ConsumerWidget {
     final foto = sel.whereType<PhotoItem>().toList();
     final tutteLibere = foto.isNotEmpty && foto.every((p) => p.free);
     final conColori = foto.any((p) => !p.isVideo);
+    final testi = sel.whereType<TextItem>().toList();
+    final forme = sel.whereType<ShapeItem>().toList();
+    // Gli strumenti di testi e forme valgono quando la selezione è fatta solo di testi o solo di forme
+    final soloTesti = foto.isEmpty && forme.isEmpty && testi.isNotEmpty;
+    final soloForme = foto.isEmpty && testi.isEmpty && forme.isNotEmpty;
+    final tutteLinee = soloForme && forme.every((f) => f.isLine);
+    final conAngoli = soloForme && forme.any((f) => f.kind == 'rect');
+    void apri(Strumento s) => ctrl.apriStrumento(s);
     return SizedBox(
       height: MisureScrl.barraInferiore,
       child: Row(
@@ -540,6 +612,99 @@ class _BarraSelezione extends ConsumerWidget {
                     etichetta: t.strIncollaStile,
                     onTap: ctrl.incollaStileCopiato,
                     spenta: stato.stileCopiato == null,
+                  ),
+                ],
+                if (soloTesti) ...[
+                  VoceBarra(
+                    icona: Icons.edit_outlined,
+                    etichetta: t.strModifica,
+                    onTap: () => apri(Strumento.testoModifica),
+                  ),
+                  VoceBarra(
+                    icona: Icons.font_download_outlined,
+                    etichetta: t.strCarattere,
+                    onTap: () => apri(Strumento.testoCarattere),
+                  ),
+                  VoceBarra(
+                    icona: Icons.format_size_rounded,
+                    etichetta: t.strDimensione,
+                    onTap: () => apri(Strumento.testoDimensione),
+                  ),
+                  VoceBarra(
+                    icona: Icons.format_bold_rounded,
+                    etichetta: t.strFormato,
+                    onTap: () => apri(Strumento.testoFormato),
+                  ),
+                  VoceBarra(
+                    icona: Icons.format_color_text_rounded,
+                    etichetta: t.parColore,
+                    onTap: () => apri(Strumento.testoColore),
+                  ),
+                  VoceBarra(
+                    icona: Icons.border_color_outlined,
+                    etichetta: t.strContorno,
+                    onTap: () => apri(Strumento.testoContorno),
+                  ),
+                  VoceBarra(
+                    icona: Icons.blur_on_rounded,
+                    etichetta: t.strOmbra,
+                    attiva: testi.first.shadow,
+                    onTap: ctrl.alternaOmbraTesto,
+                  ),
+                  VoceBarra(
+                    icona: Icons.label_outline_rounded,
+                    etichetta: t.strEtichetta,
+                    attiva: testi.first.box,
+                    onTap: () => apri(Strumento.testoEtichetta),
+                  ),
+                  VoceBarra(
+                    icona: Icons.format_line_spacing_rounded,
+                    etichetta: t.strSpaziatura,
+                    onTap: () => apri(Strumento.testoSpaziatura),
+                  ),
+                  VoceBarra(
+                    icona: Icons.opacity_rounded,
+                    etichetta: t.parOpacita,
+                    onTap: () => apri(Strumento.testoOpacita),
+                  ),
+                  VoceBarra(
+                    icona: Icons.rotate_right_rounded,
+                    etichetta: t.strRuota,
+                    onTap: () => apri(Strumento.testoRuota),
+                  ),
+                ],
+                if (soloForme) ...[
+                  VoceBarra(
+                    icona: Icons.category_outlined,
+                    etichetta: t.strTipo,
+                    onTap: () => apri(Strumento.formaTipo),
+                  ),
+                  if (!tutteLinee)
+                    VoceBarra(
+                      icona: Icons.format_color_fill_rounded,
+                      etichetta: t.strRiempimento,
+                      onTap: () => apri(Strumento.formaRiempimento),
+                    ),
+                  VoceBarra(
+                    icona: Icons.line_weight_rounded,
+                    etichetta: tutteLinee ? t.parLinea : t.parBordo,
+                    onTap: () => apri(Strumento.formaBordo),
+                  ),
+                  if (conAngoli)
+                    VoceBarra(
+                      icona: Icons.rounded_corner_rounded,
+                      etichetta: t.parAngoli,
+                      onTap: () => apri(Strumento.formaAngoli),
+                    ),
+                  VoceBarra(
+                    icona: Icons.opacity_rounded,
+                    etichetta: t.parOpacita,
+                    onTap: () => apri(Strumento.formaOpacita),
+                  ),
+                  VoceBarra(
+                    icona: Icons.rotate_right_rounded,
+                    etichetta: t.strRuota,
+                    onTap: () => apri(Strumento.formaRuota),
                   ),
                 ],
                 VoceBarra(

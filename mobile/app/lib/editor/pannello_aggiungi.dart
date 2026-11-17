@@ -1,5 +1,5 @@
-/// Pannello «＋» (piano §4.3). In questa fase: «Foto o video» (dalla galleria, direttamente nella pagina corrente)
-/// e «Pagina nuova». Testo e Forma ci sono già ma arrivano con la Fase 5: si vedono spenti e dicono che arrivano.
+/// Pannello «＋» (piano §4.3): «Testo» (un testo nuovo al centro della pagina, con la tastiera pronta), «Forma» (le 9
+/// forme da scegliere), «Foto o video» (dalla galleria, direttamente nella pagina corrente) e «Pagina nuova».
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,9 +38,6 @@ class PannelloAggiungi extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Testi.of(context);
     final ctrl = ref.read(editorProvider.notifier);
-    void arrivera() => ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(t.inArrivo)));
     return PannelloBasso(
       onScarta: ctrl.chiudiStrumento,
       child: Column(
@@ -61,8 +58,12 @@ class PannelloAggiungi extends ConsumerWidget {
                   ctrl.aggiungiPagina();
                   ctrl.chiudiStrumento();
                 }),
-                _Voce(Icons.title_rounded, t.testo, arrivera, spenta: true),
-                _Voce(Icons.category_outlined, t.forma, arrivera, spenta: true),
+                _Voce(Icons.title_rounded, t.testo, ctrl.nuovoTesto),
+                _Voce(
+                  Icons.category_outlined,
+                  t.forma,
+                  () => ctrl.apriStrumento(Strumento.formaNuova),
+                ),
               ],
             ),
           ),
@@ -74,12 +75,11 @@ class PannelloAggiungi extends ConsumerWidget {
 }
 
 class _Voce extends StatelessWidget {
-  const _Voce(this.icona, this.etichetta, this.onTap, {this.spenta = false});
+  const _Voce(this.icona, this.etichetta, this.onTap);
 
   final IconData icona;
   final String etichetta;
   final VoidCallback onTap;
-  final bool spenta;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -90,12 +90,7 @@ class _Voce extends StatelessWidget {
         color: ColoriScrl.rilievo,
         borderRadius: BorderRadius.circular(MisureScrl.angoloTessera),
       ),
-      child: VoceBarra(
-        icona: icona,
-        etichetta: etichetta,
-        onTap: onTap,
-        spenta: spenta,
-      ),
+      child: VoceBarra(icona: icona, etichetta: etichetta, onTap: onTap),
     ),
   );
 }
