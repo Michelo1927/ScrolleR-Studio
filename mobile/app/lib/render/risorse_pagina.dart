@@ -136,11 +136,23 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
     ]);
   }
 
+  /// Immagini create per l'esportazione (originali letti grandi e foto colorate): non sono della cache, quindi si
+  /// liberano da qui appena la pagina è stata disegnata.
+  final List<ui.Image> _daLiberare = [];
+
   /// Prepara la pagina [k] per l'esportazione a [scala] pixel per unità: ogni foto letta dall'originale
-  /// grande quanto serve (`export_side`), con le regolazioni calcolate a quella risoluzione.
-  Future<void> preparaEsportazione(Snapshot s, int k, double scala) async {
+  /// grande quanto serve (`export_side`), con le regolazioni calcolate a quella risoluzione. Gli originali si
+  /// leggono una foto alla volta; dopo il disegno si liberano con [liberaEsportazione].
+  /// [annullato] si controlla tra una foto e l'altra.
+  Future<void> preparaEsportazione(
+    Snapshot s,
+    int k,
+    double scala, {
+    bool Function()? annullato,
+  }) async {
     await _preparaComuni(s);
     for (final p in fotoDellaPagina(s, k)) {
+      if (annullato?.call() ?? false) return;
       final src = sorgenteDi(p, cartellaProgetto);
       final ant = await cache.carica(src, Dettaglio.anteprima);
       if (ant == null) {
@@ -151,12 +163,43 @@ class RisorsePagina extends ChangeNotifier implements RisorseDisegno {
       ui.Image? img;
       if (lato != null && !p.isVideo) {
         img = await cache.perEsportazione(src, lato);
+        if (img != null) _daLiberare.add(img);
       }
       // Originale mancante (o video, che usa i fotogrammi): l'anteprima
       img ??= ant.immagine;
+      if (p.isVideo && p.poster > 0.01) {
+        // Video: la copertina scelta, come a schermo (il fotogramma si legge una volta e resta nella cache locale)
+        img = await _copertina(src, p.poster) ?? img;
+      }
       final colorata = await _colora(p, src, img, ant.immagine);
+      if (!identical(colorata, img) && !identical(colorata, ant.immagine)) {
+        _daLiberare.add(colorata);
+      }
       _foto[p.uid] = _Pronta('esportazione', FotoPronta(colorata), img);
     }
+  }
+
+  /// Libera subito le immagini lette e colorate per l'esportazione (non quelle della cache).
+  void liberaEsportazione() {
+    _foto.removeWhere((_, p) => p.chiave == 'esportazione');
+    for (final i in _daLiberare) {
+      i.dispose();
+    }
+    _daLiberare.clear();
+  }
+
+  /// Fine di un'esportazione: libera anche grana, sfondo sfocato e copertine, che qui sono solo di questa risorsa.
+  void termina() {
+    liberaEsportazione();
+    _grana?.dispose();
+    _grana = null;
+    _sfondo?.dispose();
+    _sfondo = null;
+    for (final c in _copertine.values) {
+      c.dispose();
+    }
+    _copertine.clear();
+    dispose();
   }
 
   Future<void> _preparaComuni(Snapshot s) async {

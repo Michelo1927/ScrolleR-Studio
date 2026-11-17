@@ -2195,5 +2195,343 @@
         "example": "3"
       }
     }
+  },
+  "espPagineSeparate": "Pagine separate",
+  "@espPagineSeparate": {
+    "description": "Esportazione: una immagine per pagina"
+  },
+  "espQuestaPagina": "Questa pagina",
+  "@espQuestaPagina": {
+    "description": "Esportazione: solo la pagina corrente"
+  },
+  "espCollage": "Collage intero",
+  "@espCollage": {
+    "description": "Esportazione: tutta la striscia in un'immagine"
+  },
+  "espTutte": "Tutte",
+  "@espTutte": {
+    "description": "Esportazione: seleziona tutte le pagine"
+  },
+  "espNessuna": "Nessuna",
+  "@espNessuna": {
+    "description": "Esportazione: toglie la selezione alle pagine"
+  },
+  "espFormato": "Formato",
+  "@espFormato": {
+    "description": "Esportazione: etichetta del formato del file"
+  },
+  "espFormatoPng": "PNG · massima qualità",
+  "@espFormatoPng": {
+    "description": "Esportazione: scelta PNG"
+  },
+  "espFormatoJpg": "JPG · file leggeri",
+  "@espFormatoJpg": {
+    "description": "Esportazione: scelta JPG"
+  },
+  "espQualita": "Qualità JPG",
+  "@espQualita": {
+    "description": "Esportazione: etichetta della qualità"
+  },
+  "espScala": "Scala",
+  "@espScala": {
+    "description": "Esportazione: etichetta della scala"
+  },
+  "espScala1": "1× standard",
+  "@espScala1": {
+    "description": "Esportazione: scala 1×"
+  },
+  "espScala2": "2× alta definizione",
+  "@espScala2": {
+    "description": "Esportazione: scala 2×"
+  },
+  "espNomeFile": "Nome dei file",
+  "@espNomeFile": {
+    "description": "Esportazione: etichetta del nome dei file"
+  },
+  "espNomeSuggerimento": "frame",
+  "@espNomeSuggerimento": {
+    "description": "Esportazione: nome predefinito dei file"
+  },
+  "espEsempioNome": "Esempio: {nome}",
+  "@espEsempioNome": {
+    "description": "Esportazione: nome del primo file",
+    "placeholders": {
+      "nome": {
+        "type": "String",
+        "example": "frame_01.jpg"
+      }
+    }
+  },
+  "espMisure": "Ogni immagine: {w}×{h} px",
+  "@espMisure": {
+    "description": "Esportazione: misure di ogni immagine",
+    "placeholders": {
+      "w": {
+        "type": "int",
+        "example": "2160"
+      },
+      "h": {
+        "type": "int",
+        "example": "2700"
+      }
+    }
+  },
+  "espMisureCollage": "Immagine: {w}×{h} px",
+  "@espMisureCollage": {
+    "description": "Esportazione: misure del collage",
+    "placeholders": {
+      "w": {
+        "type": "int",
+        "example": "6480"
+      },
+      "h": {
+        "type": "int",
+        "example": "2700"
+      }
+    }
+  },
+  "espNessunaPagina": "Scegli almeno una pagina",
+  "@espNessunaPagina": {
+    "description": "Esportazione: nessuna pagina scelta"
+  },
+  "espVideoCopertina": "Le pagine con un video escono come immagine, con la copertina: l'MP4 arriva più avanti.",
+  "@espVideoCopertina": {
+    "description": "Esportazione: nota sui video"
+  },
+  "espDestinazione": "Salva in",
+  "@espDestinazione": {
+    "description": "Esportazione: etichetta delle destinazioni"
+  },
+  "espGalleria": "Galleria",
+  "@espGalleria": {
+    "description": "Esportazione: salva nella galleria"
+  },
+  "espCondividi": "Condividi",
+  "@espCondividi": {
+    "description": "Esportazione: foglio Condividi"
+  },
+  "espSalvaInFile": "Salva in File",
+  "@espSalvaInFile": {
+    "description": "Esportazione: selettore di sistema"
+  },
+  "espMancantiTitolo": "Foto mancanti",
+  "@espMancantiTitolo": {
+    "description": "Avviso prima di esportare"
+  },
+  "espMancanti": "{n, plural, =1{1 foto sulla tela non è stata trovata e resterà vuota} other{{n} foto sulla tela non sono state trovate e resteranno vuote}} nell'immagine esportata. Esportare comunque?",
+  "@espMancanti": {
+    "description": "Avviso prima di esportare",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "espTelaVuotaTitolo": "Tela vuota",
+  "@espTelaVuotaTitolo": {
+    "description": "Avviso prima di esportare"
+  },
+  "espTelaVuota": "Non ci sono foto sulla tela. Esportare comunque?",
+  "@espTelaVuota": {
+    "description": "Avviso prima di esportare"
+  },
+  "espEsportaComunque": "Esporta comunque",
+  "@espEsportaComunque": {
+    "description": "Conferma dell'avviso"
+  },
+  "espCollageGrandeTitolo": "Collage troppo grande",
+  "@espCollageGrandeTitolo": {
+    "description": "Avviso prima di esportare"
+  },
+  "espCollageGrande": "A 2× il collage sarebbe di {w}×{h} px: troppo per la memoria del telefono. Puoi usare 1× oppure esportare le pagine separate.",
+  "@espCollageGrande": {
+    "description": "Avviso prima di esportare",
+    "placeholders": {
+      "w": {
+        "type": "int",
+        "example": "21600"
+      },
+      "h": {
+        "type": "int",
+        "example": "2700"
+      }
+    }
+  },
+  "espCollageGrande1x": "Anche a 1× il collage sarebbe di {w}×{h} px: troppo per la memoria del telefono. Esporta le pagine separate.",
+  "@espCollageGrande1x": {
+    "description": "Avviso prima di esportare",
+    "placeholders": {
+      "w": {
+        "type": "int",
+        "example": "21600"
+      },
+      "h": {
+        "type": "int",
+        "example": "2700"
+      }
+    }
+  },
+  "espUsa1x": "Usa 1×",
+  "@espUsa1x": {
+    "description": "Passa a 1× e prosegue"
+  },
+  "espUsaPagine": "Pagine separate",
+  "@espUsaPagine": {
+    "description": "Passa alle pagine separate"
+  },
+  "espTitoloAvanzamento": "Esportazione",
+  "@espTitoloAvanzamento": {
+    "description": "Titolo della schermata di avanzamento"
+  },
+  "espFaseFoto": "Preparazione delle foto, pagina {pagina} ({indice} di {totale})…",
+  "@espFaseFoto": {
+    "description": "Avanzamento",
+    "placeholders": {
+      "pagina": {
+        "type": "int",
+        "example": "2"
+      },
+      "indice": {
+        "type": "int",
+        "example": "1"
+      },
+      "totale": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "espFasePagina": "Pagina {pagina} ({indice} di {totale})…",
+  "@espFasePagina": {
+    "description": "Avanzamento",
+    "placeholders": {
+      "pagina": {
+        "type": "int",
+        "example": "2"
+      },
+      "indice": {
+        "type": "int",
+        "example": "1"
+      },
+      "totale": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "espFaseComposizione": "Composizione del collage…",
+  "@espFaseComposizione": {
+    "description": "Avanzamento"
+  },
+  "espFaseGalleria": "Salvataggio in Galleria ({indice} di {totale})…",
+  "@espFaseGalleria": {
+    "description": "Avanzamento",
+    "placeholders": {
+      "indice": {
+        "type": "int",
+        "example": "1"
+      },
+      "totale": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "espFaseCondividi": "Apertura di Condividi…",
+  "@espFaseCondividi": {
+    "description": "Avanzamento"
+  },
+  "espFaseFile": "Salvataggio in File ({indice} di {totale})…",
+  "@espFaseFile": {
+    "description": "Avanzamento",
+    "placeholders": {
+      "indice": {
+        "type": "int",
+        "example": "1"
+      },
+      "totale": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "espAnnullando": "Annullamento…",
+  "@espAnnullando": {
+    "description": "Avanzamento: l'annullamento è richiesto, si ferma alla prossima pausa"
+  },
+  "espFatto": "Esportazione completata",
+  "@espFatto": {
+    "description": "Esito"
+  },
+  "espSalvatoGalleria": "{n, plural, =1{1 immagine salvata} other{{n} immagini salvate}} nell'album «ScrolleR Studio» della Galleria, in ordine di pagina",
+  "@espSalvatoGalleria": {
+    "description": "Esito",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "espSalvatoCondiviso": "{n, plural, =1{1 immagine pronta} other{{n} immagini pronte}} per la condivisione",
+  "@espSalvatoCondiviso": {
+    "description": "Esito",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "espSalvatoFile": "{n, plural, =1{1 immagine salvata} other{{n} immagini salvate}} in File",
+  "@espSalvatoFile": {
+    "description": "Esito",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "espIncompleta": "Esportazione incompleta",
+  "@espIncompleta": {
+    "description": "Esito"
+  },
+  "espNonSalvate": "Non salvate: {nomi}",
+  "@espNonSalvate": {
+    "description": "Esito",
+    "placeholders": {
+      "nomi": {
+        "type": "String",
+        "example": "frame_02.jpg"
+      }
+    }
+  },
+  "espInterrotta": "Esportazione interrotta: le pagine successive non sono state salvate.",
+  "@espInterrotta": {
+    "description": "Esito"
+  },
+  "espAnnullata": "Esportazione annullata",
+  "@espAnnullata": {
+    "description": "Esito"
+  },
+  "espErrore": "Esportazione non riuscita: {errore}",
+  "@espErrore": {
+    "description": "Esito",
+    "placeholders": {
+      "errore": {
+        "type": "String",
+        "example": "memoria insufficiente"
+      }
+    }
+  },
+  "espGalleriaNegata": "Senza il permesso per la Galleria non posso salvare lì. Puoi usare Condividi o Salva in File.",
+  "@espGalleriaNegata": {
+    "description": "Esito"
+  },
+  "espFine": "Fine",
+  "@espFine": {
+    "description": "Chiude la schermata dell'esito"
   }
 }

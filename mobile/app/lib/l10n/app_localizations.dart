@@ -2760,6 +2760,318 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Foto spostate nella pagina {n}'**
   String avvisoFotoSpostate(int n);
+
+  /// Esportazione: una immagine per pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Pagine separate'**
+  String get espPagineSeparate;
+
+  /// Esportazione: solo la pagina corrente
+  ///
+  /// In it, this message translates to:
+  /// **'Questa pagina'**
+  String get espQuestaPagina;
+
+  /// Esportazione: tutta la striscia in un'immagine
+  ///
+  /// In it, this message translates to:
+  /// **'Collage intero'**
+  String get espCollage;
+
+  /// Esportazione: seleziona tutte le pagine
+  ///
+  /// In it, this message translates to:
+  /// **'Tutte'**
+  String get espTutte;
+
+  /// Esportazione: toglie la selezione alle pagine
+  ///
+  /// In it, this message translates to:
+  /// **'Nessuna'**
+  String get espNessuna;
+
+  /// Esportazione: etichetta del formato del file
+  ///
+  /// In it, this message translates to:
+  /// **'Formato'**
+  String get espFormato;
+
+  /// Esportazione: scelta PNG
+  ///
+  /// In it, this message translates to:
+  /// **'PNG · massima qualità'**
+  String get espFormatoPng;
+
+  /// Esportazione: scelta JPG
+  ///
+  /// In it, this message translates to:
+  /// **'JPG · file leggeri'**
+  String get espFormatoJpg;
+
+  /// Esportazione: etichetta della qualità
+  ///
+  /// In it, this message translates to:
+  /// **'Qualità JPG'**
+  String get espQualita;
+
+  /// Esportazione: etichetta della scala
+  ///
+  /// In it, this message translates to:
+  /// **'Scala'**
+  String get espScala;
+
+  /// Esportazione: scala 1×
+  ///
+  /// In it, this message translates to:
+  /// **'1× standard'**
+  String get espScala1;
+
+  /// Esportazione: scala 2×
+  ///
+  /// In it, this message translates to:
+  /// **'2× alta definizione'**
+  String get espScala2;
+
+  /// Esportazione: etichetta del nome dei file
+  ///
+  /// In it, this message translates to:
+  /// **'Nome dei file'**
+  String get espNomeFile;
+
+  /// Esportazione: nome predefinito dei file
+  ///
+  /// In it, this message translates to:
+  /// **'frame'**
+  String get espNomeSuggerimento;
+
+  /// Esportazione: nome del primo file
+  ///
+  /// In it, this message translates to:
+  /// **'Esempio: {nome}'**
+  String espEsempioNome(String nome);
+
+  /// Esportazione: misure di ogni immagine
+  ///
+  /// In it, this message translates to:
+  /// **'Ogni immagine: {w}×{h} px'**
+  String espMisure(int w, int h);
+
+  /// Esportazione: misure del collage
+  ///
+  /// In it, this message translates to:
+  /// **'Immagine: {w}×{h} px'**
+  String espMisureCollage(int w, int h);
+
+  /// Esportazione: nessuna pagina scelta
+  ///
+  /// In it, this message translates to:
+  /// **'Scegli almeno una pagina'**
+  String get espNessunaPagina;
+
+  /// Esportazione: nota sui video
+  ///
+  /// In it, this message translates to:
+  /// **'Le pagine con un video escono come immagine, con la copertina: l\'MP4 arriva più avanti.'**
+  String get espVideoCopertina;
+
+  /// Esportazione: etichetta delle destinazioni
+  ///
+  /// In it, this message translates to:
+  /// **'Salva in'**
+  String get espDestinazione;
+
+  /// Esportazione: salva nella galleria
+  ///
+  /// In it, this message translates to:
+  /// **'Galleria'**
+  String get espGalleria;
+
+  /// Esportazione: foglio Condividi
+  ///
+  /// In it, this message translates to:
+  /// **'Condividi'**
+  String get espCondividi;
+
+  /// Esportazione: selettore di sistema
+  ///
+  /// In it, this message translates to:
+  /// **'Salva in File'**
+  String get espSalvaInFile;
+
+  /// Avviso prima di esportare
+  ///
+  /// In it, this message translates to:
+  /// **'Foto mancanti'**
+  String get espMancantiTitolo;
+
+  /// Avviso prima di esportare
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 foto sulla tela non è stata trovata e resterà vuota} other{{n} foto sulla tela non sono state trovate e resteranno vuote}} nell\'immagine esportata. Esportare comunque?'**
+  String espMancanti(int n);
+
+  /// Avviso prima di esportare
+  ///
+  /// In it, this message translates to:
+  /// **'Tela vuota'**
+  String get espTelaVuotaTitolo;
+
+  /// Avviso prima di esportare
+  ///
+  /// In it, this message translates to:
+  /// **'Non ci sono foto sulla tela. Esportare comunque?'**
+  String get espTelaVuota;
+
+  /// Conferma dell'avviso
+  ///
+  /// In it, this message translates to:
+  /// **'Esporta comunque'**
+  String get espEsportaComunque;
+
+  /// Avviso prima di esportare
+  ///
+  /// In it, this message translates to:
+  /// **'Collage troppo grande'**
+  String get espCollageGrandeTitolo;
+
+  /// Avviso prima di esportare
+  ///
+  /// In it, this message translates to:
+  /// **'A 2× il collage sarebbe di {w}×{h} px: troppo per la memoria del telefono. Puoi usare 1× oppure esportare le pagine separate.'**
+  String espCollageGrande(int w, int h);
+
+  /// Avviso prima di esportare
+  ///
+  /// In it, this message translates to:
+  /// **'Anche a 1× il collage sarebbe di {w}×{h} px: troppo per la memoria del telefono. Esporta le pagine separate.'**
+  String espCollageGrande1x(int w, int h);
+
+  /// Passa a 1× e prosegue
+  ///
+  /// In it, this message translates to:
+  /// **'Usa 1×'**
+  String get espUsa1x;
+
+  /// Passa alle pagine separate
+  ///
+  /// In it, this message translates to:
+  /// **'Pagine separate'**
+  String get espUsaPagine;
+
+  /// Titolo della schermata di avanzamento
+  ///
+  /// In it, this message translates to:
+  /// **'Esportazione'**
+  String get espTitoloAvanzamento;
+
+  /// Avanzamento
+  ///
+  /// In it, this message translates to:
+  /// **'Preparazione delle foto, pagina {pagina} ({indice} di {totale})…'**
+  String espFaseFoto(int pagina, int indice, int totale);
+
+  /// Avanzamento
+  ///
+  /// In it, this message translates to:
+  /// **'Pagina {pagina} ({indice} di {totale})…'**
+  String espFasePagina(int pagina, int indice, int totale);
+
+  /// Avanzamento
+  ///
+  /// In it, this message translates to:
+  /// **'Composizione del collage…'**
+  String get espFaseComposizione;
+
+  /// Avanzamento
+  ///
+  /// In it, this message translates to:
+  /// **'Salvataggio in Galleria ({indice} di {totale})…'**
+  String espFaseGalleria(int indice, int totale);
+
+  /// Avanzamento
+  ///
+  /// In it, this message translates to:
+  /// **'Apertura di Condividi…'**
+  String get espFaseCondividi;
+
+  /// Avanzamento
+  ///
+  /// In it, this message translates to:
+  /// **'Salvataggio in File ({indice} di {totale})…'**
+  String espFaseFile(int indice, int totale);
+
+  /// Avanzamento: l'annullamento è richiesto, si ferma alla prossima pausa
+  ///
+  /// In it, this message translates to:
+  /// **'Annullamento…'**
+  String get espAnnullando;
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'Esportazione completata'**
+  String get espFatto;
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 immagine salvata} other{{n} immagini salvate}} nell\'album «ScrolleR Studio» della Galleria, in ordine di pagina'**
+  String espSalvatoGalleria(int n);
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 immagine pronta} other{{n} immagini pronte}} per la condivisione'**
+  String espSalvatoCondiviso(int n);
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 immagine salvata} other{{n} immagini salvate}} in File'**
+  String espSalvatoFile(int n);
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'Esportazione incompleta'**
+  String get espIncompleta;
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'Non salvate: {nomi}'**
+  String espNonSalvate(String nomi);
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'Esportazione interrotta: le pagine successive non sono state salvate.'**
+  String get espInterrotta;
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'Esportazione annullata'**
+  String get espAnnullata;
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'Esportazione non riuscita: {errore}'**
+  String espErrore(String errore);
+
+  /// Esito
+  ///
+  /// In it, this message translates to:
+  /// **'Senza il permesso per la Galleria non posso salvare lì. Puoi usare Condividi o Salva in File.'**
+  String get espGalleriaNegata;
+
+  /// Chiude la schermata dell'esito
+  ///
+  /// In it, this message translates to:
+  /// **'Fine'**
+  String get espFine;
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

@@ -11,8 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
+import '../export/foglio_esporta.dart';
 import '../l10n/app_localizations.dart';
-import '../render/disegno.dart';
 import '../render/risorse_pagina.dart';
 import '../theme/tokens.dart';
 import 'pannello_pagine.dart';
@@ -101,7 +101,8 @@ class _PaginaPanoramicaState extends ConsumerState<PaginaPanoramica> {
               s,
               ctrl,
               k,
-              onEsporta: ctrl.inArrivo,
+              onEsporta: () =>
+                  unawaited(apriEsportazione(this.context, pagina: k)),
             );
             return SafeArea(
               child: Padding(
@@ -324,7 +325,7 @@ class _Tessera extends StatelessWidget {
                         builder: (context, _) => RepaintBoundary(
                           child: CustomPaint(
                             size: Size(lato, altezza),
-                            painter: _PitturaMiniatura(
+                            painter: PitturaMiniatura(
                               snapshot,
                               pagina,
                               risorse,
@@ -374,37 +375,4 @@ class _Tessera extends StatelessWidget {
       ),
     );
   }
-}
-
-class _PitturaMiniatura extends CustomPainter {
-  _PitturaMiniatura(
-    this.s,
-    this.pagina,
-    this.risorse,
-    this.testi,
-    this.versione,
-  );
-
-  final Snapshot s;
-  final int pagina;
-  final RisorsePagina risorse;
-  final TestiDisegno testi;
-  final int versione;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.clipRect(Offset.zero & size);
-    disegnaPagina(
-      canvas,
-      s,
-      pagina,
-      risorse,
-      OpzioniDisegno(testi: testi, pulito: true),
-      scala: size.width / s.canvas.frameW,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_PitturaMiniatura old) =>
-      old.s != s || old.pagina != pagina || old.versione != versione;
 }

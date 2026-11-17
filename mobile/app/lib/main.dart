@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'export/preferenze.dart';
 import 'home/home.dart';
 import 'l10n/app_localizations.dart';
 import 'project/archivio.dart';
@@ -24,6 +25,9 @@ Future<void> main() async {
       overrides: [
         archivioProvider.overrideWithValue(
           ArchivioProgetti(Directory('${documenti.path}/progetti')),
+        ),
+        preferenzeProvider.overrideWithValue(
+          PreferenzeApp(File('${documenti.path}/impostazioni.json')),
         ),
       ],
       child: const ScrollerStudioApp(),

@@ -206,3 +206,38 @@ class _SchermataPagineState extends State<SchermataPagine> {
     );
   }
 }
+
+/// Una pagina in miniatura (Panoramica, esportazione): disegno «pulito» (senza guide né selezione), alla larghezza
+/// del riquadro. Si ridisegna quando cambia la [versione] delle risorse.
+class PitturaMiniatura extends CustomPainter {
+  PitturaMiniatura(
+    this.s,
+    this.pagina,
+    this.risorse,
+    this.testi,
+    this.versione,
+  );
+
+  final Snapshot s;
+  final int pagina;
+  final RisorsePagina risorse;
+  final TestiDisegno testi;
+  final int versione;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+    disegnaPagina(
+      canvas,
+      s,
+      pagina,
+      risorse,
+      OpzioniDisegno(testi: testi, pulito: true),
+      scala: size.width / s.canvas.frameW,
+    );
+  }
+
+  @override
+  bool shouldRepaint(PitturaMiniatura old) =>
+      old.s != s || old.pagina != pagina || old.versione != versione;
+}

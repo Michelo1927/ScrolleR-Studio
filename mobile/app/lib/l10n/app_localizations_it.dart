@@ -1619,4 +1619,217 @@ class TestiIt extends Testi {
   String avvisoFotoSpostate(int n) {
     return 'Foto spostate nella pagina $n';
   }
+
+  @override
+  String get espPagineSeparate => 'Pagine separate';
+
+  @override
+  String get espQuestaPagina => 'Questa pagina';
+
+  @override
+  String get espCollage => 'Collage intero';
+
+  @override
+  String get espTutte => 'Tutte';
+
+  @override
+  String get espNessuna => 'Nessuna';
+
+  @override
+  String get espFormato => 'Formato';
+
+  @override
+  String get espFormatoPng => 'PNG · massima qualità';
+
+  @override
+  String get espFormatoJpg => 'JPG · file leggeri';
+
+  @override
+  String get espQualita => 'Qualità JPG';
+
+  @override
+  String get espScala => 'Scala';
+
+  @override
+  String get espScala1 => '1× standard';
+
+  @override
+  String get espScala2 => '2× alta definizione';
+
+  @override
+  String get espNomeFile => 'Nome dei file';
+
+  @override
+  String get espNomeSuggerimento => 'frame';
+
+  @override
+  String espEsempioNome(String nome) {
+    return 'Esempio: $nome';
+  }
+
+  @override
+  String espMisure(int w, int h) {
+    return 'Ogni immagine: $w×$h px';
+  }
+
+  @override
+  String espMisureCollage(int w, int h) {
+    return 'Immagine: $w×$h px';
+  }
+
+  @override
+  String get espNessunaPagina => 'Scegli almeno una pagina';
+
+  @override
+  String get espVideoCopertina =>
+      'Le pagine con un video escono come immagine, con la copertina: l\'MP4 arriva più avanti.';
+
+  @override
+  String get espDestinazione => 'Salva in';
+
+  @override
+  String get espGalleria => 'Galleria';
+
+  @override
+  String get espCondividi => 'Condividi';
+
+  @override
+  String get espSalvaInFile => 'Salva in File';
+
+  @override
+  String get espMancantiTitolo => 'Foto mancanti';
+
+  @override
+  String espMancanti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n foto sulla tela non sono state trovate e resteranno vuote',
+      one: '1 foto sulla tela non è stata trovata e resterà vuota',
+    );
+    return '$_temp0 nell\'immagine esportata. Esportare comunque?';
+  }
+
+  @override
+  String get espTelaVuotaTitolo => 'Tela vuota';
+
+  @override
+  String get espTelaVuota => 'Non ci sono foto sulla tela. Esportare comunque?';
+
+  @override
+  String get espEsportaComunque => 'Esporta comunque';
+
+  @override
+  String get espCollageGrandeTitolo => 'Collage troppo grande';
+
+  @override
+  String espCollageGrande(int w, int h) {
+    return 'A 2× il collage sarebbe di $w×$h px: troppo per la memoria del telefono. Puoi usare 1× oppure esportare le pagine separate.';
+  }
+
+  @override
+  String espCollageGrande1x(int w, int h) {
+    return 'Anche a 1× il collage sarebbe di $w×$h px: troppo per la memoria del telefono. Esporta le pagine separate.';
+  }
+
+  @override
+  String get espUsa1x => 'Usa 1×';
+
+  @override
+  String get espUsaPagine => 'Pagine separate';
+
+  @override
+  String get espTitoloAvanzamento => 'Esportazione';
+
+  @override
+  String espFaseFoto(int pagina, int indice, int totale) {
+    return 'Preparazione delle foto, pagina $pagina ($indice di $totale)…';
+  }
+
+  @override
+  String espFasePagina(int pagina, int indice, int totale) {
+    return 'Pagina $pagina ($indice di $totale)…';
+  }
+
+  @override
+  String get espFaseComposizione => 'Composizione del collage…';
+
+  @override
+  String espFaseGalleria(int indice, int totale) {
+    return 'Salvataggio in Galleria ($indice di $totale)…';
+  }
+
+  @override
+  String get espFaseCondividi => 'Apertura di Condividi…';
+
+  @override
+  String espFaseFile(int indice, int totale) {
+    return 'Salvataggio in File ($indice di $totale)…';
+  }
+
+  @override
+  String get espAnnullando => 'Annullamento…';
+
+  @override
+  String get espFatto => 'Esportazione completata';
+
+  @override
+  String espSalvatoGalleria(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n immagini salvate',
+      one: '1 immagine salvata',
+    );
+    return '$_temp0 nell\'album «ScrolleR Studio» della Galleria, in ordine di pagina';
+  }
+
+  @override
+  String espSalvatoCondiviso(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n immagini pronte',
+      one: '1 immagine pronta',
+    );
+    return '$_temp0 per la condivisione';
+  }
+
+  @override
+  String espSalvatoFile(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n immagini salvate',
+      one: '1 immagine salvata',
+    );
+    return '$_temp0 in File';
+  }
+
+  @override
+  String get espIncompleta => 'Esportazione incompleta';
+
+  @override
+  String espNonSalvate(String nomi) {
+    return 'Non salvate: $nomi';
+  }
+
+  @override
+  String get espInterrotta =>
+      'Esportazione interrotta: le pagine successive non sono state salvate.';
+
+  @override
+  String get espAnnullata => 'Esportazione annullata';
+
+  @override
+  String espErrore(String errore) {
+    return 'Esportazione non riuscita: $errore';
+  }
+
+  @override
+  String get espGalleriaNegata =>
+      'Senza il permesso per la Galleria non posso salvare lì. Puoi usare Condividi o Salva in File.';
+
+  @override
+  String get espFine => 'Fine';
 }

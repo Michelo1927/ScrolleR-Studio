@@ -95,7 +95,6 @@ List<AzionePagina> azioniPagina(
       icona: Icons.ios_share_rounded,
       etichetta: t.pagEsporta,
       onTap: onEsporta,
-      spenta: true,
     ),
     AzionePagina(
       chiave: 'elimina',
@@ -113,14 +112,14 @@ class PannelloPagine extends ConsumerStatefulWidget {
   const PannelloPagine({
     super.key,
     required this.onApriPanoramica,
-    required this.onArrivera,
+    required this.onEsporta,
   });
 
   /// Apre la Panoramica (la schermata, che sta nell'editor).
   final VoidCallback onApriPanoramica;
 
-  /// Funzione che arriva con una fase successiva (esporta questa pagina).
-  final VoidCallback onArrivera;
+  /// Apre il foglio «Esporta» sulla pagina corrente.
+  final VoidCallback onEsporta;
 
   @override
   ConsumerState<PannelloPagine> createState() => _PannelloPagineState();
@@ -225,7 +224,7 @@ class _PannelloPagineState extends ConsumerState<PannelloPagine> {
               s,
               _ctrl,
               k,
-              onEsporta: widget.onArrivera,
+              onEsporta: widget.onEsporta,
             ))
               TesseraVoce(
                 key: ValueKey('azione-${a.chiave}'),

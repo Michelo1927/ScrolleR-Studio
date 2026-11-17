@@ -1066,6 +1066,15 @@ class ControlloEditor extends Notifier<StatoEditor> {
   void alternaAggancio() =>
       state = state.copia(aggancioAttivo: !state.aggancioAttivo);
 
+  // ---------- Esportazione (Fase 7) ----------
+  /// Nome dei file esportati (`_set_export_name`): vale per il progetto e si salva con lui; entra in Annulla.
+  void impostaNomeEsportazione(String nome) {
+    final n = pulisciNomeFile(nome);
+    final s = state.cronologia.current;
+    if (n == s.canvas.exportName) return;
+    _commit(s.copyWith(canvas: s.canvas.copyWith(exportName: n)));
+  }
+
   // ---------- Cronologia (Fase 6) ----------
   /// Torna al passaggio [i] della cronologia (anche in avanti): come Annulla/Ripeti ripetuti.
   void vaiAPassaggio(int i) => _vaiA(state.cronologia.goTo(i));

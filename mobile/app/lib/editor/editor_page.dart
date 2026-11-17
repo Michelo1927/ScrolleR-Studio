@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
+import '../export/foglio_esporta.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
 import 'menu_pressione_lunga.dart';
@@ -106,12 +107,6 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
     }
   }
 
-  void _arrivera() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(Testi.of(context).inArrivo)));
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = Testi.of(context);
@@ -147,7 +142,7 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
           preferredSize: const Size.fromHeight(MisureScrl.barraSuperiore),
           child: SafeArea(
             bottom: false,
-            child: _BarraSuperiore(onIndietro: _esci, onArrivera: _arrivera),
+            child: _BarraSuperiore(onIndietro: _esci),
           ),
         ),
         body: const TelaEditor(),
@@ -157,7 +152,7 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
           padding: EdgeInsets.only(
             bottom: MediaQuery.viewInsetsOf(context).bottom,
           ),
-          child: _ZonaInferiore(onArrivera: _arrivera),
+          child: const _ZonaInferiore(),
         ),
       ),
     );
@@ -165,10 +160,9 @@ class _EditorState extends ConsumerState<_Editor> with WidgetsBindingObserver {
 }
 
 class _BarraSuperiore extends ConsumerWidget {
-  const _BarraSuperiore({required this.onIndietro, required this.onArrivera});
+  const _BarraSuperiore({required this.onIndietro});
 
   final VoidCallback onIndietro;
-  final VoidCallback onArrivera;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -206,7 +200,7 @@ class _BarraSuperiore extends ConsumerWidget {
           PulsanteIcona(
             icona: Icons.ios_share_rounded,
             etichetta: t.esporta,
-            onTap: onArrivera,
+            onTap: () => unawaited(apriEsportazione(context)),
           ),
         ],
       ),
@@ -217,9 +211,7 @@ class _BarraSuperiore extends ConsumerWidget {
 /// Striscia pagine e, sotto, la barra inferiore o il pannello dello strumento aperto. Il passaggio si anima
 /// e la pagina nella tela si ridimensiona insieme.
 class _ZonaInferiore extends ConsumerWidget {
-  const _ZonaInferiore({required this.onArrivera});
-
-  final VoidCallback onArrivera;
+  const _ZonaInferiore();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -292,7 +284,9 @@ class _ZonaInferiore extends ConsumerWidget {
       Strumento.pagine => PannelloPagine(
         key: const ValueKey('pagine'),
         onApriPanoramica: () => unawaited(apriPanoramica(context)),
-        onArrivera: onArrivera,
+        onEsporta: () => unawaited(
+          apriEsportazione(context, pagina: ref.read(editorProvider).pagina),
+        ),
       ),
       Strumento.stile => const PannelloStile(key: ValueKey('stile')),
       Strumento.sfondo => const PannelloSfondo(key: ValueKey('sfondo')),

@@ -27,6 +27,13 @@ enum AccessoGalleria {
   daChiedere,
 }
 
+/// L'utente non ha dato accesso alla galleria: non si può salvare lì.
+class AccessoGalleriaNegato implements Exception {
+  const AccessoGalleriaNegato();
+  @override
+  String toString() => 'Accesso alla galleria negato';
+}
+
 /// Elemento della galleria, con l'identificativo stabile da salvare nel progetto.
 class ElementoGalleria {
   final AssetEntity entita;
@@ -119,5 +126,50 @@ class Galleria {
   Future<String?> sorgenteVideo(AssetEntity e) async {
     if (Platform.isAndroid) return (await e.getMediaUrl());
     return (await e.originFile)?.path;
+  }
+
+  /// Album della galleria dove finiscono le esportazioni (piano §11).
+  static const String album = 'ScrolleR Studio';
+
+  /// Salva l'immagine [dati] in galleria, nell'album [album] (su Android la cartella `Pictures/ScrolleR Studio`).
+  /// [data] è la data di creazione: le pagine di un carosello si salvano con date crescenti, così restano in
+  /// sequenza. Chiede il permesso solo se serve; lancia [AccessoGalleriaNegato] se è negato.
+  Future<void> salvaImmagine(
+    Uint8List dati,
+    String nomeFile, {
+    required DateTime data,
+  }) async {
+    var accesso = await stato();
+    if (accesso == AccessoGalleria.daChiedere ||
+        accesso == AccessoGalleria.negato) {
+      accesso = await chiedi();
+    }
+    if (accesso == AccessoGalleria.negato) {
+      throw const AccessoGalleriaNegato();
+    }
+    final e = await PhotoManager.editor.saveImage(
+      dati,
+      filename: nomeFile,
+      title: nomeFile,
+      relativePath: Platform.isAndroid ? 'Pictures/$album' : null,
+      creationDate: data,
+    );
+    if (Platform.isIOS) await _inAlbumIos(e);
+  }
+
+  /// iOS: l'immagine nasce tra gli «Recenti»; la si mette anche nell'album, che si crea la prima volta.
+  Future<void> _inAlbumIos(AssetEntity e) async {
+    try {
+      final tutti = await PhotoManager.getAssetPathList(
+        type: RequestType.image,
+      );
+      var a = tutti.where((p) => p.name == album && !p.isAll).firstOrNull;
+      a ??= await PhotoManager.editor.darwin.createAlbum(album);
+      if (a != null) {
+        await PhotoManager.editor.copyAssetToPath(asset: e, pathEntity: a);
+      }
+    } catch (_) {
+      // L'album è un di più: l'immagine è comunque salvata in galleria
+    }
   }
 }

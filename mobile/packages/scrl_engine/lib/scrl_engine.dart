@@ -14,6 +14,7 @@ export 'src/edit/selezione.dart';
 export 'src/edit/strumenti_foto.dart';
 export 'src/edit/testo.dart';
 export 'src/edit/trasforma.dart';
+export 'src/export/esportazione.dart';
 export 'src/history/describe.dart';
 export 'src/history/history.dart';
 export 'src/layout/layout.dart'

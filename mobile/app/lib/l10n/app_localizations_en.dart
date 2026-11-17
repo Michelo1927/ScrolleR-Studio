@@ -1616,4 +1616,218 @@ class TestiEn extends Testi {
   String avvisoFotoSpostate(int n) {
     return 'Photos moved to page $n';
   }
+
+  @override
+  String get espPagineSeparate => 'Separate pages';
+
+  @override
+  String get espQuestaPagina => 'This page';
+
+  @override
+  String get espCollage => 'Whole collage';
+
+  @override
+  String get espTutte => 'All';
+
+  @override
+  String get espNessuna => 'None';
+
+  @override
+  String get espFormato => 'Format';
+
+  @override
+  String get espFormatoPng => 'PNG · best quality';
+
+  @override
+  String get espFormatoJpg => 'JPG · small files';
+
+  @override
+  String get espQualita => 'JPG quality';
+
+  @override
+  String get espScala => 'Scale';
+
+  @override
+  String get espScala1 => '1× standard';
+
+  @override
+  String get espScala2 => '2× high definition';
+
+  @override
+  String get espNomeFile => 'File name';
+
+  @override
+  String get espNomeSuggerimento => 'frame';
+
+  @override
+  String espEsempioNome(String nome) {
+    return 'Example: $nome';
+  }
+
+  @override
+  String espMisure(int w, int h) {
+    return 'Each image: $w×$h px';
+  }
+
+  @override
+  String espMisureCollage(int w, int h) {
+    return 'Image: $w×$h px';
+  }
+
+  @override
+  String get espNessunaPagina => 'Choose at least one page';
+
+  @override
+  String get espVideoCopertina =>
+      'Pages with a video are exported as an image, with the cover: MP4 export comes later.';
+
+  @override
+  String get espDestinazione => 'Save to';
+
+  @override
+  String get espGalleria => 'Gallery';
+
+  @override
+  String get espCondividi => 'Share';
+
+  @override
+  String get espSalvaInFile => 'Save to Files';
+
+  @override
+  String get espMancantiTitolo => 'Missing photos';
+
+  @override
+  String espMancanti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n photos on the canvas were not found and will stay empty',
+      one: '1 photo on the canvas was not found and will stay empty',
+    );
+    return '$_temp0 in the exported image. Export anyway?';
+  }
+
+  @override
+  String get espTelaVuotaTitolo => 'Empty canvas';
+
+  @override
+  String get espTelaVuota =>
+      'There are no photos on the canvas. Export anyway?';
+
+  @override
+  String get espEsportaComunque => 'Export anyway';
+
+  @override
+  String get espCollageGrandeTitolo => 'Collage too large';
+
+  @override
+  String espCollageGrande(int w, int h) {
+    return 'At 2× the collage would be $w×$h px: too much for the phone\'s memory. You can use 1× or export the separate pages.';
+  }
+
+  @override
+  String espCollageGrande1x(int w, int h) {
+    return 'Even at 1× the collage would be $w×$h px: too much for the phone\'s memory. Export the separate pages.';
+  }
+
+  @override
+  String get espUsa1x => 'Use 1×';
+
+  @override
+  String get espUsaPagine => 'Separate pages';
+
+  @override
+  String get espTitoloAvanzamento => 'Exporting';
+
+  @override
+  String espFaseFoto(int pagina, int indice, int totale) {
+    return 'Preparing photos, page $pagina ($indice of $totale)…';
+  }
+
+  @override
+  String espFasePagina(int pagina, int indice, int totale) {
+    return 'Page $pagina ($indice of $totale)…';
+  }
+
+  @override
+  String get espFaseComposizione => 'Composing the collage…';
+
+  @override
+  String espFaseGalleria(int indice, int totale) {
+    return 'Saving to Gallery ($indice of $totale)…';
+  }
+
+  @override
+  String get espFaseCondividi => 'Opening Share…';
+
+  @override
+  String espFaseFile(int indice, int totale) {
+    return 'Saving to Files ($indice of $totale)…';
+  }
+
+  @override
+  String get espAnnullando => 'Cancelling…';
+
+  @override
+  String get espFatto => 'Export complete';
+
+  @override
+  String espSalvatoGalleria(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n images saved',
+      one: '1 image saved',
+    );
+    return '$_temp0 to the “ScrolleR Studio” album in the Gallery, in page order';
+  }
+
+  @override
+  String espSalvatoCondiviso(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n images',
+      one: '1 image',
+    );
+    return '$_temp0 ready to share';
+  }
+
+  @override
+  String espSalvatoFile(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n images saved',
+      one: '1 image saved',
+    );
+    return '$_temp0 to Files';
+  }
+
+  @override
+  String get espIncompleta => 'Export incomplete';
+
+  @override
+  String espNonSalvate(String nomi) {
+    return 'Not saved: $nomi';
+  }
+
+  @override
+  String get espInterrotta =>
+      'Export stopped: the following pages were not saved.';
+
+  @override
+  String get espAnnullata => 'Export cancelled';
+
+  @override
+  String espErrore(String errore) {
+    return 'Export failed: $errore';
+  }
+
+  @override
+  String get espGalleriaNegata =>
+      'Without permission for the Gallery I can\'t save there. You can use Share or Save to Files.';
+
+  @override
+  String get espFine => 'Done';
 }
