@@ -1,10 +1,12 @@
-/// Home: elenco dei progetti. Nella Fase 0 mostra solo lo stato vuoto con l'azione «Nuovo».
+/// Home: elenco dei progetti. Per ora mostra lo stato vuoto con l'azione «Nuovo» e l'accesso alle prove
+/// della Fase 2.
 library;
 
 import 'package:material_ui/material_ui.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
+import 'prove.dart';
 
 /// Pagina iniziale dell'app.
 class HomePage extends StatelessWidget {
@@ -15,7 +17,17 @@ class HomePage extends StatelessWidget {
     final testi = Testi.of(context);
     final stili = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(title: Text(testi.appTitolo)),
+      appBar: AppBar(
+        title: Text(testi.appTitolo),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const ProvePage())),
+            child: Text(testi.proveApri),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: Column(

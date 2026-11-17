@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ScrolleR Studio collega le foto e i video della galleria ai tuoi progetti, senza copiarli.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ScrolleR Studio salva nella galleria le immagini e i video che esporti.</string>
+	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
+	<true/>
 </dict>
 </plist>

@@ -15,6 +15,8 @@ Produce in `mobile/packages/scrl_engine/test/riferimenti/`:
 - `disposizioni.jsonl`: un caso per riga. `prima` è lo stato di partenza (tela + foto con le proporzioni
   usate dal desktop), `dopo` è il risultato di `apply_auto_layout`: rettangoli, rotazione, bordo automatico
   e liste per pagina. Le prove Dart confrontano i rettangoli con tolleranza 0,001.
+- `colore.json`: tabelle dei toni, livelli automatici, luminosità e grana di `scrollr/imaging.py`.
+- `geometria.json`: geometria del disegno delle foto (`_cover_geometry`, `_image_transform`, ombra).
 - `casuale.json`: valori di `random.Random(seme)` (Mersenne Twister) per portare il generatore di Python.
 - `immagini/`: alcune pagine esportate dal desktop, con il progetto che le ha prodotte.
 - `pagine.jsonl`: azioni vere del desktop su pagine e tela (inserisci, duplica, elimina, sposta, riordina,
@@ -240,6 +242,81 @@ def casuale() -> dict:
         out.append({"seed": seed, "getrandbits32": bits, "random": rnd, "uniform_-7.5_7.5": uni,
                     "randrange_2^30": rng})
     return {"python": sys.version.split()[0], "semi": out}
+
+
+def colore() -> dict:
+    """Tabelle del colore (`scrollr/imaging.py`) e grana: le prove Dart del modulo `color` le confrontano."""
+    import zlib
+    from PIL import Image, ImageEnhance, ImageStat
+    from scrollr.imaging import NEUTRAL_ADJUST, PRESETS, _tone_lut, auto_levels_lut
+    casi_toni = [{"shadows": 40}, {"highlights": -30, "fade": 20}, {"warmth": 35, "tint": -12},
+                 dict(NEUTRAL_ADJUST, **PRESETS[4][2])]
+    rnd = random.Random(7)
+    w, h = 37, 23
+    px = bytes(rnd.randrange(30, 220) for _ in range(w * h * 3))
+    img = Image.frombytes("RGB", (w, h), px)
+    chiara = ImageEnhance.Brightness(img).enhance(1.25)
+    grana = random.Random(20261022).randbytes(256 * 256)
+    return {"tone": [{"adj": c, "lut": _tone_lut(c)} for c in casi_toni],
+            "img": {"w": w, "h": h, "rgb": list(px)},
+            "auto": auto_levels_lut(img),
+            "brightness_mean": int(ImageStat.Stat(chiara.convert("L")).mean[0] + 0.5),
+            "brightness_px": list(chiara.tobytes()[:30]),
+            "grain_head": list(grana[:16]), "grain_crc": zlib.crc32(grana),
+            "regolate": regolate()}
+
+
+def regolate() -> dict:
+    """`apply_adjustments` su una foto sintetica 64×48 (come `crea_foto`, n. 4): lo shader dell'app la confronta."""
+    from PIL import Image
+    from scrollr.imaging import NEUTRAL_ADJUST, PRESETS, apply_adjustments, auto_levels_lut
+    w, h, i = 64, 48, 3
+    img = Image.new("RGB", (w, h))
+    r0, g0, b0 = (37 * i) % 256, (91 * i + 60) % 256, (151 * i + 120) % 256
+    px = img.load()
+    for y in range(h):
+        for x in range(w):
+            px[x, y] = ((r0 + x * 255 // w) % 256, (g0 + y * 255 // h) % 256, b0)
+    casi = [{"brightness": 25}, {"contrast": 40}, {"saturation": -60}, {"bw": True, "contrast": 20},
+            {"shadows": 50, "warmth": -30}, {"auto": True}, {"sharpness": 60}]
+    casi += [dict(v) for k, _, v in PRESETS if k in ("vintage", "dramatic", "film")]
+    lut = auto_levels_lut(img)
+    out = []
+    for c in casi:
+        adj = dict(NEUTRAL_ADJUST, **c)
+        res = apply_adjustments(img, adj, detail_scale=w / 1000.0, auto_lut=lut)
+        out.append({"adj": adj, "rgb": list(res.convert("RGB").tobytes())})
+    return {"w": w, "h": h, "foto": i, "casi": out}
+
+
+def geometria() -> list:
+    """Geometria del disegno di `PhotoItem` (cover/contain, ritaglio, rotazione, ombra, lato da leggere)."""
+    from scrollr.canvas.photo_item import PhotoItem
+    out = []
+    casi_foto = [
+        dict(w=400, h=500), dict(w=300, h=300, inner_zoom=1.6, pan_x=0.5, pan_y=-0.3),
+        dict(w=520, h=260, inner_rotation=17.0, flip_h=True), dict(w=350, h=420, fit_mode="contain", inner_rotation=-30.0),
+        dict(w=600, h=400, crop=(0.1, 0.2, 0.7, 0.9), stretch=1.4, flip_v=True, shadow=60, border_radius=30.0),
+    ]
+    for i, c in enumerate(casi_foto):
+        for img_w, img_h in ((1600, 1200), (900, 1600)):
+            p = PhotoItem("x.jpg", c["w"], c["h"])
+            for k in ("inner_zoom", "pan_x", "pan_y", "inner_rotation", "flip_h", "flip_v", "fit_mode", "stretch",
+                      "shadow", "border_radius"):
+                if k in c:
+                    setattr(p, k, c[k])
+            if "crop" in c:
+                p.crop = c["crop"]
+            src = p._crop_rect(img_w, img_h)
+            g = p._cover_geometry(src.width(), src.height())
+            t = p._image_transform()
+            vis = t.mapRect(QRectF(g[1], g[2], g[3], g[4])).intersected(QRectF(0, 0, p.cell_w, p.cell_h))
+            out.append({"foto": {k: (list(v) if isinstance(v, tuple) else v) for k, v in c.items()},
+                        "img": [img_w, img_h], "cover": list(g),
+                        "transform": [t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy()],
+                        "visibile": [vis.x(), vis.y(), vis.width(), vis.height()],
+                        "ombra": [p._shadow_extent(), max(1, min(255, round(255 * (p.shadow / 100.0) * 0.075)))]})
+    return out
 
 
 def esporta_immagini(win, foto: list, cartella: str) -> list:
@@ -708,6 +785,10 @@ def main():
                 f.write(json.dumps(caso, ensure_ascii=False, separators=(",", ":")) + "\n")
         with open(os.path.join(args.uscita, "casuale.json"), "w", encoding="utf-8", newline="\n") as f:
             json.dump(casuale(), f, indent=1)
+        with open(os.path.join(args.uscita, "colore.json"), "w", encoding="utf-8", newline="\n") as f:
+            json.dump(colore(), f)
+        with open(os.path.join(args.uscita, "geometria.json"), "w", encoding="utf-8", newline="\n") as f:
+            json.dump(geometria(), f, indent=1)
         immagini = []
         if not args.senza_immagini:
             immagini = esporta_immagini(win, foto, os.path.join(args.uscita, "immagini"))

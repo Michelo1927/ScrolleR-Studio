@@ -3,6 +3,8 @@
 /// La logica si porta 1:1 dall'app desktop (`scrollr/`), che resta la fonte di verità.
 library;
 
+export 'src/color/colore.dart';
+export 'src/edit/geometria_foto.dart';
 export 'src/history/describe.dart';
 export 'src/history/history.dart';
 export 'src/layout/layout.dart'

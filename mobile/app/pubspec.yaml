@@ -13,16 +13,25 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  image_picker: ^1.2.4
   intl: any
   material_ui: ^1.1.0
+  path_provider: ^2.1.6
+  photo_manager: ^3.12.0
   scrl_engine:
     path: ../packages/scrl_engine
+  scrl_video:
+    path: ../packages/scrl_video
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
   generate: true
+  shaders:
+    - shaders/regolazioni.frag

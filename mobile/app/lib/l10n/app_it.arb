@@ -1,13 +1,173 @@
 {
   "@@locale": "it",
   "appTitolo": "ScrolleR Studio",
-  "@appTitolo": {"description": "Nome dell'app"},
+  "@appTitolo": {
+    "description": "Nome dell'app"
+  },
   "homeVuotaTitolo": "Nessun progetto",
-  "@homeVuotaTitolo": {"description": "Home senza progetti"},
+  "@homeVuotaTitolo": {
+    "description": "Home senza progetti"
+  },
   "homeVuotaAiuto": "Crea il tuo primo carosello",
-  "@homeVuotaAiuto": {"description": "Riga di aiuto sotto la Home vuota"},
+  "@homeVuotaAiuto": {
+    "description": "Riga di aiuto sotto la Home vuota"
+  },
   "nuovoProgetto": "Nuovo",
-  "@nuovoProgetto": {"description": "Pulsante principale della Home"},
+  "@nuovoProgetto": {
+    "description": "Pulsante principale della Home"
+  },
   "inArrivo": "In arrivo nelle prossime versioni",
-  "@inArrivo": {"description": "Messaggio breve per le funzioni non ancora pronte"}
+  "@inArrivo": {
+    "description": "Messaggio breve per le funzioni non ancora pronte"
+  },
+  "proveApri": "Prove",
+  "@proveApri": {
+    "description": "Pulsante della Home che apre le prove della Fase 2"
+  },
+  "proveTitolo": "Prove della Fase 2",
+  "@proveTitolo": {
+    "description": "Titolo della schermata delle prove"
+  },
+  "proveGalleria": "Galleria",
+  "@proveGalleria": {
+    "description": "Sezione delle prove sulla galleria"
+  },
+  "accessoCompleto": "Accesso a tutte le foto e i video",
+  "@accessoCompleto": {
+    "description": "Permesso completo alla galleria"
+  },
+  "accessoParziale": "Accesso solo alle foto e ai video scelti",
+  "@accessoParziale": {
+    "description": "Permesso parziale alla galleria"
+  },
+  "accessoNegato": "Nessun accesso alla galleria",
+  "@accessoNegato": {
+    "description": "Permesso alla galleria negato"
+  },
+  "accessoDaChiedere": "Le foto restano nella galleria: il progetto le collega senza copiarle.",
+  "@accessoDaChiedere": {
+    "description": "Riga che spiega perché serve il permesso, prima di chiederlo"
+  },
+  "consentiAccesso": "Consenti accesso",
+  "@consentiAccesso": {
+    "description": "Pulsante che chiede il permesso alla galleria"
+  },
+  "scegliAltreFoto": "Scegli altre foto",
+  "@scegliAltreFoto": {
+    "description": "Accesso parziale: aggiunge altre foto concesse"
+  },
+  "apriImpostazioni": "Apri impostazioni",
+  "@apriImpostazioni": {
+    "description": "Permesso negato: apre le impostazioni dell'app"
+  },
+  "scegliDalTelefono": "Scegli dal telefono",
+  "@scegliDalTelefono": {
+    "description": "Permesso negato: sceglie foto e video col selettore di sistema e li copia nel progetto"
+  },
+  "fileCopiati": "{n, plural, =1{1 file copiato nel progetto} other{{n} file copiati nel progetto}}",
+  "@fileCopiati": {
+    "description": "Quanti file scelti col selettore di sistema sono stati copiati in media/",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "creaPagina": "Crea pagina",
+  "@creaPagina": {
+    "description": "Crea una pagina di prova con gli elementi scelti"
+  },
+  "esportaVideo": "Esporta MP4",
+  "@esportaVideo": {
+    "description": "Esporta in MP4 una pagina con un video"
+  },
+  "progettiDiProva": "Progetti dal computer",
+  "@progettiDiProva": {
+    "description": "Sezione con i progetti .scrlproj copiati sul telefono"
+  },
+  "progettiDiProvaAiuto": "Copia ogni progetto in una sua cartella (con .scrlproj e media/) in: {cartella}",
+  "@progettiDiProvaAiuto": {
+    "description": "Dove copiare i progetti di prova",
+    "placeholders": {
+      "cartella": {
+        "type": "String",
+        "example": "/sdcard/Android/data/.../prove"
+      }
+    }
+  },
+  "paginaDiTotale": "Pagina {numero} di {totale}",
+  "@paginaDiTotale": {
+    "description": "Titolo della vista di una pagina",
+    "placeholders": {
+      "numero": {
+        "type": "int",
+        "example": "1"
+      },
+      "totale": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "fotoMancante": "Foto mancante",
+  "@fotoMancante": {
+    "description": "Segnaposto di una foto non trovata"
+  },
+  "originaleMancante": "Originale mancante",
+  "@originaleMancante": {
+    "description": "Segno su una foto il cui originale non c'è più"
+  },
+  "numeroPaginaDi": "di",
+  "@numeroPaginaDi": {
+    "description": "Parola del formato «1 di 5» dei numeri di pagina"
+  },
+  "esportazioneInCorso": "Esportazione MP4…",
+  "@esportazioneInCorso": {
+    "description": "Titolo dell'avanzamento dell'esportazione"
+  },
+  "annulla": "Annulla",
+  "@annulla": {
+    "description": "Pulsante per annullare"
+  },
+  "videoFatto": "MP4 salvato nella galleria: {fotogrammi} fotogrammi, {ms} ms per fotogramma",
+  "@videoFatto": {
+    "description": "Esito dell'esportazione MP4",
+    "placeholders": {
+      "fotogrammi": {
+        "type": "int",
+        "example": "300"
+      },
+      "ms": {
+        "type": "String",
+        "example": "85"
+      }
+    }
+  },
+  "videoErrore": "Esportazione non riuscita: {errore}",
+  "@videoErrore": {
+    "description": "Errore dell'esportazione MP4",
+    "placeholders": {
+      "errore": {
+        "type": "String",
+        "example": "codificatore assente"
+      }
+    }
+  },
+  "videoAnnullato": "Esportazione annullata",
+  "@videoAnnullato": {
+    "description": "Esportazione MP4 annullata"
+  },
+  "videoNonDisponibile": "I video non sono ancora disponibili su questo telefono",
+  "@videoNonDisponibile": {
+    "description": "Il plugin video non funziona su questa piattaforma"
+  },
+  "scegliUnVideo": "Scegli almeno un video",
+  "@scegliUnVideo": {
+    "description": "Esporta MP4 senza video scelti"
+  },
+  "progettoNonValido": "Progetto non leggibile",
+  "@progettoNonValido": {
+    "description": "Errore nell'aprire un .scrlproj"
+  }
 }

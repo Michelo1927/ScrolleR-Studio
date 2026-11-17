@@ -117,6 +117,22 @@ class PyRandom {
     return _genrand() >> (32 - k);
   }
 
+  /// `random.randbytes(n)` = `getrandbits(n * 8).to_bytes(n, "little")`: parole di 32 bit in fila,
+  /// ognuna in little endian; l'ultima, se incompleta, tiene i bit alti (come `getrandbits` di CPython).
+  List<int> randbytes(int n) {
+    final out = <int>[];
+    var k = n * 8;
+    while (k > 0) {
+      var r = _genrand();
+      if (k < 32) r >>= 32 - k;
+      for (var b = 0; b < 4 && out.length < n; b++) {
+        out.add((r >> (8 * b)) & 0xFF);
+      }
+      k -= 32;
+    }
+    return out;
+  }
+
   /// `random.randrange(n)` (con `_randbelow`, per n ≤ 2^32).
   int randrange(int n) {
     if (n <= 0) throw ArgumentError.value(n, 'n', 'deve essere positivo');

@@ -47,11 +47,18 @@ jobs:
           dart analyze --fatal-infos
           dart test
 
+      - name: Plugin video (scrl_video)
+        working-directory: mobile/packages/scrl_video
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib
+          flutter analyze --fatal-infos
+
       - name: App
         working-directory: mobile/app
         run: |
           flutter pub get
-          dart format --output=none --set-exit-if-changed lib test
+          dart format --output=none --set-exit-if-changed lib test integration_test
           flutter analyze --fatal-infos
           flutter test
 
