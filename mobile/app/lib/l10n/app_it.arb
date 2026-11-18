@@ -956,9 +956,9 @@
   "@azFotoIntera": {
     "description": "Inquadra e Ritaglio: tutta la foto, senza tagli"
   },
-  "azDeforma": "Deforma",
-  "@azDeforma": {
-    "description": "Inquadra: i lati stirano la foto"
+  "azSoloRiquadro": "Solo riquadro",
+  "@azSoloRiquadro": {
+    "description": "Inquadra: le maniglie dei lati cambiano solo il riquadro, senza stirare la foto (come Shift sul desktop)"
   },
   "azReimposta": "Reimposta",
   "@azReimposta": {

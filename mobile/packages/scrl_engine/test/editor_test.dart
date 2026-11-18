@@ -73,6 +73,100 @@ void main() {
     });
   });
 
+  group('pagine sistemate a mano (diverso dal desktop)', () {
+    PhotoItem foto(Snapshot s, int uid) =>
+        s.items.firstWhere((p) => p.uid == uid);
+    Snapshot conFoto(Snapshot s, PhotoItem p) =>
+        s.copyWith(items: [for (final q in s.items) q.uid == p.uid ? p : q]);
+
+    test('appena disposta nessuna pagina è sistemata a mano', () {
+      final ctx = _ctx();
+      expect(pagineSistemateAMano(_tela(2, 4, ctx), ctx), isEmpty);
+    });
+
+    test('foto spostata o ritagliata: la sua pagina è sistemata a mano', () {
+      final ctx = _ctx();
+      final s = _tela(2, 4, ctx);
+      final p = s.items.first;
+      final spostata = conFoto(s, p.copyWith(x: p.x + 40));
+      expect(pagineSistemateAMano(spostata, ctx), {pageOf(s, p, ctx)});
+      final ritagliata = conFoto(s, p.copyWith(w: p.w - 100));
+      expect(pagineSistemateAMano(ritagliata, ctx), {pageOf(s, p, ctx)});
+    });
+
+    test(
+      'aggiungiFoto: la pagina sistemata a mano non cambia, la nuova al centro',
+      () {
+        final ctx = _ctx();
+        final s0 = _tela(1, 2, ctx);
+        final p = s0.items.first;
+        final s = conFoto(s0, p.copyWith(x: p.x + 40, w: p.w - 100));
+        final a = aggiungiFoto(s, [_foto(9)], ctx, pagina: 0);
+        final t = a.risultato.snapshot;
+        for (final q in s.items) {
+          final r = foto(t, q.uid);
+          expect((r.x, r.y, r.w, r.h), (q.x, q.y, q.w, q.h));
+        }
+        final nuova = foto(t, a.uids.single);
+        expect(nuova.free, isFalse);
+        expect(nuova.h, closeTo(1080 * 0.4, 1e-6));
+        expect(nuova.x + nuova.w / 2, closeTo(t.canvas.frameW / 2, 1e-6));
+      },
+    );
+
+    test('aggiungiFoto: le pagine non toccate si riordinano come prima', () {
+      final ctx = _ctx();
+      final s0 = _tela(2, 4, ctx);
+      final p = s0.items.first; // Pagina 1
+      final s = conFoto(s0, p.copyWith(y: p.y + 30));
+      final a = aggiungiFoto(s, [_foto(9)], ctx, pagina: 1);
+      final t = a.risultato.snapshot;
+      // Pagina 1 sistemata a mano: ferma
+      for (final q in s.items.where((q) => pageOf(s, q, ctx) == 0)) {
+        expect(foto(t, q.uid).x, q.x);
+        expect(foto(t, q.uid).y, q.y);
+      }
+      // Pagina 2: come senza la modifica a mano
+      final atteso = aggiungiFoto(
+        s0,
+        [_foto(9)],
+        ctx,
+        pagina: 1,
+      ).risultato.snapshot;
+      for (final q in atteso.items.where((q) => pageOf(atteso, q, ctx) == 1)) {
+        // Per percorso: la foto nuova può avere un altro uid
+        final r = t.items.firstWhere((p) => p.path == q.path);
+        expect((r.x, r.y, r.w, r.h), (q.x, q.y, q.w, q.h));
+      }
+    });
+
+    test(
+      'foto trascinata su una pagina sistemata a mano: resta dove è lasciata',
+      () {
+        final ctx = _ctx();
+        final s0 = _tela(2, 4, ctx);
+        final aMano = s0.items.firstWhere((q) => pageOf(s0, q, ctx) == 0);
+        final trascinata = s0.items.lastWhere((q) => pageOf(s0, q, ctx) == 1);
+        var s = conFoto(s0, aMano.copyWith(x: aMano.x + 40));
+        final lasciata = trascinata.copyWith(x: 100, y: 120);
+        s = conFoto(s, lasciata);
+        final t = photosDropped(s, [trascinata.uid], ctx).snapshot;
+        expect(foto(t, aMano.uid).x, aMano.x + 40);
+        expect(
+          (foto(t, trascinata.uid).x, foto(t, trascinata.uid).y),
+          (100, 120),
+        );
+        expect(pageOf(t, foto(t, trascinata.uid), ctx), 0);
+        // Senza modifiche a mano la foto entra nella disposizione della pagina (come sul desktop)
+        final u = photosDropped(conFoto(s0, lasciata), [
+          trascinata.uid,
+        ], ctx).snapshot;
+        expect(pageOf(u, foto(u, trascinata.uid), ctx), 0);
+        expect(foto(u, trascinata.uid).x, isNot(100));
+      },
+    );
+  });
+
   group('elementi', () {
     test('spostaElementi non muove le foto con «Blocca posizione»', () {
       final ctx = _ctx();
@@ -182,11 +276,11 @@ void main() {
       expect(p.w, closeTo(200, 1e-9));
     });
 
-    test('lato: cambia solo una misura e non deforma la foto', () {
+    test('lato: cambia solo una misura e stira la foto (come sul desktop)', () {
       final p = ridimensionaFoto(base, Maniglia.r, 800, 999);
       expect(p.w, closeTo(700, 1e-9));
       expect(p.h, 300);
-      expect(p.stretch, base.stretch);
+      expect(p.stretch, closeTo(base.stretch * 700 / base.w, 1e-9));
       expect(p.x, closeTo(100, 1e-9));
     });
 

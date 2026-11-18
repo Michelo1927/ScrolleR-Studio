@@ -204,6 +204,9 @@ AggiuntaFoto mettiFotoSullaTela(
 /// `_place_dropped` / `_add_library_paths_to_canvas`: aggiunge foto tenendo le altre. [pagina] è la pagina dove
 /// entrano (in fondo a quella pagina, se le foto si dividono per pagina); [libere] le mette fuori dalla
 /// disposizione, grandi il 40% della pagina e al centro.
+///
+/// Diverso dal desktop: le pagine sistemate a mano ([pagineSistemateAMano]) non si riordinano; se [pagina] è
+/// una di queste, le foto nuove entrano nella disposizione ma restano al centro, grandi il 40% della pagina.
 AggiuntaFoto aggiungiFoto(
   Snapshot s,
   List<NuovaFoto> foto,
@@ -244,6 +247,7 @@ AggiuntaFoto aggiungiFoto(
     }
     return AggiuntaFoto(EngineResult.done(sc), uids);
   }
+  final aMano = pagineSistemateAMano(s, ctx);
   final correnti = pagesSplit(sc) ? photoPages(sc) : null;
   for (final f in foto) {
     uids.add(
@@ -254,6 +258,25 @@ AggiuntaFoto aggiungiFoto(
     insertIntoPageIn(sc, uids, k, correnti);
   } else {
     relayoutKeep(sc);
+  }
+  ripristinaPagine(sc, s, aMano);
+  if (aMano.contains(k)) {
+    final fw = sc.frameW.toDouble(), fh = sc.frameH.toDouble();
+    final lato = math.min(fw, fh) * 0.4;
+    for (var i = 0; i < uids.length; i++) {
+      final p = sc.photo(uids[i]);
+      final r = sc.sourceRatio(p);
+      final w = lato * math.min(1.0, r), h = lato * math.min(1.0, 1.0 / r);
+      sc.put(
+        p.copyWith(
+          w: w,
+          h: h,
+          rotation: 0,
+          x: k * fw + fw / 2.0 - w / 2.0 + i * 30,
+          y: fh / 2.0 - h / 2.0 + i * 30,
+        ),
+      );
+    }
   }
   return AggiuntaFoto(EngineResult.done(sc), uids);
 }

@@ -207,7 +207,7 @@ class StatoEditor {
     this.pagina = 0,
     this.strumento = Strumento.nessuno,
     this.avviso,
-    this.deforma = false,
+    this.soloRiquadro = false,
     this.stileCopiato,
     this.stiliForma = const StiliForma(),
     this.contagocce = false,
@@ -228,8 +228,9 @@ class StatoEditor {
   final Strumento strumento;
   final Avviso? avviso;
 
-  /// Interruttore «Deforma» di Inquadra: le maniglie sui lati stirano la foto invece di cambiare il riquadro.
-  final bool deforma;
+  /// Interruttore «Solo riquadro» di Inquadra (lo Shift del desktop): le maniglie sui lati cambiano solo il riquadro
+  /// invece di stirare la foto.
+  final bool soloRiquadro;
 
   /// Stile copiato con «Copia stile» (non entra in Annulla né nel progetto, come sul desktop).
   final StileFoto? stileCopiato;
@@ -276,7 +277,7 @@ class StatoEditor {
     int? pagina,
     Strumento? strumento,
     Avviso? avviso,
-    bool? deforma,
+    bool? soloRiquadro,
     StileFoto? stileCopiato,
     StiliForma? stiliForma,
     bool? contagocce,
@@ -293,7 +294,7 @@ class StatoEditor {
     pagina: pagina ?? this.pagina,
     strumento: strumento ?? this.strumento,
     avviso: avviso ?? this.avviso,
-    deforma: deforma ?? this.deforma,
+    soloRiquadro: soloRiquadro ?? this.soloRiquadro,
     stileCopiato: stileCopiato ?? this.stileCopiato,
     stiliForma: stiliForma ?? this.stiliForma,
     contagocce: contagocce ?? this.contagocce,
@@ -425,7 +426,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
     strumento: state.strumento.genitore,
     selezione: _selezioneIn(state.cronologia.current),
     bozza: () => null,
-    deforma: false,
+    soloRiquadro: false,
     contagocce: false,
   );
 
@@ -443,7 +444,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
         strumento: state.strumento.genitore,
         selezione: _selezioneIn(state.cronologia.current),
         bozza: () => null,
-        deforma: false,
+        soloRiquadro: false,
         contagocce: false,
         avviso: Avviso(
           _prossimoAvviso++,
@@ -488,10 +489,26 @@ class ControlloEditor extends Notifier<StatoEditor> {
     if (b != null) _commit(b, notice: notice);
     state = state.copia(
       strumento: state.strumento.genitore,
-      deforma: false,
+      soloRiquadro: false,
       contagocce: false,
     );
     if (ricorda) _ricordaStileForma();
+  }
+
+  /// Tocco sulla tela su un altro elemento mentre un pannello è aperto: le modifiche restano (come ✓), tutti i
+  /// pannelli si chiudono e si seleziona [refs], così compare subito la sua barra.
+  void passaAElemento(Iterable<RifElemento> refs) {
+    final b = state.bozza;
+    if (b != null && b != state.cronologia.current) _commit(b);
+    if (state.strumento.ricordaStileForma) _ricordaStileForma();
+    state = state.copia(
+      strumento: Strumento.nessuno,
+      selezione: refs.toSet(),
+      selezionePiu: false,
+      bozza: () => null,
+      soloRiquadro: false,
+      contagocce: false,
+    );
   }
 
   /// Applica il risultato di un'operazione del motore come passo di cronologia, con i suoi avvisi.
@@ -661,7 +678,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
     anteprima(stileATutte(state.snapshot, p.first));
   }
 
-  void impostaDeforma(bool v) => state = state.copia(deforma: v);
+  void impostaSoloRiquadro(bool v) => state = state.copia(soloRiquadro: v);
 
   /// Ritaglio a schermo intero confermato: [ritaglio] in frazioni sulla foto originale.
   void applicaRitaglio(List<double> ritaglio, {required bool adattaRiquadro}) {

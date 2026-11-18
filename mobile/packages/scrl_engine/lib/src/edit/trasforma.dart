@@ -2,8 +2,8 @@
 /// (`scrollr/canvas/photo_item.py`) con le regole del telefono (piano §4.5):
 ///
 /// - maniglie d'angolo: ridimensionano mantenendo le proporzioni;
-/// - maniglie sui lati: cambiano la forma del riquadro e la foto lo riempie senza deformarsi (il campo `stretch`
-///   non si tocca: lo stiramento vero si attiva con «Deforma» nello strumento Inquadra, sul desktop è il contrario);
+/// - maniglie sui lati: come sul desktop, la foto si stira insieme al riquadro (campo `stretch`); con «Solo
+///   riquadro» nello strumento Inquadra (lo Shift del desktop) cambia solo la forma del riquadro;
 /// - pizzico e rotazione: scala il riquadro e lo ruota, con scatti a 0°, 90° e ogni 15°.
 library;
 
@@ -52,14 +52,15 @@ enum Maniglia {
 /// `_resize_to`: la foto [inizio] (com'era al tocco) con la maniglia [m] portata sul punto di scena ([px], [py]).
 /// L'angolo (o il lato) opposto resta fermo.
 ///
-/// Con [deforma] (interruttore «Deforma» di Inquadra) le maniglie sui lati stirano davvero la foto insieme al
-/// riquadro (campo `stretch`, come sul desktop senza Shift): il contenuto visibile resta lo stesso, deformato.
+/// Le maniglie sui lati stirano la foto insieme al riquadro (campo `stretch`, come sul desktop senza Shift): il
+/// contenuto visibile resta lo stesso, deformato. Con [soloRiquadro] (interruttore «Solo riquadro» di Inquadra,
+/// come Shift sul desktop) cambia solo il riquadro e la foto lo riempie senza deformarsi.
 PhotoItem ridimensionaFoto(
   PhotoItem inizio,
   Maniglia m,
   double px,
   double py, {
-  bool deforma = false,
+  bool soloRiquadro = false,
 }) {
   final sx = m.destra ? 1.0 : -1.0;
   final sy = m.basso ? 1.0 : -1.0;
@@ -97,7 +98,7 @@ PhotoItem ridimensionaFoto(
     h: h,
     x: cx - w / 2.0,
     y: cy - h / 2.0,
-    stretch: deforma && lato
+    stretch: !soloRiquadro && lato
         ? inizio.stretch * (w / inizio.w) * (inizio.h / h)
         : null,
     // Ridimensionata a mano: il riquadro «di prima» non vale più

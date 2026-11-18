@@ -204,22 +204,22 @@ void main() {
       },
     );
 
-    test('«Deforma»: le maniglie sui lati stirano la foto, gli angoli no', () {
+    test('le maniglie sui lati stirano la foto, gli angoli no; «Solo riquadro» no', () {
       final q = PhotoItem(uid: 1, path: 'x.jpg', w: 200, h: 100);
       // Lato destro portato a 300: una volta e mezza più larga → stiramento 1,5
-      final a = ridimensionaFoto(q, Maniglia.r, 300, 50, deforma: true);
+      final a = ridimensionaFoto(q, Maniglia.r, 300, 50);
       expect(a.w, closeTo(300, 1e-9));
       expect(a.stretch, closeTo(1.5, 1e-9));
-      // Senza «Deforma» il campo non si tocca
-      expect(ridimensionaFoto(q, Maniglia.r, 300, 50).stretch, 1.0);
-      // Lato basso: più alta → stiramento minore
-      final b = ridimensionaFoto(q, Maniglia.b, 100, 200, deforma: true);
-      expect(b.stretch, closeTo(0.5, 1e-9));
-      // Angolo: proporzioni bloccate, niente stiramento
+      // Con «Solo riquadro» il campo non si tocca
       expect(
-        ridimensionaFoto(q, Maniglia.br, 400, 200, deforma: true).stretch,
+        ridimensionaFoto(q, Maniglia.r, 300, 50, soloRiquadro: true).stretch,
         1.0,
       );
+      // Lato basso: più alta → stiramento minore
+      final b = ridimensionaFoto(q, Maniglia.b, 100, 200);
+      expect(b.stretch, closeTo(0.5, 1e-9));
+      // Angolo: proporzioni bloccate, niente stiramento
+      expect(ridimensionaFoto(q, Maniglia.br, 400, 200).stretch, 1.0);
     });
   });
 

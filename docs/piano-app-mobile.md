@@ -45,7 +45,7 @@ Non è una copia dell'interfaccia desktop: stesse funzioni, organizzazione nuova
 | Prezzo | Gratis, senza pubblicità, senza account, senza tracciamento (per ora) |
 | Salvataggio | Automatico e continuo, niente pulsante «Salva» |
 | Foto e video | **Collegati alla galleria del telefono, non copiati** nel progetto (§9). In più, «Condividi progetto» crea uno `.zip` completo con tutte le foto, da passare al PC |
-| Maniglie laterali delle foto | Cambiano la forma del riquadro senza deformare; lo stiramento vero sta dietro l'interruttore «Deforma» |
+| Maniglie laterali delle foto | Come sul desktop: stirano la foto insieme al riquadro; l'interruttore «Solo riquadro» di Inquadra (lo Shift del desktop) cambia solo il riquadro |
 | Gesto «indietro» con uno strumento aperto | **Scarta** la modifica, come ✕ (come in Snapseed). Per tenerla serve ✓ |
 | Schermo | Solo telefono in verticale nella v1; orizzontale e tablet dopo |
 | Lingue | Italiano (principale) e inglese |
@@ -206,7 +206,7 @@ A sinistra una `✕` per togliere la selezione.
 | Pizzico sul vuoto | Zoom della vista; con due dita si sposta la vista ingrandita; doppio tocco sul vuoto = adatta |
 | Pizzico e rotazione su elemento selezionato | Ridimensiona e ruota il riquadro (scatti aptici a 0°, 90° e ogni 15°) |
 | Maniglie d'angolo | Ridimensiona mantenendo le proporzioni |
-| Maniglie sui lati | Cambiano la forma del riquadro e la foto lo riempie senza deformarsi. Lo stiramento vero (campo `stretch`) si attiva con l'interruttore «Deforma» nello strumento Inquadra. Sul desktop è il contrario (stira, e con Shift cambia solo il riquadro) |
+| Maniglie sui lati | Come sul desktop: la foto si stira insieme al riquadro (campo `stretch`). Con l'interruttore «Solo riquadro» nello strumento Inquadra (lo Shift del desktop) cambia solo la forma del riquadro e la foto lo riempie senza deformarsi. (Cambiato il 2026-11-18 su richiesta: prima era il contrario.) |
 | Pallino sopra la forma | Ruota |
 | Estremi di linee e frecce | Allungano e orientano |
 | Doppio tocco su una foto | Apre **Inquadra**: dentro il riquadro, un dito sposta la foto e due dita la ingrandiscono/ruotano (`pan_x`, `pan_y`, `inner_zoom`, `inner_rotation`) |

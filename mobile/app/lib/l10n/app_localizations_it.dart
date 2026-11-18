@@ -711,7 +711,7 @@ class TestiIt extends Testi {
   String get azFotoIntera => 'Foto intera';
 
   @override
-  String get azDeforma => 'Deforma';
+  String get azSoloRiquadro => 'Solo riquadro';
 
   @override
   String get azReimposta => 'Reimposta';

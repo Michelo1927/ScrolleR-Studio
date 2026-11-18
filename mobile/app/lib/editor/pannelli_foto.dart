@@ -460,7 +460,7 @@ class _MiniaturaFiltro extends StatelessWidget {
 // ---------------------------------------------------------------- Inquadra
 
 /// Inquadra: zoom, spostamento e rotazione del contenuto dentro il riquadro, con i cursori e, sulla pagina,
-/// con le dita (un dito sposta, due ingrandiscono e ruotano). Più «Riempi / Foto intera», «Deforma» e proporzioni.
+/// con le dita (un dito sposta, due ingrandiscono e ruotano). Più «Riempi / Foto intera», «Solo riquadro» e proporzioni.
 class PannelloInquadra extends ConsumerWidget {
   const PannelloInquadra({super.key});
 
@@ -469,7 +469,9 @@ class PannelloInquadra extends ConsumerWidget {
     final t = Testi.of(context);
     final ctrl = ref.read(editorProvider.notifier);
     final s = ref.read(sessioneProvider);
-    final deforma = ref.watch(editorProvider.select((x) => x.deforma));
+    final soloRiquadro = ref.watch(
+      editorProvider.select((x) => x.soloRiquadro),
+    );
     final foto = ref.watch(_fotoPrincipale);
     final riquadroDiPrima = puoRipristinareRiquadro(ctrl.fotoSelezionate);
     return _ConParametri(
@@ -525,10 +527,10 @@ class PannelloInquadra extends ConsumerWidget {
               ctrl.modificaFotoSelezionate((p) => conFit(p, 'contain')),
         ),
         AzioneStrumento(
-          icona: Icons.transform_rounded,
-          etichetta: t.azDeforma,
-          attiva: deforma,
-          onTap: () => ctrl.impostaDeforma(!deforma),
+          icona: Icons.crop_rounded,
+          etichetta: t.azSoloRiquadro,
+          attiva: soloRiquadro,
+          onTap: () => ctrl.impostaSoloRiquadro(!soloRiquadro),
         ),
         AzioneStrumento(
           icona: Icons.aspect_ratio_rounded,

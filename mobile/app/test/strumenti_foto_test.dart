@@ -493,33 +493,34 @@ void main() {
       },
     );
 
-    testWidgets('«Deforma»: la maniglia di un lato stira la foto, spenta no', (
-      tester,
-    ) async {
-      final b = _Banco(tester);
-      await b.apri();
-      await b.seleziona(1);
-      await b.apriStrumento('Inquadra');
-      final p = b.foto(1);
-      final lato = b.schermo(p.x + p.w, p.y + p.h / 2); // Maniglia destra
-      // Senza «Deforma»: il riquadro cambia, lo stiramento resta 1
-      await tester.dragFrom(lato, const Offset(-30, 0));
-      await tester.pump();
-      expect(b.foto(1).w, lessThan(p.w));
-      expect(b.foto(1).stretch, 1.0);
-      // Con «Deforma» la foto si stira insieme al riquadro
-      b.controllo.anteprima(b.stato.cronologia.current);
-      await b.tocca('Deforma');
-      expect(b.stato.deforma, isTrue);
-      await tester.dragFrom(lato, const Offset(-30, 0));
-      await tester.pump();
-      expect(b.foto(1).w, lessThan(p.w));
-      expect(b.foto(1).stretch, lessThan(1.0));
-      // Chiudere lo strumento spegne «Deforma»
-      b.controllo.chiudiStrumento();
-      await tester.pump();
-      expect(b.stato.deforma, isFalse);
-    });
+    testWidgets(
+      '«Solo riquadro»: la maniglia di un lato non stira la foto, spento sì',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri();
+        await b.seleziona(1);
+        await b.apriStrumento('Inquadra');
+        final p = b.foto(1);
+        final lato = b.schermo(p.x + p.w, p.y + p.h / 2); // Maniglia destra
+        // Di partenza la foto si stira insieme al riquadro, come sul desktop
+        await tester.dragFrom(lato, const Offset(-30, 0));
+        await tester.pump();
+        expect(b.foto(1).w, lessThan(p.w));
+        expect(b.foto(1).stretch, lessThan(1.0));
+        // Con «Solo riquadro» il riquadro cambia, lo stiramento resta 1
+        b.controllo.anteprima(b.stato.cronologia.current);
+        await b.tocca('Solo riquadro');
+        expect(b.stato.soloRiquadro, isTrue);
+        await tester.dragFrom(lato, const Offset(-30, 0));
+        await tester.pump();
+        expect(b.foto(1).w, lessThan(p.w));
+        expect(b.foto(1).stretch, 1.0);
+        // Chiudere lo strumento spegne «Solo riquadro»
+        b.controllo.chiudiStrumento();
+        await tester.pump();
+        expect(b.stato.soloRiquadro, isFalse);
+      },
+    );
 
     testWidgets('«Proporzioni foto» e «Riquadro di prima»', (tester) async {
       final b = _Banco(tester);

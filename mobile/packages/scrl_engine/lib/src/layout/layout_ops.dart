@@ -248,7 +248,11 @@ void insertIntoPageIn(
 
 /// `_on_photo_dropped`: foto rilasciate (già spostate a mano in [s]) su un'altra pagina: passano a
 /// quella pagina e ci restano. [dragged] sono le foto trascinate.
+///
+/// Diverso dal desktop: le pagine sistemate a mano ([pagineSistemateAMano]) non si riordinano, e su una di
+/// queste la foto resta dove è stata lasciata.
 EngineResult photosDropped(Snapshot s, List<int> dragged, EngineContext ctx) {
+  final aMano = pagineSistemateAMano(s, ctx, escluse: dragged.toSet());
   final sc = Scene(s, ctx);
   final photos = [
     for (final u in dragged)
@@ -261,6 +265,7 @@ EngineResult photosDropped(Snapshot s, List<int> dragged, EngineContext ctx) {
   if (locked.isNotEmpty) {
     // Su una pagina bloccata non entra niente: la foto torna al suo posto
     relayoutKeep(sc);
+    ripristinaPagine(sc, s, aMano, tranne: dragged.toSet());
     sc.notice(NoticeKind.pageLocked, [locked[0] + 1]);
     return EngineResult.done(sc);
   }
@@ -283,7 +288,55 @@ EngineResult photosDropped(Snapshot s, List<int> dragged, EngineContext ctx) {
   for (final e in targets.entries) {
     movePhotosToPageIn(sc, e.value, e.key);
   }
+  if (targets.isNotEmpty) ripristinaPagine(sc, s, aMano);
   return EngineResult.done(sc);
+}
+
+// ---------- Pagine sistemate a mano (solo telefono) ----------
+
+/// Pagine dove almeno una foto della disposizione non sta dove la metterebbe la disposizione: spostata,
+/// ridimensionata, ruotata o ritagliata a mano. Le foto [escluse] non contano (per esempio quelle appena
+/// trascinate). Le foto libere e le pagine bloccate non contano mai: la disposizione non le tocca.
+Set<int> pagineSistemateAMano(
+  Snapshot s,
+  EngineContext ctx, {
+  Set<int> escluse = const {},
+}) {
+  final sc = Scene(s, ctx);
+  final prima = {for (final p in sc.layoutPhotos()) p.uid: p};
+  if (prima.isEmpty) return const {};
+  relayoutKeep(sc);
+  final pagine = <int>{};
+  for (final p in sc.layoutPhotos()) {
+    final q = prima[p.uid];
+    if (q == null || escluse.contains(p.uid)) continue;
+    if (!_stessaGeometria(p, q)) pagine.add(sc.pageOf(q));
+  }
+  return pagine;
+}
+
+bool _stessaGeometria(PhotoItem a, PhotoItem b) =>
+    (a.x - b.x).abs() < 0.5 &&
+    (a.y - b.y).abs() < 0.5 &&
+    (a.w - b.w).abs() < 0.5 &&
+    (a.h - b.h).abs() < 0.5 &&
+    (a.rotation - b.rotation).abs() < 0.01;
+
+/// Dopo una nuova disposizione rimette com'erano in [prima] le foto delle [pagine] sistemate a mano (tranne
+/// [tranne]): restano dove l'utente le aveva messe. Cambia solo il loro posto nell'ordine della disposizione.
+void ripristinaPagine(
+  Scene sc,
+  Snapshot prima,
+  Set<int> pagine, {
+  Set<int> tranne = const {},
+}) {
+  if (pagine.isEmpty) return;
+  for (final q in prima.items) {
+    final ora = sc.photos[q.uid];
+    if (ora == null || ora.free || q.free || tranne.contains(q.uid)) continue;
+    if (!pagine.contains(sc.pageOf(q))) continue;
+    sc.put(q.copyWith(layoutIndex: ora.layoutIndex));
+  }
 }
 
 /// `_slot`: posto di una foto nella disposizione.

@@ -710,7 +710,7 @@ class TestiEn extends Testi {
   String get azFotoIntera => 'Whole photo';
 
   @override
-  String get azDeforma => 'Stretch';
+  String get azSoloRiquadro => 'Frame only';
 
   @override
   String get azReimposta => 'Reset';

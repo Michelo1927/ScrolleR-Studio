@@ -1255,11 +1255,11 @@ abstract class Testi {
   /// **'Foto intera'**
   String get azFotoIntera;
 
-  /// Inquadra: i lati stirano la foto
+  /// Inquadra: le maniglie dei lati cambiano solo il riquadro, senza stirare la foto (come Shift sul desktop)
   ///
   /// In it, this message translates to:
-  /// **'Deforma'**
-  String get azDeforma;
+  /// **'Solo riquadro'**
+  String get azSoloRiquadro;
 
   /// Inquadra: zoom e posizione al valore iniziale
   ///

@@ -347,9 +347,18 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       unawaited(_prelevaColore(d.localPosition));
       return;
     }
-    // Con uno strumento aperto la selezione non cambia: si lavora sull'elemento scelto
-    if (_stato.strumento.suElemento) return;
     final e = _elementoSotto(d.localPosition);
+    final strumento = _stato.strumento;
+    if (strumento != Strumento.nessuno) {
+      // Un altro elemento: il pannello si chiude tenendo le modifiche (come ✓) e compare la barra dell'elemento
+      if (e != null && !_stato.selezione.contains(rifDi(e))) {
+        _ctrl.passaAElemento(conGruppo(_stato.snapshot, e));
+        HapticFeedback.selectionClick();
+        return;
+      }
+      // Lo stesso elemento, o il vuoto, con uno strumento sull'elemento: non cambia niente
+      if (strumento.suElemento) return;
+    }
     // «Seleziona più»: ogni tocco su un elemento lo aggiunge alla selezione o lo toglie (con tutto il suo gruppo)
     if (_stato.selezionePiu) {
       if (e != null) {
@@ -609,10 +618,11 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     final base = _base, foto = _fotoBase, m = _maniglia;
     if (g == null || base == null || foto == null || m == null) return;
     final (sx, sy) = g.daSchermo(focale);
-    // «Deforma» (strumento Inquadra): le maniglie sui lati stirano la foto invece di cambiare solo il riquadro
-    final deforma = _stato.deforma && _stato.strumento == Strumento.inquadra;
+    // Le maniglie sui lati stirano la foto (come sul desktop); «Solo riquadro» (Inquadra) cambia solo il riquadro
+    final soloRiquadro =
+        _stato.soloRiquadro && _stato.strumento == Strumento.inquadra;
     _ctrl.anteprima(
-      _con(base, ridimensionaFoto(foto, m, sx, sy, deforma: deforma)),
+      _con(base, ridimensionaFoto(foto, m, sx, sy, soloRiquadro: soloRiquadro)),
     );
   }
 

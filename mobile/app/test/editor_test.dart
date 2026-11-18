@@ -259,7 +259,7 @@ void main() {
     expect(b.passi, 2);
   });
 
-  testWidgets('la maniglia sul lato cambia la forma senza deformare la foto', (
+  testWidgets('la maniglia sul lato cambia la forma e stira la foto', (
     tester,
   ) async {
     final b = _Banco(tester);
@@ -275,7 +275,7 @@ void main() {
     final q = b.foto(1);
     expect(q.w, lessThan(p.w));
     expect(q.h, p.h);
-    expect(q.stretch, p.stretch);
+    expect(q.stretch, lessThan(p.stretch));
   });
 
   testWidgets(

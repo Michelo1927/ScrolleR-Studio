@@ -762,6 +762,35 @@ void main() {
       expect(b.stato.selezione.length, 3);
     });
 
+    testWidgets(
+      'con un pannello aperto il tocco su un altro elemento lo chiude e lo seleziona',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri(foto: 4);
+        await tester.tapAt(b.centroFoto(1));
+        await tester.pump();
+        // Strumento sulla foto: lo stesso elemento non cambia niente
+        b.controllo.apriStrumento(Strumento.filtri);
+        await tester.pumpAndSettle();
+        await tester.tapAt(b.centroFoto(1));
+        await tester.pump();
+        expect(b.stato.strumento, Strumento.filtri);
+        // Un'altra foto: il pannello si chiude e compare la barra della foto toccata
+        await tester.tapAt(b.centroFoto(2));
+        await tester.pumpAndSettle();
+        expect(b.stato.strumento, Strumento.nessuno);
+        expect(b.stato.selezione, {(tipo: ElementKind.photo, uid: 2)});
+        // Pannello della pagina (Stile): stesso comportamento
+        b.controllo.deseleziona();
+        b.controllo.apriStrumento(Strumento.stile);
+        await tester.pumpAndSettle();
+        await tester.tapAt(b.centroFoto(3));
+        await tester.pumpAndSettle();
+        expect(b.stato.strumento, Strumento.nessuno);
+        expect(b.stato.selezione, {(tipo: ElementKind.photo, uid: 3)});
+      },
+    );
+
     testWidgets('sposta in pagina dal menu di una foto', (tester) async {
       final b = _Banco(tester);
       await b.apri(foto: 4, pagine: 2);
