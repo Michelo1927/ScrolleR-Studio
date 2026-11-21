@@ -3,7 +3,7 @@ description: "ScrolleR Studio Mobile: collage e caroselli di foto per i social."
 publish_to: none
 
 # Versione dell'app. Nelle release la CI usa quella del tag mobile-vX.Y.Z (--build-name).
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.14.0
