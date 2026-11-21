@@ -30,12 +30,15 @@ void applyAutoLayoutIn(Scene sc, String mode) {
   final gap = sc.gap.toDouble();
   final margin = sc.margin.toDouble();
 
-  // Il bordo bianco "Polaroid" aggiunto in automatico si toglie: lo rimette Polaroid dove serve
+  // Il bordo bianco "Polaroid" aggiunto in automatico (progetti vecchi) e le cornici Polaroid e Pellicola
+  // si tolgono: le rimettono quelle disposizioni dove servono
   for (final p in photos) {
     final cur = sc.photo(p.uid);
     if (cur.autoBorder) {
       sc.put(cur.copyWith(borderWidth: 0.0, autoBorder: false));
     }
+    final dopo = sc.photo(p.uid);
+    if (dopo.frame.isNotEmpty) sc.put(dopo.copyWith(frame: ''));
   }
 
   final ctx = sc.ctx;
@@ -303,25 +306,21 @@ void _layoutInRect(
   Rect area,
   double gap,
   PyRandom rng, [
-  String? mosaicStyle,
+  String? style,
 ]) {
+  // [style]: stile della disposizione propria di una pagina (mosaico o verso della pellicola)
+  final proprio = style != null && style.isNotEmpty ? style : null;
   switch (mode) {
     case LayoutModes.mosaic:
-      _layoutMosaic(
-        sc,
-        photos,
-        area,
-        gap,
-        (mosaicStyle == null || mosaicStyle.isEmpty)
-            ? sc.mosaicStyle
-            : mosaicStyle,
-      );
+      _layoutMosaic(sc, photos, area, gap, proprio ?? sc.mosaicStyle);
     case LayoutModes.stripsH:
       _layoutStrips(sc, photos, area, gap, horizontal: true);
     case LayoutModes.stripsV:
       _layoutStrips(sc, photos, area, gap, horizontal: false);
     case LayoutModes.scatter:
       _layoutScatter(sc, photos, area, rng);
+    case LayoutModes.film:
+      _layoutFilm(sc, photos, area, gap, proprio ?? sc.filmStyle);
     default:
       _layoutGrid(sc, photos, area, gap);
   }
@@ -503,7 +502,8 @@ void _layoutStrips(
 }
 
 void _layoutScatter(Scene sc, List<PhotoItem> photos, Rect area, PyRandom rng) {
-  // Stile Polaroid con leggera inclinazione casuale (riproducibile tramite seed)
+  // Polaroid: cartoncini bianchi con la striscia larga in basso, sparsi e leggermente inclinati
+  // (inclinazione e spostamenti riproducibili tramite seed)
   final n = photos.length;
   final cols = math.max(1, math.sqrt(n * area.w / area.h).ceil());
   final rows = pyCeilDiv(n, cols);
@@ -511,16 +511,99 @@ void _layoutScatter(Scene sc, List<PhotoItem> photos, Rect area, PyRandom rng) {
   final cellH = area.h / rows;
   for (var i = 0; i < n; i++) {
     final r = i ~/ cols, c = i % cols;
-    final w = cellW * 0.88;
-    final h = cellH * 0.88;
+    // Il cartoncino ha le proporzioni di una Polaroid (finestra quadrata) e sta nell'88% della cella
+    final w = math.min(cellW * 0.88, cellH * 0.88 * polaroidRatio);
+    final h = w / polaroidRatio;
     final jitterX = rng.uniform(-cellW * 0.08, cellW * 0.08);
     final jitterY = rng.uniform(-cellH * 0.08, cellH * 0.08);
     final x = area.x + c * cellW + (cellW - w) / 2.0 + jitterX;
     final y = area.y + r * cellH + (cellH - h) / 2.0 + jitterY;
     _place(sc, photos[i], x, y, w, h, rng.uniform(-7.5, 7.5));
-    final cur = sc.photo(photos[i].uid);
-    if (cur.borderWidth == 0) {
-      sc.put(cur.copyWith(borderWidth: 8.0, autoBorder: true));
+    sc.put(sc.photo(photos[i].uid).copyWith(frame: 'polaroid'));
+  }
+}
+
+/// «Pellicola» (`_layout_film`): strisce di fotogrammi attaccati, con le perforazioni, orizzontali o
+/// verticali. Sceglie verso e numero di strisce che danno alle finestre le proporzioni più vicine a quelle
+/// medie delle foto riempiendo il più possibile l'area; lo spazio tra le foto separa le strisce.
+void _layoutFilm(
+  Scene sc,
+  List<PhotoItem> photos,
+  Rect area,
+  double gap,
+  String style,
+) {
+  final n = photos.length;
+  final target = math.exp(
+    pySum([
+          for (final p in photos)
+            math.log(math.min(2.2, math.max(0.5, sc.sourceRatio(p)))),
+        ]) /
+        n,
+  );
+  (double, bool, int, double)? best;
+  // [style]: 'horizontal', 'vertical' o 'auto' (sceglie il verso)
+  final versi = switch (style) {
+    'horizontal' => const [false],
+    'vertical' => const [true],
+    _ => const [false, true],
+  };
+  for (final vertical in versi) {
+    final length = vertical ? area.h : area.w;
+    final across = vertical ? area.w : area.h;
+    // Proporzioni volute della finestra misurate lungo la striscia (lunghezza / spessore)
+    final want = vertical ? 1.0 / target : target;
+    for (var rows = 1; rows <= n; rows++) {
+      final cols = pyCeilDiv(n, rows);
+      final frameLen = length / cols;
+      final avail = (across - gap * (rows - 1)) / rows;
+      if (avail <= 0) continue;
+      // Spessore della striscia: quello che dà la finestra voluta, se ci sta
+      final thick = math.min(
+        avail,
+        frameLen / (want * (1.0 - 2.0 * filmBand) + 2.0 * filmSide),
+      );
+      final ratio =
+          (frameLen - 2.0 * filmSide * thick) /
+          ((1.0 - 2.0 * filmBand) * thick);
+      final fill = (rows * thick + gap * (rows - 1)) / across;
+      // Fotogrammi che mancano per completare le strisce (le più corte restano centrate)
+      final empty = rows * cols - n;
+      final score =
+          (math.log(ratio / want)).abs() +
+          (1.0 - fill) +
+          0.5 * empty / (rows * cols);
+      if (best == null || score < best.$1) {
+        best = (score, vertical, rows, thick);
+      }
+    }
+  }
+  if (best == null) {
+    _layoutGrid(sc, photos, area, gap);
+    return;
+  }
+  final (_, vertical, rows, thick) = best;
+  final length = vertical ? area.h : area.w;
+  final across = vertical ? area.w : area.h;
+  final cols = pyCeilDiv(n, rows);
+  final frameLen = length / cols;
+  final start = (across - rows * thick - gap * (rows - 1)) / 2.0;
+  var idx = 0;
+  for (var r = 0; r < rows; r++) {
+    final count = pyCeilDiv(n - idx, rows - r);
+    final off = start + r * (thick + gap);
+    // Striscia più corta: un pezzo di pellicola centrato
+    final lead = (cols - count) * frameLen / 2.0;
+    for (var k = 0; k < count; k++) {
+      final p = photos[idx];
+      idx++;
+      final pos = lead + k * frameLen;
+      if (vertical) {
+        _place(sc, p, area.x + off, area.y + pos, thick, frameLen);
+      } else {
+        _place(sc, p, area.x + pos, area.y + off, frameLen, thick);
+      }
+      sc.put(sc.photo(p.uid).copyWith(frame: vertical ? 'film_v' : 'film'));
     }
   }
 }

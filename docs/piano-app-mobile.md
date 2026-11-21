@@ -378,7 +378,7 @@ Legenda: ✅ da fare uguale · 🔁 da fare in forma diversa · ⛔ non ha senso
 
 | Desktop | Mobile |
 |---|---|
-| Griglia, Mosaico (8 stili), Righe, Colonne, Polaroid, A cavallo | ✅ Algoritmi identici |
+| Griglia, Mosaico (8 stili), Righe, Colonne, Polaroid, Pellicola, A cavallo | ✅ Algoritmi identici |
 | Una disposizione per ogni pagina / tela continua | ✅ |
 | Foto per pagina Auto o 1–20 (le pagine si calcolano da sole) | ✅ |
 | Spaziatura, Margine | ✅ |
@@ -568,7 +568,9 @@ Trappole note:
   funzione `pyRound` e usarla ovunque il Python usa `round()` (colonne della griglia, divisione delle foto tra i tratti).
 - **Numeri casuali.** Polaroid usa `random.Random(layout_seed)`. Per avere la stessa disposizione sulle due app,
   portare il generatore di Python (Mersenne Twister, semina da intero, `uniform`) e provarlo contro valori generati dal desktop.
-- **Bordo automatico.** Polaroid mette un bordo di 8 px con `auto_border = true`; ogni altra disposizione lo toglie.
+- **Cornici automatiche.** Polaroid mette alle foto la cornice `frame = "polaroid"` (cartoncino con la striscia larga in
+  basso), Pellicola `frame = "film"` / `"film_v"` (fotogrammi con le perforazioni); ogni disposizione le toglie prima di
+  ricalcolare. Il vecchio bordo di 8 px con `auto_border = true` (progetti di prima) si toglie allo stesso modo.
 - **Pagine bloccate e foto libere** sono escluse dalla disposizione (`_layout_photos`).
 - Lo spostamento manuale di una foto in disposizione resta finché non c'è un nuovo ricalcolo, come sul desktop.
 

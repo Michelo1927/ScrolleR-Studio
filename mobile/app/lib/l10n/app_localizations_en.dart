@@ -346,6 +346,24 @@ class TestiEn extends Testi {
   String get parMosaico => 'Mosaic';
 
   @override
+  String get parStrisce => 'Strips';
+
+  @override
+  String get parOmbraPolaroid => 'Shadow';
+
+  @override
+  String get parRilievo => '3D depth';
+
+  @override
+  String get strisceAutomatico => 'Automatic';
+
+  @override
+  String get strisceOrizzontali => 'Horizontal';
+
+  @override
+  String get strisceVerticali => 'Vertical';
+
+  @override
   String get parPagine => 'Pages';
 
   @override
@@ -412,6 +430,9 @@ class TestiEn extends Testi {
 
   @override
   String get dispPolaroid => 'Polaroid';
+
+  @override
+  String get dispPellicola => 'Film strip';
 
   @override
   String get dispACavallo => 'Seamless';
@@ -1375,6 +1396,15 @@ class TestiEn extends Testi {
 
   @override
   String get cambStileMosaico => 'Mosaic style';
+
+  @override
+  String get cambVersoPellicola => 'Film strip direction';
+
+  @override
+  String get cambOmbraPolaroid => 'Polaroid shadow';
+
+  @override
+  String get cambRilievoPolaroid => 'Polaroid depth';
 
   @override
   String get cambFotoRimescolate => 'Photos shuffled';

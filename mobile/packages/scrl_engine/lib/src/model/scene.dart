@@ -24,6 +24,7 @@ class Scene {
   int margin;
   String layoutMode;
   String mosaicStyle;
+  String filmStyle;
   int layoutSeed;
   final List<int?> pageCounts;
   final List<PageLayout?> pageLayouts;
@@ -46,6 +47,7 @@ class Scene {
       margin = s.canvas.margin,
       layoutMode = s.canvas.layoutMode,
       mosaicStyle = s.canvas.mosaicStyle,
+      filmStyle = s.canvas.filmStyle,
       layoutSeed = s.canvas.layoutSeed,
       pageCounts = [...s.canvas.pageCounts],
       pageLayouts = [...s.canvas.pageLayouts],
@@ -68,6 +70,7 @@ class Scene {
       margin: margin,
       layoutMode: layoutMode,
       mosaicStyle: mosaicStyle,
+      filmStyle: filmStyle,
       layoutSeed: layoutSeed,
       pageCounts: pageCounts,
       pageLayouts: pageLayouts,

@@ -176,6 +176,32 @@ def casi() -> list:
     for mode in MODI:
         if mode != "scatter":
             add(f"dopo-polaroid-{mode}", tela(0, None, 2, mode), 6, prima_scatter=True)
+    # «Pellicola» (aggiunta dopo: i casi qui sopra tengono i loro semi)
+    for (ri, custom), n, frames in itertools.product(FORMATI, (1, 2, 3, 5, 8, 13, 20), (1, 3)):
+        add(f"base-f{ri}-film-n{n}-p{frames}", tela(ri, custom, frames, "film"), n)
+    for n, frames in itertools.product((4, 9, 15), (2, 4)):
+        add(f"continua-film-n{n}-p{frames}", tela(0, None, frames, "film", per_frame=False), n)
+    for gap, margin in ((0, 0), (80, 120), (40, 60), (5, 0)):
+        add(f"spazi-g{gap}-m{margin}-film", tela(4, None, 2, "film", gap=gap, margin=margin), 6)
+    add("conteggi-film", tela(0, None, 3, "film", counts=[2, None, 5]), 12)
+    add("proprie-film", tela(2, None, 3, "grid", layouts=[{"mode": "film", "style": None}, None,
+                                                         {"mode": "scatter", "style": None}]), 11)
+    for per_frame in (True, False):
+        add(f"bloccate-{'pp' if per_frame else 'cont'}-film",
+            tela(0, None, 3, "film", per_frame=per_frame, locks=[None, True, None]), 9, bloccate={1: 2})
+    add("libere-film", tela(0, None, 2, "film"), 8, libere=[2, 5])
+    add("ritaglio-film", tela(0, None, 2, "film"), 7, ritagli={0: [0.1, 0.0, 0.9, 0.5], 3: [0.0, 0.2, 1.0, 0.8]},
+        stirate={1: 1.6, 4: 0.5})
+    add("dopo-polaroid-film", tela(0, None, 2, "film"), 6, prima_scatter=True)
+    for mode in MODI:
+        add(f"dopo-pellicola-{mode}", tela(0, None, 2, mode), 6, prima="film")
+    # Verso delle strisce scelto (tutta la tela e pagina con la sua Pellicola)
+    for (ri, custom), verso, n in itertools.product(FORMATI, ("horizontal", "vertical"), (1, 3, 7, 12)):
+        add(f"pellicola-{verso}-f{ri}-n{n}", dict(tela(ri, custom, 1, "film"), film_style=verso), n)
+    for verso in ("horizontal", "vertical"):
+        add(f"pellicola-continua-{verso}", dict(tela(0, None, 3, "film", per_frame=False), film_style=verso), 9)
+        add(f"pellicola-propria-{verso}", tela(2, None, 3, "grid", layouts=[{"mode": "film", "style": verso}, None,
+                                                                          {"mode": "film", "style": None}]), 11)
     return out
 
 
@@ -185,7 +211,7 @@ def stato_foto(p, nome: str) -> dict:
         "uid": p.uid, "rel": nome, "x": p.pos().x(), "y": p.pos().y(), "w": p.cell_w, "h": p.cell_h,
         "rotation": p.rotation(), "z": p.zValue(), "layout_index": p.layout_index, "crop": list(p.crop),
         "stretch": p.stretch, "free": p.free, "page_locked": p.page_locked, "border_width": p.border_width,
-        "auto_border": p.auto_border, "image": [p.pixmap.width(), p.pixmap.height()], "ratio": p.source_ratio(),
+        "auto_border": p.auto_border, "frame": p.frame, "image": [p.pixmap.width(), p.pixmap.height()], "ratio": p.source_ratio(),
     }
 
 
@@ -214,6 +240,8 @@ def esegui_caso(win, foto: list, nome: str, c: dict, n: int, extra: dict) -> dic
     fw, fh = c["frame_w"], c["frame_h"]
     if extra.get("prima_scatter"):
         win.apply_auto_layout("scatter")
+    if extra.get("prima"):
+        win.apply_auto_layout(extra["prima"])
     # Foto ferme nelle pagine bloccate: le ultime della lista, posate dentro la loro pagina
     coda = list(reversed(items))
     for page, quante in extra.get("bloccate", {}).items():
@@ -235,7 +263,7 @@ def esegui_caso(win, foto: list, nome: str, c: dict, n: int, extra: dict) -> dic
     win.apply_auto_layout(c["layout_mode"])
     dopo = {"canvas": stato_tela(win),
             "items": [{k: v for k, v in stato_foto(p, nomi[p.uid]).items()
-                       if k in ("uid", "x", "y", "w", "h", "rotation", "border_width", "auto_border")}
+                       if k in ("uid", "x", "y", "w", "h", "rotation", "border_width", "auto_border", "frame")}
                       for p in win.get_canvas_photos()]}
     return arrotonda({"id": nome, "prima": prima, "dopo": dopo})
 
@@ -432,12 +460,16 @@ def geometria() -> list:
         dict(w=400, h=500), dict(w=300, h=300, inner_zoom=1.6, pan_x=0.5, pan_y=-0.3),
         dict(w=520, h=260, inner_rotation=17.0, flip_h=True), dict(w=350, h=420, fit_mode="contain", inner_rotation=-30.0),
         dict(w=600, h=400, crop=(0.1, 0.2, 0.7, 0.9), stretch=1.4, flip_v=True, shadow=60, border_radius=30.0),
+        # Cornici Polaroid e Pellicola: la foto si adatta alla finestra
+        dict(w=339, h=408, frame="polaroid"), dict(w=420, h=300, frame="polaroid", inner_rotation=12.0),
+        dict(w=516, h=508, frame="film", inner_zoom=1.3, pan_x=0.4, pan_y=-0.6),
+        dict(w=300, h=520, frame="film_v", fit_mode="contain"), dict(w=1032, h=200, frame="film", flip_h=True),
     ]
     for i, c in enumerate(casi_foto):
         for img_w, img_h in ((1600, 1200), (900, 1600)):
             p = PhotoItem("x.jpg", c["w"], c["h"])
             for k in ("inner_zoom", "pan_x", "pan_y", "inner_rotation", "flip_h", "flip_v", "fit_mode", "stretch",
-                      "shadow", "border_radius"):
+                      "shadow", "border_radius", "frame"):
                 if k in c:
                     setattr(p, k, c[k])
             if "crop" in c:
@@ -445,12 +477,15 @@ def geometria() -> list:
             src = p._crop_rect(img_w, img_h)
             g = p._cover_geometry(src.width(), src.height())
             t = p._image_transform()
-            vis = t.mapRect(QRectF(g[1], g[2], g[3], g[4])).intersected(QRectF(0, 0, p.cell_w, p.cell_h))
+            win = p.window_rect()
+            vis = t.mapRect(QRectF(g[1], g[2], g[3], g[4])).intersected(win)
             out.append({"foto": {k: (list(v) if isinstance(v, tuple) else v) for k, v in c.items()},
                         "img": [img_w, img_h], "cover": list(g),
                         "transform": [t.m11(), t.m12(), t.m21(), t.m22(), t.dx(), t.dy()],
                         "visibile": [vis.x(), vis.y(), vis.width(), vis.height()],
-                        "ombra": [p._shadow_extent(), max(1, min(255, round(255 * (p.shadow / 100.0) * 0.075)))]})
+                        "ombra": [p._shadow_extent(), max(1, min(255, round(255 * (p.shadow / 100.0) * 0.075)))],
+                        "finestra": [win.x(), win.y(), win.width(), win.height()],
+                        "fori": [[r.x(), r.y(), r.width(), r.height()] for r in p.film_holes()]})
     return out
 
 
@@ -458,7 +493,11 @@ def esporta_immagini(win, foto: list, cartella: str) -> list:
     os.makedirs(cartella, exist_ok=True)
     campioni = [("immagine-griglia", tela(0, None, 2, "grid"), 6, {}),
                 ("immagine-polaroid", tela(2, None, 1, "scatter", seed=777), 5, {}),
-                ("immagine-unite", tela(3, None, 3, "mosaic", seams=[True, False]), 9, {})]
+                ("immagine-unite", tela(3, None, 3, "mosaic", seams=[True, False]), 9, {}),
+                ("immagine-pellicola", tela(0, None, 2, "film"), 7, {}),
+                ("immagine-polaroid-rilievo", dict(tela(0, None, 1, "scatter", seed=4242), bg_color="#FFE9E4DC",
+                                                   polaroid_shadow=60, polaroid_depth=85), 5, {}),
+                ("immagine-pellicola-verticale", dict(tela(2, None, 1, "film"), film_style="vertical"), 5, {})]
     fatti = []
     for nome, c, n, extra in campioni:
         caso = esegui_caso(win, foto, nome, c, n, extra)

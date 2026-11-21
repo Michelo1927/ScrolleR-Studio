@@ -38,6 +38,9 @@ class HistoryMixin:
                 "page_locks": list(self.scene.page_locks),
                 "layout_mode": self.current_layout_mode,
                 "mosaic_style": self.mosaic_style,
+                "film_style": self.film_style,
+                "polaroid_shadow": self.scene.polaroid_shadow,
+                "polaroid_depth": self.scene.polaroid_depth,
                 "layout_seed": self._layout_seed,
                 "bg_mode": self.scene.bg_mode,
                 "bg_color2": self.scene.bg_color2.name(QColor.NameFormat.HexArgb),
@@ -111,6 +114,10 @@ class HistoryMixin:
             self.scene.update_canvas_rect()
             self.current_layout_mode = c["layout_mode"]
             self.mosaic_style = c.get("mosaic_style", "auto")
+            film_style = c.get("film_style", "auto")
+            self.film_style = film_style if film_style in ("auto", "horizontal", "vertical") else "auto"
+            self.scene.polaroid_shadow = max(0, min(100, int(c.get("polaroid_shadow", 0) or 0)))
+            self.scene.polaroid_depth = max(0, min(100, int(c.get("polaroid_depth", 0) or 0)))
             self._layout_seed = c["layout_seed"]
             self._sync_layout_tiles()
 
@@ -268,6 +275,9 @@ class HistoryMixin:
             ({"ratio_index", "frame_w", "frame_h", "custom_w", "custom_h"}, "Formato della pagina"),
             ({"layout_mode"}, f"Disposizione: {self.scene.layout_names.get(cb['layout_mode'], cb['layout_mode'])}"),
             ({"mosaic_style"}, "Stile mosaico"),
+            ({"film_style"}, "Verso della pellicola"),
+            ({"polaroid_shadow"}, "Ombra delle Polaroid"),
+            ({"polaroid_depth"}, "Rilievo delle Polaroid"),
             ({"layout_seed"}, "Foto rimescolate"),
             ({"page_locks"}, "Lucchetto delle pagine"),
             ({"page_seams"}, "Pagine a cavallo"),

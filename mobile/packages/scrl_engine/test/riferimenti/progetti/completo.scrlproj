@@ -31,6 +31,9 @@
   ],
   "layout_mode": "mosaic",
   "mosaic_style": "two",
+  "film_style": "auto",
+  "polaroid_shadow": 0,
+  "polaroid_depth": 0,
   "layout_seed": 12345,
   "bg_mode": "gradient",
   "bg_color2": "#ff2680eb",
@@ -67,7 +70,7 @@
  ],
  "items": [
   {
-   "uid": 13228,
+   "uid": 14905,
    "path": "foto_01.png",
    "x": 24.0,
    "y": 464.143,
@@ -91,6 +94,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -119,7 +123,7 @@
    "rel": "foto_01.png"
   },
   {
-   "uid": 13229,
+   "uid": 14906,
    "path": "foto_02.png",
    "x": 286.0,
    "y": 24.0,
@@ -143,6 +147,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -171,7 +176,7 @@
    "rel": "foto_02.png"
   },
   {
-   "uid": 13230,
+   "uid": 14907,
    "path": "foto_03.png",
    "x": 548.0,
    "y": 24.0,
@@ -195,6 +200,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 15,
     "contrast": 0,
@@ -223,7 +229,7 @@
    "rel": "foto_03.png"
   },
   {
-   "uid": 13231,
+   "uid": 14908,
    "path": "foto_04.png",
    "x": 810.0,
    "y": 24.0,
@@ -247,6 +253,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -275,7 +282,7 @@
    "rel": "foto_04.png"
   },
   {
-   "uid": 13232,
+   "uid": 14909,
    "path": "foto_05.png",
    "x": 1104.0,
    "y": 24.0,
@@ -299,6 +306,7 @@
    "border_width": 5.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -327,7 +335,7 @@
    "rel": "foto_05.png"
   },
   {
-   "uid": 13233,
+   "uid": 14910,
    "path": "foto_06.png",
    "x": 507.0,
    "y": 300.0,
@@ -351,6 +359,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -379,7 +388,7 @@
    "rel": "foto_06.png"
   },
   {
-   "uid": 13234,
+   "uid": 14911,
    "path": "foto_07.png",
    "x": 1394.487,
    "y": 66.178,
@@ -403,6 +412,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -440,7 +450,7 @@
    "rel": "foto_07.png"
   },
   {
-   "uid": 13235,
+   "uid": 14912,
    "path": "foto_08.png",
    "x": 2006.0,
    "y": 24.0,
@@ -464,6 +474,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -492,7 +503,7 @@
    "rel": "foto_08.png"
   },
   {
-   "uid": 13236,
+   "uid": 14913,
    "path": "foto_09.png",
    "x": 1104.0,
    "y": 521.365,
@@ -516,6 +527,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -544,7 +556,7 @@
    "rel": "foto_09.png"
   },
   {
-   "uid": 13237,
+   "uid": 14914,
    "path": "foto_10.png",
    "x": 1527.843,
    "y": 521.365,
@@ -568,6 +580,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -596,7 +609,7 @@
    "rel": "foto_10.png"
   },
   {
-   "uid": 13238,
+   "uid": 14915,
    "path": "foto_11.png",
    "x": 2563.451,
    "y": 521.365,
@@ -620,6 +633,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -648,7 +662,7 @@
    "rel": "foto_11.png"
   },
   {
-   "uid": 13239,
+   "uid": 14916,
    "path": "foto_12.png",
    "x": 3264.0,
    "y": 24.0,
@@ -672,6 +686,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -700,7 +715,7 @@
    "rel": "foto_12.png"
   },
   {
-   "uid": 13240,
+   "uid": 14917,
    "path": "foto_13.png",
    "x": 3788.0,
    "y": 24.0,
@@ -724,6 +739,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -752,7 +768,7 @@
    "rel": "foto_13.png"
   },
   {
-   "uid": 13241,
+   "uid": 14918,
    "path": "foto_14.png",
    "x": 3264.0,
    "y": 747.3,
@@ -776,6 +792,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,

@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 from PyQt6.QtCore import QRectF, QPointF
 from PyQt6.QtWidgets import QMessageBox
 
-from scrollr.canvas.photo_item import PhotoItem
+from scrollr.canvas.photo_item import FILM_BAND, FILM_SIDE, POLAROID_RATIO, PhotoItem
 from scrollr.keys import kb
 
 
@@ -29,16 +29,40 @@ class LayoutMixin:
         if tile is not None:
             tile.setChecked(True)
         self.mosaic_style_box.setVisible(self.current_layout_mode == "mosaic")
-        idx = self.combo_mosaic.findData(self.mosaic_style)
-        if idx >= 0 and idx != self.combo_mosaic.currentIndex():
-            self.combo_mosaic.blockSignals(True)
-            self.combo_mosaic.setCurrentIndex(idx)
-            self.combo_mosaic.blockSignals(False)
+        self.film_style_box.setVisible(self.current_layout_mode == "film")
+        self.polaroid_box.setVisible(self.current_layout_mode == "scatter")
+        for combo, value in ((self.combo_mosaic, self.mosaic_style), (self.combo_film, self.film_style)):
+            idx = combo.findData(value)
+            if idx >= 0 and idx != combo.currentIndex():
+                combo.blockSignals(True)
+                combo.setCurrentIndex(idx)
+                combo.blockSignals(False)
+        for slider, value in ((self.slider_polaroid_shadow, self.scene.polaroid_shadow),
+                              (self.slider_polaroid_depth, self.scene.polaroid_depth)):
+            if slider.value() != value:
+                slider.blockSignals(True)
+                slider.setValue(value)
+                slider.blockSignals(False)
 
     def _on_mosaic_style_changed(self, index: int):
         self.mosaic_style = self.combo_mosaic.itemData(index) or "auto"
         if self.current_layout_mode == "mosaic":
             self._relayout_keep()
+
+    def _on_film_style_changed(self, index: int):
+        self.film_style = self.combo_film.itemData(index) or "auto"
+        if self.current_layout_mode == "film":
+            self._relayout_keep()
+
+    def _on_polaroid_look_changed(self, *_):
+        """Ombra e rilievo delle Polaroid: cambia solo il disegno, le foto restano dove sono."""
+        self.scene.polaroid_shadow = self.slider_polaroid_shadow.value()
+        self.scene.polaroid_depth = self.slider_polaroid_depth.value()
+        for p in self.get_canvas_photos():
+            if p.frame == "polaroid":
+                p.prepareGeometryChange()  # L'ombra cambia l'ingombro della foto
+                p.update()
+        self._schedule_commit()
 
     def _relayout_keep(self, *_):
         if self._restoring:
@@ -60,11 +84,15 @@ class LayoutMixin:
         gap = float(self.slider_gap.value())
         margin = float(self.slider_margin.value())
 
-        # Il bordo bianco "Polaroid" aggiunto in automatico si toglie: lo rimette Polaroid dove serve
+        # Il bordo bianco "Polaroid" aggiunto in automatico (progetti vecchi) e le cornici Polaroid e
+        # Pellicola si tolgono: le rimettono quelle disposizioni dove servono
         for p in photos:
             if p.auto_border:
                 p.border_width = 0.0
                 p.auto_border = False
+                p.update()
+            if p.frame:
+                p.frame = ""
                 p.update()
 
         if mode == "scrl_seam":
@@ -251,15 +279,18 @@ class LayoutMixin:
         p.saved_cell = None
 
     def _layout_in_rect(self, mode: str, photos: List[PhotoItem], area: QRectF, gap: float, rng: random.Random,
-                        mosaic_style: Optional[str] = None):
+                        style: Optional[str] = None):
+        """`style`: stile della disposizione propria di una pagina (mosaico o verso della pellicola)."""
         if mode == "mosaic":
-            self._layout_mosaic(photos, area, gap, mosaic_style or self.mosaic_style)
+            self._layout_mosaic(photos, area, gap, style or self.mosaic_style)
         elif mode == "strips_h":
             self._layout_strips(photos, area, gap, horizontal=True)
         elif mode == "strips_v":
             self._layout_strips(photos, area, gap, horizontal=False)
         elif mode == "scatter":
             self._layout_scatter(photos, area, rng)
+        elif mode == "film":
+            self._layout_film(photos, area, gap, style or self.film_style)
         else:
             self._layout_grid(photos, area, gap)
 
@@ -385,7 +416,8 @@ class LayoutMixin:
                 self._place(p, area.x() + i * (col_w + gap), area.y(), col_w, area.height())
 
     def _layout_scatter(self, photos: List[PhotoItem], area: QRectF, rng: random.Random):
-        # Stile Freestyle / Polaroid con leggera inclinazione casuale (riproducibile tramite seed)
+        # Polaroid: cartoncini bianchi con la striscia larga in basso, sparsi e leggermente inclinati
+        # (inclinazione e spostamenti riproducibili tramite seed)
         n = len(photos)
         cols = max(1, math.ceil(math.sqrt(n * area.width() / area.height())))
         rows = math.ceil(n / cols)
@@ -393,16 +425,69 @@ class LayoutMixin:
         cell_h = area.height() / rows
         for i, p in enumerate(photos):
             r, c = divmod(i, cols)
-            w = cell_w * 0.88
-            h = cell_h * 0.88
+            # Il cartoncino ha le proporzioni di una Polaroid (finestra quadrata) e sta nell'88% della cella
+            w = min(cell_w * 0.88, cell_h * 0.88 * POLAROID_RATIO)
+            h = w / POLAROID_RATIO
             jitter_x = rng.uniform(-cell_w * 0.08, cell_w * 0.08)
             jitter_y = rng.uniform(-cell_h * 0.08, cell_h * 0.08)
             x = area.x() + c * cell_w + (cell_w - w) / 2.0 + jitter_x
             y = area.y() + r * cell_h + (cell_h - h) / 2.0 + jitter_y
             self._place(p, x, y, w, h, rng.uniform(-7.5, 7.5))
-            if p.border_width == 0:
-                p.border_width = 8.0
-                p.auto_border = True
+            p.frame = "polaroid"
+            p.update()
+
+    def _layout_film(self, photos: List[PhotoItem], area: QRectF, gap: float, style: str = "auto"):
+        """
+        «Pellicola»: strisce di fotogrammi attaccati, con le perforazioni, orizzontali o verticali
+        (`style`: "horizontal", "vertical" o "auto" = sceglie il verso). Sceglie il numero di strisce che
+        dà alle finestre le proporzioni più vicine a quelle medie delle foto riempiendo il più possibile
+        l'area; lo slider Spazio separa le strisce.
+        """
+        n = len(photos)
+        target = math.exp(sum(math.log(min(2.2, max(0.5, p.source_ratio()))) for p in photos) / n)
+        best = None
+        directions = {"horizontal": (False,), "vertical": (True,)}.get(style, (False, True))
+        for vertical in directions:
+            length, across = (area.height(), area.width()) if vertical else (area.width(), area.height())
+            # Proporzioni volute della finestra misurate lungo la striscia (lunghezza / spessore)
+            want = 1.0 / target if vertical else target
+            for rows in range(1, n + 1):
+                frame_len = length / math.ceil(n / rows)
+                avail = (across - gap * (rows - 1)) / rows
+                if avail <= 0:
+                    continue
+                # Spessore della striscia: quello che dà la finestra voluta, se ci sta
+                thick = min(avail, frame_len / (want * (1.0 - 2.0 * FILM_BAND) + 2.0 * FILM_SIDE))
+                ratio = (frame_len - 2.0 * FILM_SIDE * thick) / ((1.0 - 2.0 * FILM_BAND) * thick)
+                fill = (rows * thick + gap * (rows - 1)) / across
+                # Fotogrammi che mancano per completare le strisce (le più corte restano centrate)
+                empty = rows * math.ceil(n / rows) - n
+                score = abs(math.log(ratio / want)) + (1.0 - fill) + 0.5 * empty / (rows * math.ceil(n / rows))
+                if best is None or score < best[0]:
+                    best = (score, vertical, rows, thick)
+        if best is None:
+            self._layout_grid(photos, area, gap)
+            return
+        _, vertical, rows, thick = best
+        length, across = (area.height(), area.width()) if vertical else (area.width(), area.height())
+        cols = math.ceil(n / rows)
+        frame_len = length / cols
+        start = (across - rows * thick - gap * (rows - 1)) / 2.0
+        idx = 0
+        for r in range(rows):
+            count = math.ceil((n - idx) / (rows - r))
+            off = start + r * (thick + gap)
+            lead = (cols - count) * frame_len / 2.0  # Striscia più corta: un pezzo di pellicola centrato
+            for k in range(count):
+                p = photos[idx]
+                idx += 1
+                pos = lead + k * frame_len
+                if vertical:
+                    self._place(p, area.x() + off, area.y() + pos, thick, frame_len)
+                    p.frame = "film_v"
+                else:
+                    self._place(p, area.x() + pos, area.y() + off, frame_len, thick)
+                    p.frame = "film"
                 p.update()
 
     def _layout_seam(self, photos: List[PhotoItem], area: QRectF, gap: float,

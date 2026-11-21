@@ -434,6 +434,18 @@ class PagesMixin:
                     act.triggered.connect(lambda _c=False, s=style: self._set_page_layout(k, "mosaic", s))
                 sub.setToolTipsVisible(True)
                 continue
+            if mode == "film":
+                sub = menu.addMenu(icon, text)
+                for style, style_text, style_tip in self.FILM_STYLES:
+                    act = sub.addAction(make_icon("film_v" if style == "vertical" else "film", THEME["text"], 16),
+                                        style_text)
+                    act.setToolTip(style_tip)
+                    act.setCheckable(True)
+                    act.setChecked(bool(current) and current["mode"] == "film"
+                                   and (current.get("style") or "auto") == style)
+                    act.triggered.connect(lambda _c=False, s=style: self._set_page_layout(k, "film", s))
+                sub.setToolTipsVisible(True)
+                continue
             act = menu.addAction(icon, text)
             act.setToolTip(tip)
             act.setCheckable(True)

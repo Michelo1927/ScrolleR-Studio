@@ -10,6 +10,9 @@ void main() {
       'immagine-griglia',
       'immagine-polaroid',
       'immagine-unite',
+      'immagine-pellicola',
+      'immagine-polaroid-rilievo',
+      'immagine-pellicola-verticale',
     ]) {
       test('$nome: letto e riscritto resta identico', () {
         final dati = jsonDecode(

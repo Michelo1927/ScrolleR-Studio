@@ -57,6 +57,9 @@ IconData iconaCambio(ChangeKind k) => switch (k) {
   ChangeKind.removed => Icons.remove_circle_outline_rounded,
   ChangeKind.layout ||
   ChangeKind.mosaicStyle ||
+  ChangeKind.filmStyle ||
+  ChangeKind.polaroidShadow ||
+  ChangeKind.polaroidDepth ||
   ChangeKind.photosPerPage ||
   ChangeKind.spacing ||
   ChangeKind.margin ||

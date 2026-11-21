@@ -59,6 +59,9 @@ class CollageScene(QGraphicsScene):
         self.swipe_hint = False             # «Scorri →» su tutte le pagine tranne l'ultima
         self.swipe_text = "Scorri →"
         self.swipe_pos = "br"               # "br" = in basso a destra, "cr" = al centro a destra
+        # Disposizione Polaroid: ombra (0..100) e rilievo 3D (0..100) dei cartoncini
+        self.polaroid_shadow = 0
+        self.polaroid_depth = 0
         self._blur_cache: Optional[Tuple[tuple, QPixmap]] = None
         self.show_guides = True
         self.is_exporting = False

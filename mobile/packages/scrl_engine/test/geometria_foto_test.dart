@@ -43,6 +43,15 @@ void main() {
       final o = c['ombra']! as List;
       expect(p.shadowExtent, closeTo((o[0]! as num).toDouble(), 1e-9));
       if (p.shadow > 0) expect(p.shadowAlpha, o[1]);
+      final f = p.windowRect();
+      vicini([f.x, f.y, f.w, f.h], c['finestra']! as List, '$perche finestra');
+      final fori = (c['fori']! as List).cast<List<Object?>>();
+      final miei = p.filmHoles();
+      expect(miei.length, fori.length, reason: '$perche fori');
+      for (var i = 0; i < fori.length; i++) {
+        final r = miei[i];
+        vicini([r.x, r.y, r.w, r.h], fori[i], '$perche foro $i');
+      }
     }
   });
 

@@ -58,6 +58,30 @@ const Map<String, Object?> neutralAdjust = {
 /// Ritaglio intero (`FULL_CROP`).
 const List<double> fullCrop = [0.0, 0.0, 1.0, 1.0];
 
+/// `FRAME_STYLES`: cornici messe dalle disposizioni «Polaroid» e «Pellicola». 'polaroid' = cartoncino bianco
+/// con la striscia larga in basso; 'film' = fotogramma di una striscia orizzontale (perforazioni sopra e
+/// sotto); 'film_v' = fotogramma di una striscia verticale.
+const List<String> frameStyles = ['', 'polaroid', 'film', 'film_v'];
+
+/// `FRAME_COLORS` (ARGB).
+const Map<String, int> frameColors = {
+  'polaroid': 0xFFFFFFFF,
+  'film': 0xFF161616,
+  'film_v': 0xFF161616,
+};
+
+/// Polaroid: lati, alto e basso in frazioni del lato corto del cartoncino.
+const double polaroidSide = 0.05, polaroidTop = 0.065, polaroidBottom = 0.24;
+
+/// `POLAROID_RATIO`: proporzioni del cartoncino con la finestra della foto quadrata.
+const double polaroidRatio =
+    1.0 / (1.0 - 2.0 * polaroidSide + polaroidTop + polaroidBottom);
+
+/// Pellicola, in frazioni dello spessore della striscia: fascia delle perforazioni, nero tra due fotogrammi
+/// (per lato), passo, lunghezza e larghezza dei fori (come una pellicola da 35 mm).
+const double filmBand = 0.16, filmSide = 0.03;
+const double filmPitch = 0.136, filmHoleLong = 0.08, filmHoleShort = 0.055;
+
 /// `clean_crop`: ritaglio valido (dentro la foto, non vuoto); se non lo è, la foto intera.
 List<double> cleanCrop(Object? c) {
   if (c is! List || c.length != 4) return fullCrop;
@@ -169,6 +193,9 @@ class PhotoItem extends CanvasElement {
   final double borderWidth;
   final int borderColor;
   final bool autoBorder;
+
+  /// Cornice delle disposizioni Polaroid e Pellicola (`frame`): '', 'polaroid', 'film', 'film_v'.
+  final String frame;
   final Map<String, Object?> adjust;
   final bool flipH;
   final bool flipV;
@@ -217,6 +244,7 @@ class PhotoItem extends CanvasElement {
     this.borderWidth = 0.0,
     this.borderColor = 0xFFFFFFFF,
     this.autoBorder = false,
+    String frame = '',
     Map<String, Object?> adjust = neutralAdjust,
     this.flipH = false,
     this.flipV = false,
@@ -238,6 +266,7 @@ class PhotoItem extends CanvasElement {
        h = math.max(minCell, h),
        crop = List.unmodifiable(crop),
        stretch = math.min(20.0, math.max(0.05, stretch)),
+       frame = frameStyles.contains(frame) ? frame : '',
        adjust =
            jsonFreeze(
                  isVideo
@@ -272,6 +301,7 @@ class PhotoItem extends CanvasElement {
     'border_width',
     'border_color',
     'auto_border',
+    'frame',
     'adjust',
     'flip_h',
     'flip_v',
@@ -319,6 +349,7 @@ class PhotoItem extends CanvasElement {
       borderWidth: readDouble(s, 'border_width', 0.0),
       borderColor: parseArgb(s['border_color'], 0xFFFFFFFF),
       autoBorder: readBool(s, 'auto_border', false),
+      frame: readString(s, 'frame', ''),
       adjust: adjust is Map ? asMap(adjust) : neutralAdjust,
       flipH: readBool(s, 'flip_h', false),
       flipV: readBool(s, 'flip_v', false),
@@ -362,6 +393,7 @@ class PhotoItem extends CanvasElement {
     'border_width': borderWidth,
     'border_color': formatArgb(borderColor),
     'auto_border': autoBorder,
+    'frame': frame,
     'adjust': jsonCopy(adjust),
     'flip_h': flipH,
     'flip_v': flipV,
@@ -427,6 +459,7 @@ class PhotoItem extends CanvasElement {
     double? borderWidth,
     int? borderColor,
     bool? autoBorder,
+    String? frame,
     Map<String, Object?>? adjust,
     bool? flipH,
     bool? flipV,
@@ -466,6 +499,7 @@ class PhotoItem extends CanvasElement {
     borderWidth: borderWidth ?? this.borderWidth,
     borderColor: borderColor ?? this.borderColor,
     autoBorder: autoBorder ?? this.autoBorder,
+    frame: frame ?? this.frame,
     adjust: adjust ?? this.adjust,
     flipH: flipH ?? this.flipH,
     flipV: flipV ?? this.flipV,

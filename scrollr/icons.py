@@ -96,6 +96,20 @@ def icon_pixmap(name: str, color: str, size: int) -> QPixmap:
         clear(-5, -6, 10, 12)
         rr(-5, -6, 10, 12, 1.2, brush=tint)
         p.restore()
+    elif name in ("film", "film_v"):
+        if name == "film_v":
+            # Stessa pellicola, girata di 90°
+            p.translate(24, 0)
+            p.rotate(90)
+        rr(3, 5, 18, 14, 1.4)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(col)
+        for x in (5.2, 9.2, 13.2, 17.2):
+            p.drawRect(QRectF(x, 6.6, 1.6, 1.5))
+            p.drawRect(QRectF(x, 15.9, 1.6, 1.5))
+        p.setPen(pen)
+        rr(5.2, 9.6, 6.3, 4.8, 0.8, brush=tint)
+        rr(12.5, 9.6, 6.3, 4.8, 0.8)
     elif name == "seam":
         thin = QPen(pen)
         thin.setWidthF(1.2)

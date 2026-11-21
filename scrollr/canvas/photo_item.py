@@ -6,7 +6,8 @@ from typing import Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QLineF, QRectF, QPointF, pyqtSignal
 from PyQt6.QtGui import (
-    QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QCursor, QTransform, QImage, QRadialGradient
+    QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QCursor, QTransform, QImage, QRadialGradient,
+    QLinearGradient
 )
 from PyQt6.QtWidgets import QGraphicsObject, QGraphicsItem
 from PIL import Image
@@ -33,6 +34,20 @@ def grain_tile() -> QImage:
 from scrollr.theme import THEME, ui_font
 
 FULL_CROP = (0.0, 0.0, 1.0, 1.0)
+
+# Cornici messe dalle disposizioni «Polaroid» e «Pellicola» (stato `frame` della foto):
+# "polaroid" = cartoncino bianco con la striscia larga in basso; "film" = fotogramma di una striscia
+# orizzontale (perforazioni sopra e sotto); "film_v" = fotogramma di una striscia verticale.
+FRAME_STYLES = ("", "polaroid", "film", "film_v")
+FRAME_COLORS = {"polaroid": "#FFFFFF", "film": "#161616", "film_v": "#161616"}
+# Polaroid: lati, alto e basso in frazioni del lato corto del cartoncino
+POLAROID_SIDE, POLAROID_TOP, POLAROID_BOTTOM = 0.05, 0.065, 0.24
+# Proporzioni (larghezza / altezza) del cartoncino con la finestra della foto quadrata
+POLAROID_RATIO = 1.0 / (1.0 - 2.0 * POLAROID_SIDE + POLAROID_TOP + POLAROID_BOTTOM)
+# Pellicola, in frazioni dello spessore della striscia: fascia delle perforazioni, nero tra due
+# fotogrammi (per lato), passo, lunghezza e larghezza dei fori (come una pellicola da 35 mm)
+FILM_BAND, FILM_SIDE = 0.16, 0.03
+FILM_PITCH, FILM_HOLE_LONG, FILM_HOLE_SHORT = 0.136, 0.08, 0.055
 
 
 def clean_crop(c) -> Tuple[float, float, float, float]:
@@ -98,7 +113,8 @@ class PhotoItem(QGraphicsObject):
         self.border_radius = 0.0
         self.border_width = 0.0
         self.border_color = QColor("#FFFFFF")
-        self.auto_border = False    # Bordo aggiunto automaticamente dal layout Polaroid
+        self.auto_border = False    # Bordo aggiunto automaticamente dal layout Polaroid (progetti vecchi)
+        self.frame = ""             # Cornice delle disposizioni Polaroid e Pellicola (vedi FRAME_STYLES)
 
         # Colore, specchio, riempimento, opacità, ombra, blocco
         self.adjust = dict(NEUTRAL_ADJUST)
@@ -271,6 +287,7 @@ class PhotoItem(QGraphicsObject):
             "border_width": self.border_width,
             "border_color": self.border_color.name(QColor.NameFormat.HexArgb),
             "auto_border": self.auto_border,
+            "frame": self.frame,
             "adjust": dict(self.adjust),
             "flip_h": self.flip_h,
             "flip_v": self.flip_v,
@@ -300,6 +317,8 @@ class PhotoItem(QGraphicsObject):
         self.border_width = s["border_width"]
         self.border_color = QColor(s["border_color"])
         self.auto_border = s.get("auto_border", False)
+        frame = s.get("frame", "")
+        self.frame = frame if frame in FRAME_STYLES else ""
         self.adjust = dict(NEUTRAL_ADJUST, **s.get("adjust", {}))
         self.flip_h = s.get("flip_h", False)
         self.flip_v = s.get("flip_v", False)
@@ -429,12 +448,15 @@ class PhotoItem(QGraphicsObject):
         """Ingombro della cella vista nel sistema di riferimento ruotato dell'immagine."""
         th = math.radians(self.inner_rotation)
         c, s = abs(math.cos(th)), abs(math.sin(th))
-        return self.cell_w * c + self.cell_h * s, self.cell_w * s + self.cell_h * c
+        win = self.window_rect()  # Con la cornice conta solo la sua finestra
+        return win.width() * c + win.height() * s, win.width() * s + win.height() * c
 
     def _image_transform(self) -> QTransform:
-        """Dal sistema dell'immagine (origine al centro della cella, assi ruotati) alle coordinate della cella."""
+        """Dal sistema dell'immagine (origine al centro della cella, o della finestra della cornice, assi
+        ruotati) alle coordinate della cella."""
         t = QTransform()
-        t.translate(self.cell_w / 2.0, self.cell_h / 2.0)
+        center = self.window_rect().center()
+        t.translate(center.x(), center.y())
         t.rotate(self.inner_rotation)
         t.scale(-1.0 if self.flip_h else 1.0, -1.0 if self.flip_v else 1.0)
         return t
@@ -452,7 +474,8 @@ class PhotoItem(QGraphicsObject):
             th = math.radians(self.inner_rotation)
             c, s = abs(math.cos(th)), abs(math.sin(th))
             box_w, box_h = img_w * c + img_h * s, img_w * s + img_h * c
-            scale_cover = min(self.cell_w / box_w, self.cell_h / box_h) * self.inner_zoom
+            win = self.window_rect()
+            scale_cover = min(win.width() / box_w, win.height() / box_h) * self.inner_zoom
         else:
             scale_cover = max(need_w / img_w, need_h / img_h) * self.inner_zoom
         draw_w = img_w * scale_cover
@@ -511,15 +534,124 @@ class PhotoItem(QGraphicsObject):
                 if rect.adjusted(-grow, -grow, grow, grow).contains(pos)]
         return min(hits)[1] if hits else None
 
+    # ---------- Cornice Polaroid / Pellicola ----------
+    def frame_insets(self) -> Tuple[float, float, float, float]:
+        """Spessori della cornice (sinistra, alto, destra, basso), in misure della tela."""
+        w, h = self.cell_w, self.cell_h
+        if self.frame == "polaroid":
+            m = min(w, h)
+            return POLAROID_SIDE * m, POLAROID_TOP * m, POLAROID_SIDE * m, POLAROID_BOTTOM * m
+        if self.frame == "film":
+            return FILM_SIDE * h, FILM_BAND * h, FILM_SIDE * h, FILM_BAND * h
+        if self.frame == "film_v":
+            return FILM_BAND * w, FILM_SIDE * w, FILM_BAND * w, FILM_SIDE * w
+        return 0.0, 0.0, 0.0, 0.0
+
+    def window_rect(self) -> QRectF:
+        """Parte del riquadro in cui si vede la foto: tutto il riquadro, o la finestra della cornice."""
+        left, top, right, bottom = self.frame_insets()
+        return QRectF(left, top, max(0.0, self.cell_w - left - right), max(0.0, self.cell_h - top - bottom))
+
+    def film_holes(self) -> List[QRectF]:
+        """Perforazioni di un fotogramma di pellicola: distribuite lungo il fotogramma, così fotogrammi
+        attaccati formano una striscia continua."""
+        if self.frame not in ("film", "film_v"):
+            return []
+        vertical = self.frame == "film_v"
+        thick, length = (self.cell_w, self.cell_h) if vertical else (self.cell_h, self.cell_w)
+        count = max(1, round(length / (FILM_PITCH * thick)))
+        pitch = length / count
+        along = min(FILM_HOLE_LONG * thick, pitch * 0.6)
+        across = FILM_HOLE_SHORT * thick
+        holes = []
+        for i in range(count):
+            a = (i + 0.5) * pitch - along / 2.0
+            for c in (FILM_BAND * thick / 2.0, thick - FILM_BAND * thick / 2.0):
+                b = c - across / 2.0
+                holes.append(QRectF(b, a, across, along) if vertical else QRectF(a, b, along, across))
+        return holes
+
+    def _paint_frame(self, painter: QPainter, outer: QPainterPath):
+        """Cartoncino o pellicola intorno alla finestra; i fori lasciano vedere quello che c'è sotto."""
+        path = QPainterPath(outer)
+        path.setFillRule(Qt.FillRule.OddEvenFill)
+        path.addRect(self.window_rect())
+        for hole in self.film_holes():
+            r = hole.width() * 0.22 if self.frame == "film" else hole.height() * 0.22
+            path.addRoundedRect(hole, r, r)
+        painter.fillPath(path, QColor(FRAME_COLORS[self.frame]))
+
+    def _depth_edge(self) -> float:
+        """Spessore del filo che fa vedere il bordo del cartoncino e della finestra (rilievo)."""
+        return max(0.8, 0.004 * min(self.cell_w, self.cell_h))
+
+    def _paint_depth_window(self, painter: QPainter, win: QRectF, depth: float):
+        """Rilievo, dentro la finestra: riflesso lucido in diagonale e ombra del cartoncino sulla foto
+        (in alto e a sinistra), così la foto sembra incassata sotto il bordo."""
+        if win.isEmpty():
+            return
+        gloss = QLinearGradient(win.topLeft(), win.bottomRight())
+        gloss.setColorAt(0.0, QColor(255, 255, 255, round(255 * 0.18 * depth)))
+        gloss.setColorAt(0.45, QColor(255, 255, 255, 0))
+        gloss.setColorAt(1.0, QColor(255, 255, 255, 0))
+        painter.fillRect(win, QBrush(gloss))
+        s = 0.045 * min(self.cell_w, self.cell_h)
+        top = QLinearGradient(QPointF(0.0, win.top()), QPointF(0.0, win.top() + s))
+        top.setColorAt(0.0, QColor(0, 0, 0, round(255 * 0.45 * depth)))
+        top.setColorAt(1.0, QColor(0, 0, 0, 0))
+        painter.fillRect(QRectF(win.left(), win.top(), win.width(), s), QBrush(top))
+        left = QLinearGradient(QPointF(win.left(), 0.0), QPointF(win.left() + s, 0.0))
+        left.setColorAt(0.0, QColor(0, 0, 0, round(255 * 0.30 * depth)))
+        left.setColorAt(1.0, QColor(0, 0, 0, 0))
+        painter.fillRect(QRectF(win.left(), win.top(), s, win.height()), QBrush(left))
+
+    def _paint_depth_card(self, painter: QPainter, outer: QPainterPath, win: QRectF, depth: float):
+        """Rilievo, sul cartoncino: luce dall'alto a sinistra (più scuro verso il basso a destra) e fili
+        sottili sul bordo esterno e su quello della finestra, che danno lo spessore della carta."""
+        card = QPainterPath(outer)
+        card.setFillRule(Qt.FillRule.OddEvenFill)
+        card.addRect(win)
+        shade = QLinearGradient(QPointF(0.0, 0.0), QPointF(self.cell_w, self.cell_h))
+        shade.setColorAt(0.0, QColor(0, 0, 0, 0))
+        shade.setColorAt(1.0, QColor(0, 0, 0, round(255 * 0.10 * depth)))
+        painter.fillPath(card, QBrush(shade))
+        e = self._depth_edge()
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        pen = QPen(QColor(0, 0, 0, round(255 * 0.22 * depth)), e)
+        pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        painter.setPen(pen)
+        painter.drawRect(win)
+        pen.setColor(QColor(0, 0, 0, round(255 * 0.20 * depth)))
+        painter.setPen(pen)
+        radius = min(self.border_radius, self.cell_w / 2.0, self.cell_h / 2.0)
+        edge = QRectF(e / 2.0, e / 2.0, self.cell_w - e, self.cell_h - e)
+        if radius > 0:
+            r = max(0.0, radius - e / 2.0)
+            painter.drawRoundedRect(edge, r, r)
+        else:
+            painter.drawRect(edge)
+
     # ---------- Disegno ----------
     def _shadow_extent(self) -> float:
-        return 0.0 if self.shadow <= 0 else min(self.cell_w, self.cell_h) * 0.05 + 8.0
+        return 0.0 if self.effective_shadow() <= 0 else min(self.cell_w, self.cell_h) * 0.05 + 8.0
+
+    def effective_shadow(self) -> int:
+        """Ombra disegnata: quella della foto o, per le Polaroid, quella della disposizione se è più forte."""
+        if self.frame == "polaroid":
+            return max(self.shadow, int(getattr(self.scene(), "polaroid_shadow", 0) or 0))
+        return self.shadow
+
+    def polaroid_depth(self) -> float:
+        """Rilievo 3D delle Polaroid (0..1), dalla disposizione; 0 per le altre foto."""
+        if self.frame != "polaroid":
+            return 0.0
+        return max(0, min(100, int(getattr(self.scene(), "polaroid_depth", 0) or 0))) / 100.0
 
     def _paint_shadow(self, painter: QPainter, radius: float):
         """Ombra morbida sotto la foto: rettangoli arrotondati sempre più piccoli e trasparenti."""
         ext = self._shadow_extent()
         steps = 12
-        alpha = max(1, min(255, round(255 * (self.shadow / 100.0) * 0.075)))
+        alpha = max(1, min(255, round(255 * (self.effective_shadow() / 100.0) * 0.075)))
         off = ext * 0.35
         painter.save()
         painter.setPen(Qt.PenStyle.NoPen)
@@ -543,7 +675,7 @@ class PhotoItem(QGraphicsObject):
         radius = min(self.border_radius, self.cell_w / 2.0, self.cell_h / 2.0)
         path.addRoundedRect(cell_rect, radius, radius)
 
-        if self.shadow > 0:
+        if self.effective_shadow() > 0:
             self._paint_shadow(painter, radius)
 
         painter.save()
@@ -551,9 +683,17 @@ class PhotoItem(QGraphicsObject):
             painter.setClipPath(path)
         else:
             painter.setClipRect(cell_rect)  # Angoli vivi: il ritaglio rettangolare è molto più veloce
+        image_rect = cell_rect
+        if self.frame:
+            # Con la cornice la foto si vede solo nella finestra. Sotto la foto la finestra (mezza unità in
+            # più, coperta dalla cornice) prende il colore della cornice: così sui bordi sfumati non
+            # traspare lo sfondo come un filo chiaro
+            image_rect = self.window_rect()
+            painter.setClipRect(image_rect.adjusted(-0.5, -0.5, 0.5, 0.5), Qt.ClipOperation.IntersectClip)
+            painter.fillRect(image_rect.adjusted(-0.5, -0.5, 0.5, 0.5), QColor(FRAME_COLORS[self.frame]))
         if is_exporting:
             painter.save()
-            self._paint_full_resolution(painter, cell_rect)
+            self._paint_full_resolution(painter, image_rect)
             painter.restore()
         else:
             sharp = self._needs_sharp(painter)
@@ -574,8 +714,15 @@ class PhotoItem(QGraphicsObject):
             elif not clean and self.is_missing:
                 self._paint_missing(painter, cell_rect)
         if not self.is_missing:
-            self._paint_effects(painter, cell_rect)
+            self._paint_effects(painter, image_rect)
+        depth = self.polaroid_depth()
+        if depth > 0:
+            self._paint_depth_window(painter, image_rect, depth)
         painter.restore()
+        if self.frame:
+            self._paint_frame(painter, path)
+        if depth > 0:
+            self._paint_depth_card(painter, path, image_rect, depth)
 
         # Bordo interno: non sborda nel gap e non viene tagliato ai margini della tela
         if self.border_width > 0:

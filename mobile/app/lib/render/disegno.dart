@@ -150,7 +150,7 @@ void disegnaPagina(
     if (o.filtro != null && !o.filtro!(e)) continue;
     switch (e) {
       case PhotoItem():
-        _foto(canvas, e, r, o, scala);
+        _foto(canvas, e, r, o, scala, c);
       case TextItem():
         final l = ImpaginazioneTesto.di(e);
         _inPosizione(canvas, e.x, e.y, l.larghezza, l.altezza, e.rotation, () {
@@ -238,10 +238,15 @@ void _foto(
   RisorseDisegno r,
   OpzioniDisegno o,
   double scala,
+  CanvasState tela,
 ) {
   // L'opacità della foto vale per ogni pezzo disegnato (ombra, foto, effetti, bordo), come `setOpacity` di Qt
   final op = (p.opacity / 100.0).clamp(0.0, 1.0);
   if (op <= 0) return;
+  // Le Polaroid prendono ombra e rilievo dalla disposizione
+  final ombra = p.ombraEffettiva(tela);
+  if (ombra != p.shadow) p = p.copyWith(shadow: ombra);
+  final rilievo = p.rilievo(tela);
   _inPosizione(canvas, p.x, p.y, p.w, p.h, p.rotation, () {
     final cell = ui.Rect.fromLTWH(0, 0, p.w, p.h);
     final radius = p.cornerRadius;
@@ -252,6 +257,18 @@ void _foto(
       canvas.clipRRect(ui.RRect.fromRectXY(cell, radius, radius));
     } else {
       canvas.clipRect(cell);
+    }
+    // Con la cornice (Polaroid, Pellicola) la foto si vede solo nella finestra: mezza unità in più, coperta
+    // dalla cornice, così tra foto e cornice non resta un filo chiaro dell'antialiasing
+    final fin = p.windowRect();
+    final finestra = ui.Rect.fromLTWH(fin.x, fin.y, fin.w, fin.h);
+    if (p.frame.isNotEmpty) {
+      // Sotto la foto la finestra prende il colore della cornice: sui bordi sfumati non traspare lo sfondo
+      canvas.clipRect(finestra.inflate(0.5));
+      canvas.drawRect(
+        finestra.inflate(0.5),
+        ui.Paint()..color = _alfa(ui.Color(frameColors[p.frame]!), op),
+      );
     }
     final pronta = r.foto(p);
     final img = pronta?.immagine;
@@ -275,7 +292,12 @@ void _foto(
     } else if (!o.senzaIndicazioni && r.mancante(p)) {
       _segnapostoMancante(canvas, p, o.testi.fotoMancante);
     }
+    if (rilievo > 0) _rilievoFinestra(canvas, p, finestra, rilievo, op);
     canvas.restore();
+    if (p.frame.isNotEmpty) _cornice(canvas, p, cell, radius, finestra, op);
+    if (rilievo > 0) {
+      _rilievoCartoncino(canvas, p, cell, radius, finestra, rilievo, op);
+    }
 
     // Bordo interno: non sborda nel gap e non viene tagliato ai margini della tela
     if (p.borderWidth > 0) {
@@ -299,6 +321,128 @@ void _foto(
       if (e != null) _etichettaVideo(canvas, p, e, o.testi.muto, scala);
     }
   });
+}
+
+/// `_paint_frame`: cartoncino Polaroid o pellicola intorno alla finestra; i fori lasciano vedere quello che
+/// c'è sotto.
+void _cornice(
+  ui.Canvas canvas,
+  PhotoItem p,
+  ui.Rect cell,
+  double radius,
+  ui.Rect finestra,
+  double op,
+) {
+  final path = ui.Path()..fillType = ui.PathFillType.evenOdd;
+  if (radius > 0) {
+    path.addRRect(ui.RRect.fromRectXY(cell, radius, radius));
+  } else {
+    path.addRect(cell);
+  }
+  path.addRect(finestra);
+  for (final foro in p.filmHoles()) {
+    final rr = (p.frame == 'film' ? foro.w : foro.h) * 0.22;
+    path.addRRect(
+      ui.RRect.fromRectXY(
+        ui.Rect.fromLTWH(foro.x, foro.y, foro.w, foro.h),
+        rr,
+        rr,
+      ),
+    );
+  }
+  canvas.drawPath(
+    path,
+    ui.Paint()..color = _alfa(ui.Color(frameColors[p.frame]!), op),
+  );
+}
+
+ui.Color _nero(int a, double op) =>
+    ui.Color.fromARGB((a * op).round(), 0, 0, 0);
+ui.Color _bianco(int a, double op) =>
+    ui.Color.fromARGB((a * op).round(), 255, 255, 255);
+
+/// `_paint_depth_window`: rilievo dentro la finestra della Polaroid. Riflesso lucido in diagonale e ombra del
+/// cartoncino sulla foto (in alto e a sinistra), così la foto sembra incassata sotto il bordo.
+void _rilievoFinestra(
+  ui.Canvas canvas,
+  PhotoItem p,
+  ui.Rect win,
+  double d,
+  double op,
+) {
+  if (win.isEmpty) return;
+  canvas.drawRect(
+    win,
+    ui.Paint()
+      ..shader = ui.Gradient.linear(
+        win.topLeft,
+        win.bottomRight,
+        [_bianco(alfaRilievo(0.18, d), op), _bianco(0, op), _bianco(0, op)],
+        const [0.0, 0.45, 1.0],
+      ),
+  );
+  final s = 0.045 * math.min(p.w, p.h);
+  canvas.drawRect(
+    ui.Rect.fromLTWH(win.left, win.top, win.width, s),
+    ui.Paint()
+      ..shader = ui.Gradient.linear(
+        ui.Offset(0, win.top),
+        ui.Offset(0, win.top + s),
+        [_nero(alfaRilievo(0.45, d), op), _nero(0, op)],
+      ),
+  );
+  canvas.drawRect(
+    ui.Rect.fromLTWH(win.left, win.top, s, win.height),
+    ui.Paint()
+      ..shader = ui.Gradient.linear(
+        ui.Offset(win.left, 0),
+        ui.Offset(win.left + s, 0),
+        [_nero(alfaRilievo(0.30, d), op), _nero(0, op)],
+      ),
+  );
+}
+
+/// `_paint_depth_card`: rilievo sul cartoncino della Polaroid. Luce dall'alto a sinistra (più scuro verso il
+/// basso a destra) e fili sottili sul bordo esterno e su quello della finestra: lo spessore della carta.
+void _rilievoCartoncino(
+  ui.Canvas canvas,
+  PhotoItem p,
+  ui.Rect cell,
+  double radius,
+  ui.Rect win,
+  double d,
+  double op,
+) {
+  final card = ui.Path()..fillType = ui.PathFillType.evenOdd;
+  if (radius > 0) {
+    card.addRRect(ui.RRect.fromRectXY(cell, radius, radius));
+  } else {
+    card.addRect(cell);
+  }
+  card.addRect(win);
+  canvas.drawPath(
+    card,
+    ui.Paint()
+      ..shader = ui.Gradient.linear(ui.Offset.zero, ui.Offset(p.w, p.h), [
+        _nero(0, op),
+        _nero(alfaRilievo(0.10, d), op),
+      ]),
+  );
+  final e = p.spessoreRilievo;
+  final filo = ui.Paint()
+    ..style = ui.PaintingStyle.stroke
+    ..strokeWidth = e
+    ..strokeJoin = ui.StrokeJoin.miter
+    ..color = _nero(alfaRilievo(0.22, d), op);
+  canvas.drawRect(win, filo);
+  filo.color = _nero(alfaRilievo(0.20, d), op);
+  final bordo = ui.Rect.fromLTWH(e / 2.0, e / 2.0, p.w - e, p.h - e);
+  if (radius > 0) {
+    final r = math.max(0.0, radius - e / 2.0);
+    canvas.drawRRect(ui.RRect.fromRectXY(bordo, r, r), filo);
+  } else {
+    canvas.drawRect(bordo, filo);
+  }
 }
 
 /// `_paint_badge`: etichetta in alto a sinistra con ▶ (o pausa) e durata del taglio, a misura costante sullo

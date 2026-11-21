@@ -123,7 +123,7 @@ scrollr/
     main_window.py      MainWindow: state, canvas format, drag & drop
     ui.py, panels.py    UI construction
     library.py          photo library
-    layouts.py          automatic layouts (grid, mosaic, polaroid, straddle…)
+    layouts.py          automatic layouts (grid, mosaic, polaroid, film strip, straddle…)
     inspector.py        editing selected items, align and distribute
     text.py, pages.py   carousel texts and pages
     shapes.py           inserting shapes and editing their fill, border and opacity

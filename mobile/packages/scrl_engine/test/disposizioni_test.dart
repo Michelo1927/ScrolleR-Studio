@@ -70,6 +70,7 @@ void main() {
           atteso['auto_border'],
           reason: '$id: uid ${p.uid} bordo automatico',
         );
+        expect(p.frame, atteso['frame'], reason: '$id: uid ${p.uid} cornice');
       }
       expect(risultato.items.map((p) => p.uid).toSet(), perUid.keys.toSet());
     });

@@ -38,7 +38,7 @@ _celleMosaico = {
   ],
 };
 
-/// Icona di una disposizione (`grid`, `mosaic`, `strips_h`, `strips_v`, `scatter`, `scrl_seam`) o di uno
+/// Icona di una disposizione (`grid`, `mosaic`, `strips_h`, `strips_v`, `scatter`, `film`, `scrl_seam`) o di uno
 /// stile del mosaico (`auto`, `top`, … `masonry`).
 class IconaDisposizione extends StatelessWidget {
   const IconaDisposizione(
@@ -136,6 +136,20 @@ class _Pittura extends CustomPainter {
         cancella(-5, -6, 10, 12);
         rr(-5, -6, 10, 12, r: 1.2, pieno: true);
         canvas.restore();
+      case 'film' || 'film_v':
+        if (nome == 'film_v') {
+          // Stessa pellicola, girata di 90°
+          canvas.translate(24, 0);
+          canvas.rotate(math.pi / 2);
+        }
+        rr(3, 5, 18, 14, r: 1.4);
+        final pieno = Paint()..color = colore;
+        for (final x in const [5.2, 9.2, 13.2, 17.2]) {
+          canvas.drawRect(Rect.fromLTWH(x, 6.6, 1.6, 1.5), pieno);
+          canvas.drawRect(Rect.fromLTWH(x, 15.9, 1.6, 1.5), pieno);
+        }
+        rr(5.2, 9.6, 6.3, 4.8, r: 0.8, pieno: true);
+        rr(12.5, 9.6, 6.3, 4.8, r: 0.8);
       case 'scrl_seam':
         final sottile = Paint()
           ..color = colore

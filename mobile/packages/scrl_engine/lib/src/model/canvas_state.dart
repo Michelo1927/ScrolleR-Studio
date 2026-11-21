@@ -54,8 +54,14 @@ abstract final class LayoutModes {
   static const stripsH = 'strips_h';
   static const stripsV = 'strips_v';
   static const scatter = 'scatter';
+  static const film = 'film';
   static const seam = 'scrl_seam';
-  static const all = [grid, mosaic, stripsH, stripsV, scatter, seam];
+  static const all = [grid, mosaic, stripsH, stripsV, scatter, film, seam];
+}
+
+/// Versi delle strisce di «Pellicola» del desktop (`FILM_STYLES`).
+abstract final class FilmStyles {
+  static const all = ['auto', 'horizontal', 'vertical'];
 }
 
 /// Stili del mosaico del desktop (`MOSAIC_STYLES`).
@@ -90,6 +96,13 @@ class CanvasState {
   final List<bool?> pageLocks;
   final String layoutMode;
   final String mosaicStyle;
+
+  /// Verso delle strisce di «Pellicola» (`film_style`): 'auto', 'horizontal', 'vertical'.
+  final String filmStyle;
+
+  /// Ombra (0..100) e rilievo 3D (0..100) dei cartoncini della disposizione Polaroid.
+  final int polaroidShadow;
+  final int polaroidDepth;
   final int layoutSeed;
   final String bgMode;
   final int bgColor2;
@@ -128,6 +141,9 @@ class CanvasState {
     List<bool?> pageLocks = const [],
     this.layoutMode = LayoutModes.grid,
     this.mosaicStyle = 'auto',
+    String filmStyle = 'auto',
+    int polaroidShadow = 0,
+    int polaroidDepth = 0,
     int? layoutSeed,
     this.bgMode = 'solid',
     this.bgColor2 = 0xFF2680EB,
@@ -145,7 +161,10 @@ class CanvasState {
     this.swipePos = 'br',
     this.exportName = '',
     Map<String, Object?> extra = const {},
-  }) : layoutSeed = layoutSeed ?? newLayoutSeed(),
+  }) : filmStyle = FilmStyles.all.contains(filmStyle) ? filmStyle : 'auto',
+       polaroidShadow = polaroidShadow.clamp(0, 100),
+       polaroidDepth = polaroidDepth.clamp(0, 100),
+       layoutSeed = layoutSeed ?? newLayoutSeed(),
        pageCounts = List.unmodifiable(pageCounts),
        pageLayouts = List.unmodifiable(pageLayouts),
        pageSeams = List.unmodifiable(pageSeams),
@@ -174,6 +193,9 @@ class CanvasState {
     'page_locks',
     'layout_mode',
     'mosaic_style',
+    'film_style',
+    'polaroid_shadow',
+    'polaroid_depth',
     'layout_seed',
     'bg_mode',
     'bg_color2',
@@ -226,6 +248,9 @@ class CanvasState {
       ],
       layoutMode: readString(m, 'layout_mode', LayoutModes.grid),
       mosaicStyle: readString(m, 'mosaic_style', 'auto'),
+      filmStyle: readString(m, 'film_style', 'auto'),
+      polaroidShadow: readInt(m, 'polaroid_shadow', 0),
+      polaroidDepth: readInt(m, 'polaroid_depth', 0),
       layoutSeed: seme is num ? seme.toInt() : null,
       bgMode: readString(m, 'bg_mode', 'solid'),
       bgColor2: parseArgb(m['bg_color2'], 0xFF2680EB),
@@ -265,6 +290,9 @@ class CanvasState {
     'page_locks': List<bool?>.of(pageLocks),
     'layout_mode': layoutMode,
     'mosaic_style': mosaicStyle,
+    'film_style': filmStyle,
+    'polaroid_shadow': polaroidShadow,
+    'polaroid_depth': polaroidDepth,
     'layout_seed': layoutSeed,
     'bg_mode': bgMode,
     'bg_color2': formatArgb(bgColor2),
@@ -334,6 +362,9 @@ class CanvasState {
     List<bool?>? pageLocks,
     String? layoutMode,
     String? mosaicStyle,
+    String? filmStyle,
+    int? polaroidShadow,
+    int? polaroidDepth,
     int? layoutSeed,
     String? bgMode,
     int? bgColor2,
@@ -369,6 +400,9 @@ class CanvasState {
     pageLocks: pageLocks ?? this.pageLocks,
     layoutMode: layoutMode ?? this.layoutMode,
     mosaicStyle: mosaicStyle ?? this.mosaicStyle,
+    filmStyle: filmStyle ?? this.filmStyle,
+    polaroidShadow: polaroidShadow ?? this.polaroidShadow,
+    polaroidDepth: polaroidDepth ?? this.polaroidDepth,
     layoutSeed: layoutSeed ?? this.layoutSeed,
     bgMode: bgMode ?? this.bgMode,
     bgColor2: bgColor2 ?? this.bgColor2,

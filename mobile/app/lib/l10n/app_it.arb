@@ -464,6 +464,30 @@
   "@parMosaico": {
     "description": "Parametro: stile del mosaico"
   },
+  "parStrisce": "Strisce",
+  "@parStrisce": {
+    "description": "Parametro: verso delle strisce della disposizione Pellicola"
+  },
+  "parOmbraPolaroid": "Ombra",
+  "@parOmbraPolaroid": {
+    "description": "Parametro: ombra dei cartoncini della disposizione Polaroid sullo sfondo"
+  },
+  "parRilievo": "Rilievo 3D",
+  "@parRilievo": {
+    "description": "Parametro: rilievo 3D dei cartoncini Polaroid (riflesso, foto incassata, spessore della carta)"
+  },
+  "strisceAutomatico": "Automatico",
+  "@strisceAutomatico": {
+    "description": "Verso delle strisce di pellicola scelto dall'app"
+  },
+  "strisceOrizzontali": "Orizzontali",
+  "@strisceOrizzontali": {
+    "description": "Strisce di pellicola orizzontali"
+  },
+  "strisceVerticali": "Verticali",
+  "@strisceVerticali": {
+    "description": "Strisce di pellicola verticali"
+  },
   "parPagine": "Pagine",
   "@parPagine": {
     "description": "Parametro: numero di pagine"
@@ -549,6 +573,10 @@
   "dispPolaroid": "Polaroid",
   "@dispPolaroid": {
     "description": "Nome di una disposizione (come LAYOUTS del desktop)"
+  },
+  "dispPellicola": "Pellicola",
+  "@dispPellicola": {
+    "description": "Nome di una disposizione (come LAYOUTS del desktop): fotogrammi su strisce di pellicola"
   },
   "dispACavallo": "A cavallo",
   "@dispACavallo": {
@@ -1870,6 +1898,18 @@
   },
   "cambStileMosaico": "Stile mosaico",
   "@cambStileMosaico": {
+    "description": "Nome di un passaggio"
+  },
+  "cambVersoPellicola": "Verso della pellicola",
+  "@cambVersoPellicola": {
+    "description": "Nome di un passaggio"
+  },
+  "cambOmbraPolaroid": "Ombra delle Polaroid",
+  "@cambOmbraPolaroid": {
+    "description": "Nome di un passaggio"
+  },
+  "cambRilievoPolaroid": "Rilievo delle Polaroid",
+  "@cambRilievoPolaroid": {
     "description": "Nome di un passaggio"
   },
   "cambFotoRimescolate": "Foto rimescolate",

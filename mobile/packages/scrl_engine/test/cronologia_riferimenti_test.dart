@@ -58,6 +58,9 @@ String italiano(ChangeLabel l) {
     ChangeKind.layout =>
       'Disposizione: ${_disposizioni[l.layoutMode] ?? l.layoutMode}',
     ChangeKind.mosaicStyle => 'Stile mosaico',
+    ChangeKind.filmStyle => 'Verso della pellicola',
+    ChangeKind.polaroidShadow => 'Ombra delle Polaroid',
+    ChangeKind.polaroidDepth => 'Rilievo delle Polaroid',
     ChangeKind.photosShuffled => 'Foto rimescolate',
     ChangeKind.pageLocks => 'Lucchetto delle pagine',
     ChangeKind.pageSeams => 'Pagine a cavallo',

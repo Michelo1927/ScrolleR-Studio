@@ -1,4 +1,4 @@
-/// Pannello «Disposizione» (piano §4.3 e §4.4): si apre sulle 6 disposizioni (con l'ambito «Tutto il carosello /
+/// Pannello «Disposizione» (piano §4.3 e §4.4): si apre sulle 7 disposizioni (con l'ambito «Tutto il carosello /
 /// Solo questa pagina» sopra); ‹ porta alla griglia di tutte le impostazioni col loro valore: stile del mosaico,
 /// pagine, foto per pagina, foto in questa pagina, spaziatura e margine. L'effetto si vede subito sulla pagina (bozza);
 /// ✓ lo conferma come un solo passo di cronologia, ✕ torna com'era.
@@ -27,7 +27,14 @@ String nomeDisposizione(Testi t, String modo) => switch (modo) {
   LayoutModes.stripsH => t.dispRighe,
   LayoutModes.stripsV => t.dispColonne,
   LayoutModes.scatter => t.dispPolaroid,
+  LayoutModes.film => t.dispPellicola,
   _ => t.dispACavallo,
+};
+
+String _nomeStrisce(Testi t, String verso) => switch (verso) {
+  'horizontal' => t.strisceOrizzontali,
+  'vertical' => t.strisceVerticali,
+  _ => t.strisceAutomatico,
 };
 
 String _nomeStile(Testi t, String stile) => switch (stile) {
@@ -85,6 +92,14 @@ class _PannelloDisposizioneState extends ConsumerState<PannelloDisposizione> {
         ? propria.mode
         : c.layoutMode;
     final proprie = c.pageCounts.length > k ? c.pageCounts[k] : null;
+    // Verso delle strisce: quello della pagina se ha una sua Pellicola, altrimenti quello di tutta la tela
+    final pellicolaPropria =
+        _soloPagina && propria != null && propria.mode == LayoutModes.film;
+    final versoStrisce = pellicolaPropria
+        ? (propria.style == null || propria.style!.isEmpty
+              ? c.filmStyle
+              : propria.style!)
+        : c.filmStyle;
     final totale = stato.snapshot.items.length;
     return Intelaiatura(
       nome: t.strumentoDisposizione,
@@ -169,6 +184,84 @@ class _PannelloDisposizioneState extends ConsumerState<PannelloDisposizione> {
             ],
           ),
         ),
+        if (attuale == LayoutModes.film)
+          SchedaStrumento(
+            etichetta: t.parStrisce,
+            chiave: const ValueKey('disp-scheda-strisce'),
+            valore: _nomeStrisce(t, versoStrisce),
+            modificata: versoStrisce != 'auto',
+            altezza: 88,
+            contenuto: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(
+                horizontal: MisureScrl.spazio,
+              ),
+              children: [
+                for (final v in FilmStyles.all)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: TesseraScelta(
+                      disegno: IconaDisposizione(
+                        v == 'vertical' ? 'film_v' : 'film',
+                        colore: ColoriScrl.testo,
+                      ),
+                      etichetta: _nomeStrisce(t, v),
+                      scelta: versoStrisce == v,
+                      onTap: () => _scegliStrisce(v),
+                      larghezza: 96,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        if (attuale == LayoutModes.scatter) ...[
+          SchedaStrumento(
+            etichetta: t.parOmbraPolaroid,
+            chiave: const ValueKey('disp-scheda-ombra-polaroid'),
+            valore: '${c.polaroidShadow}',
+            modificata: c.polaroidShadow != 0,
+            contenuto: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MisureScrl.spazio,
+              ),
+              child: Center(
+                child: CursoreGrande(
+                  etichetta: t.parOmbraPolaroid,
+                  valore: c.polaroidShadow.toDouble(),
+                  minimo: 0,
+                  massimo: 100,
+                  iniziale: 0,
+                  onCambia: (v) =>
+                      _modifica((s, ctx) => setPolaroidLook(s, ctx, shadow: v)),
+                  onFine: () {},
+                ),
+              ),
+            ),
+          ),
+          SchedaStrumento(
+            etichetta: t.parRilievo,
+            chiave: const ValueKey('disp-scheda-rilievo'),
+            valore: '${c.polaroidDepth}',
+            modificata: c.polaroidDepth != 0,
+            contenuto: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MisureScrl.spazio,
+              ),
+              child: Center(
+                child: CursoreGrande(
+                  etichetta: t.parRilievo,
+                  valore: c.polaroidDepth.toDouble(),
+                  minimo: 0,
+                  massimo: 100,
+                  iniziale: 0,
+                  onCambia: (v) =>
+                      _modifica((s, ctx) => setPolaroidLook(s, ctx, depth: v)),
+                  onFine: () {},
+                ),
+              ),
+            ),
+          ),
+        ],
         SchedaStrumento(
           etichetta: t.parPagine,
           chiave: const ValueKey('disp-scheda-pagine'),
@@ -296,6 +389,18 @@ class _PannelloDisposizioneState extends ConsumerState<PannelloDisposizione> {
         ),
       ],
     );
+  }
+
+  void _scegliStrisce(String verso) {
+    final stato = ref.read(editorProvider);
+    final k = stato.pagina;
+    final pl = stato.snapshot.canvas.pageLayouts;
+    final propria = pl.length > k ? pl[k] : null;
+    if (_soloPagina && propria != null && propria.mode == LayoutModes.film) {
+      _modifica((s, ctx) => setPageLayout(s, k, LayoutModes.film, ctx, verso));
+    } else {
+      _modifica((s, ctx) => setFilmStyle(s, verso, ctx));
+    }
   }
 
   void _scegliDisposizione(String modo) {

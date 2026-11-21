@@ -345,6 +345,24 @@ class TestiIt extends Testi {
   String get parMosaico => 'Mosaico';
 
   @override
+  String get parStrisce => 'Strisce';
+
+  @override
+  String get parOmbraPolaroid => 'Ombra';
+
+  @override
+  String get parRilievo => 'Rilievo 3D';
+
+  @override
+  String get strisceAutomatico => 'Automatico';
+
+  @override
+  String get strisceOrizzontali => 'Orizzontali';
+
+  @override
+  String get strisceVerticali => 'Verticali';
+
+  @override
   String get parPagine => 'Pagine';
 
   @override
@@ -411,6 +429,9 @@ class TestiIt extends Testi {
 
   @override
   String get dispPolaroid => 'Polaroid';
+
+  @override
+  String get dispPellicola => 'Pellicola';
 
   @override
   String get dispACavallo => 'A cavallo';
@@ -1377,6 +1398,15 @@ class TestiIt extends Testi {
 
   @override
   String get cambStileMosaico => 'Stile mosaico';
+
+  @override
+  String get cambVersoPellicola => 'Verso della pellicola';
+
+  @override
+  String get cambOmbraPolaroid => 'Ombra delle Polaroid';
+
+  @override
+  String get cambRilievoPolaroid => 'Rilievo delle Polaroid';
 
   @override
   String get cambFotoRimescolate => 'Foto rimescolate';

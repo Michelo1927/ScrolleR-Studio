@@ -51,7 +51,8 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         ("mosaic", "Mosaico", "Una foto grande in evidenza e le altre in griglia"),
         ("strips_h", "Righe", "Una foto per riga, a tutta larghezza"),
         ("strips_v", "Colonne", "Una foto per colonna, a tutta altezza"),
-        ("scatter", "Polaroid", "Foto sparse e leggermente inclinate, con bordo bianco"),
+        ("scatter", "Polaroid", "Foto sparse e leggermente inclinate, nel cartoncino bianco delle Polaroid"),
+        ("film", "Pellicola", "Fotogrammi su strisce di pellicola fotografica, con le perforazioni"),
         ("scrl_seam", "A cavallo", "Righe continue su tutto il carosello: ogni giunzione tra le pagine\n"
                                     "è attraversata da una foto, così scorrendo le pagine restano legate"),
     ]
@@ -65,6 +66,11 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         ("two", "Due grandi", "Le prime due foto grandi affiancate, le altre in griglia"),
         ("masonry", "Muratura", "Colonne con foto di altezze diverse, sfalsate (stile Pinterest)"),
     ]
+    FILM_STYLES = [
+        ("auto", "Automatico", "Il verso che taglia meno le foto e riempie meglio la pagina"),
+        ("horizontal", "Orizzontali", "Strisce orizzontali, con le perforazioni sopra e sotto"),
+        ("vertical", "Verticali", "Strisce verticali, con le perforazioni ai lati"),
+    ]
     HISTORY_LIMIT = 100
 
     def __init__(self):
@@ -75,8 +81,9 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self.setWindowIcon(app_icon())
 
         self.loaded_library: List[str] = []
-        self.current_layout_mode = "grid"  # "grid", "mosaic", "strips_h", "strips_v", "scatter", "scrl_seam"
+        self.current_layout_mode = "grid"  # "grid", "mosaic", "strips_h", "strips_v", "scatter", "film", "scrl_seam"
         self.mosaic_style = "auto"  # chiave di MOSAIC_STYLES
+        self.film_style = "auto"  # chiave di FILM_STYLES
         self._layout_seed = random.randrange(1 << 30)
         # Pagine aggiunte in automatico da "A cavallo": (pagine di prima, pagine impostate dal layout)
         self._seam_added_frames: Optional[Tuple[int, int]] = None

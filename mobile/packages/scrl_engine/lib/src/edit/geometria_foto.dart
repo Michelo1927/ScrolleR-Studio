@@ -7,6 +7,7 @@ library;
 
 import 'dart:math' as math;
 
+import '../model/canvas_state.dart';
 import '../model/elements.dart';
 import '../util/py.dart';
 
@@ -50,6 +51,9 @@ class Affine {
   ];
 }
 
+/// Opacità (0..255) di un pezzo del rilievo delle Polaroid: `round(255 * k * depth)` del desktop.
+int alfaRilievo(double k, double depth) => pyRound(255 * k * depth);
+
 /// Intersezione di due rettangoli (vuoto = larghezza o altezza 0).
 Rect intersectRect(Rect a, Rect b) {
   final l = math.max(a.left, b.left), t = math.max(a.top, b.top);
@@ -67,20 +71,82 @@ extension GeometriaFoto on PhotoItem {
     (crop[3] - crop[1]) * imgH,
   );
 
-  /// `_rotated_cell_extent`: ingombro della cella nel sistema ruotato dell'immagine.
+  /// `frame_insets`: spessori della cornice (sinistra, alto, destra, basso), in misure della tela.
+  (double, double, double, double) frameInsets() {
+    switch (frame) {
+      case 'polaroid':
+        final m = math.min(w, h);
+        return (
+          polaroidSide * m,
+          polaroidTop * m,
+          polaroidSide * m,
+          polaroidBottom * m,
+        );
+      case 'film':
+        return (filmSide * h, filmBand * h, filmSide * h, filmBand * h);
+      case 'film_v':
+        return (filmBand * w, filmSide * w, filmBand * w, filmSide * w);
+    }
+    return (0.0, 0.0, 0.0, 0.0);
+  }
+
+  /// `window_rect`: parte della cella in cui si vede la foto (tutta, o la finestra della cornice).
+  Rect windowRect() {
+    final (l, t, r, b) = frameInsets();
+    return Rect(l, t, math.max(0.0, w - l - r), math.max(0.0, h - t - b));
+  }
+
+  /// `film_holes`: perforazioni di un fotogramma di pellicola, distribuite lungo il fotogramma, così
+  /// fotogrammi attaccati formano una striscia continua.
+  List<Rect> filmHoles() {
+    if (frame != 'film' && frame != 'film_v') return const [];
+    final vertical = frame == 'film_v';
+    final thick = vertical ? w : h, length = vertical ? h : w;
+    final count = math.max(1, pyRound(length / (filmPitch * thick)));
+    final pitch = length / count;
+    final along = math.min(filmHoleLong * thick, pitch * 0.6);
+    final across = filmHoleShort * thick;
+    final holes = <Rect>[];
+    for (var i = 0; i < count; i++) {
+      final a = (i + 0.5) * pitch - along / 2.0;
+      for (final c in [
+        filmBand * thick / 2.0,
+        thick - filmBand * thick / 2.0,
+      ]) {
+        final b = c - across / 2.0;
+        holes.add(
+          vertical ? Rect(b, a, across, along) : Rect(a, b, along, across),
+        );
+      }
+    }
+    return holes;
+  }
+
+  /// `_rotated_cell_extent`: ingombro della cella (o della finestra della cornice) nel sistema ruotato
+  /// dell'immagine.
   (double, double) rotatedCellExtent() {
     final th = innerRotation * math.pi / 180.0;
     final c = math.cos(th).abs(), s = math.sin(th).abs();
-    return (w * c + h * s, w * s + h * c);
+    final win = windowRect();
+    return (win.w * c + win.h * s, win.w * s + win.h * c);
   }
 
-  /// `_image_transform`: dal sistema dell'immagine (origine al centro, assi ruotati) alla cella.
+  /// `_image_transform`: dal sistema dell'immagine (origine al centro della cella o della finestra della
+  /// cornice, assi ruotati) alla cella.
   Affine imageTransform() {
     final th = innerRotation * math.pi / 180.0;
     final cs = math.cos(th), sn = math.sin(th);
     final sx = flipH ? -1.0 : 1.0, sy = flipV ? -1.0 : 1.0;
-    // translate(w/2, h/2) · rotate(θ) · scale(sx, sy)
-    return Affine(cs * sx, sn * sx, -sn * sy, cs * sy, w / 2.0, h / 2.0);
+    final win = windowRect();
+    // translate(centro della finestra) · rotate(θ) · scale(sx, sy)
+    return Affine(
+      cs * sx,
+      sn * sx,
+      -sn * sy,
+      cs * sy,
+      win.x + win.w / 2.0,
+      win.y + win.h / 2.0,
+    );
   }
 
   /// `_cover_geometry`: scala e rettangolo di disegno per «cover» (riempie) o «contain» (foto intera),
@@ -93,7 +159,8 @@ extension GeometriaFoto on PhotoItem {
       final th = innerRotation * math.pi / 180.0;
       final c = math.cos(th).abs(), s = math.sin(th).abs();
       final boxW = imgW * c + imgH * s, boxH = imgW * s + imgH * c;
-      scaleCover = math.min(w / boxW, h / boxH) * innerZoom;
+      final win = windowRect();
+      scaleCover = math.min(win.w / boxW, win.h / boxH) * innerZoom;
     } else {
       scaleCover = math.max(needW / imgW, needH / imgH) * innerZoom;
     }
@@ -116,9 +183,10 @@ extension GeometriaFoto on PhotoItem {
     return coverGeometry(src.w, src.h);
   }
 
-  /// `_visible_image_rect`: parte della cella coperta dalla foto (con «contain» resta fuori lo spazio vuoto).
+  /// `_visible_image_rect`: parte della cella (o della finestra della cornice) coperta dalla foto (con
+  /// «contain» resta fuori lo spazio vuoto).
   Rect visibleImageRect(int imgW, int imgH) {
-    final cell = Rect(0, 0, w, h);
+    final cell = windowRect();
     if (imgW <= 0 || imgH <= 0) return cell;
     final g = coverFor(imgW, imgH);
     return intersectRect(
@@ -129,6 +197,17 @@ extension GeometriaFoto on PhotoItem {
 
   /// Raggio effettivo degli angoli (`min(border_radius, w/2, h/2)`).
   double get cornerRadius => math.min(borderRadius, math.min(w / 2.0, h / 2.0));
+
+  /// `effective_shadow`: l'ombra della foto o, per le Polaroid, quella della disposizione se è più forte.
+  int ombraEffettiva(CanvasState c) =>
+      frame == 'polaroid' ? math.max(shadow, c.polaroidShadow) : shadow;
+
+  /// `polaroid_depth`: rilievo 3D delle Polaroid (0..1), dalla disposizione; 0 per le altre foto.
+  double rilievo(CanvasState c) =>
+      frame == 'polaroid' ? c.polaroidDepth.clamp(0, 100) / 100.0 : 0.0;
+
+  /// `_depth_edge`: spessore del filo sul bordo del cartoncino e della finestra.
+  double get spessoreRilievo => math.max(0.8, 0.004 * math.min(w, h));
 
   /// `_shadow_extent`.
   double get shadowExtent => shadow <= 0 ? 0.0 : math.min(w, h) * 0.05 + 8.0;

@@ -18,6 +18,9 @@
   "page_locks": [],
   "layout_mode": "scrl_seam",
   "mosaic_style": "auto",
+  "film_style": "auto",
+  "polaroid_shadow": 0,
+  "polaroid_depth": 0,
   "layout_seed": 12345,
   "bg_mode": "solid",
   "bg_color2": "#ff2680eb",
@@ -54,7 +57,7 @@
  ],
  "items": [
   {
-   "uid": 13247,
+   "uid": 14924,
    "path": "foto_01.png",
    "x": 24.0,
    "y": 24.0,
@@ -78,6 +81,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -106,7 +110,7 @@
    "rel": "foto_01.png"
   },
   {
-   "uid": 13248,
+   "uid": 14925,
    "path": "foto_02.png",
    "x": 750.27,
    "y": 24.0,
@@ -130,6 +134,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -158,7 +163,7 @@
    "rel": "foto_02.png"
   },
   {
-   "uid": 13249,
+   "uid": 14926,
    "path": "foto_03.png",
    "x": 2158.0,
    "y": 24.0,
@@ -182,6 +187,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -210,7 +216,7 @@
    "rel": "foto_03.png"
   },
   {
-   "uid": 13250,
+   "uid": 14927,
    "path": "foto_04.png",
    "x": 24.0,
    "y": 865.47,
@@ -234,6 +240,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -262,7 +269,7 @@
    "rel": "foto_04.png"
   },
   {
-   "uid": 13251,
+   "uid": 14928,
    "path": "foto_05.png",
    "x": 1185.492,
    "y": 865.47,
@@ -286,6 +293,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -314,7 +322,7 @@
    "rel": "foto_05.png"
   },
   {
-   "uid": 13252,
+   "uid": 14929,
    "path": "foto_06.png",
    "x": 1563.932,
    "y": 865.47,
@@ -338,6 +346,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -366,7 +375,7 @@
    "rel": "foto_06.png"
   },
   {
-   "uid": 13253,
+   "uid": 14930,
    "path": "foto_07.png",
    "x": 2158.0,
    "y": 865.47,
@@ -390,6 +399,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -418,7 +428,7 @@
    "rel": "foto_07.png"
   },
   {
-   "uid": 13254,
+   "uid": 14931,
    "path": "foto_08.png",
    "x": 24.0,
    "y": 1443.104,
@@ -442,6 +452,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -470,7 +481,7 @@
    "rel": "foto_08.png"
   },
   {
-   "uid": 13255,
+   "uid": 14932,
    "path": "foto_09.png",
    "x": 1385.011,
    "y": 1443.104,
@@ -494,6 +505,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -522,7 +534,7 @@
    "rel": "foto_09.png"
   },
   {
-   "uid": 13256,
+   "uid": 14933,
    "path": "foto_10.png",
    "x": 1706.695,
    "y": 1443.104,
@@ -546,6 +558,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,
@@ -574,7 +587,7 @@
    "rel": "foto_10.png"
   },
   {
-   "uid": 13257,
+   "uid": 14934,
    "path": "foto_11.png",
    "x": 2486.905,
    "y": 1443.104,
@@ -598,6 +611,7 @@
    "border_width": 0.0,
    "border_color": "#ffffffff",
    "auto_border": false,
+   "frame": "",
    "adjust": {
     "brightness": 0,
     "contrast": 0,

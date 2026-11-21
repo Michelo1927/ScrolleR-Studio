@@ -23,6 +23,9 @@
     "page_locks": [],
     "layout_mode": "mosaic",
     "mosaic_style": "auto",
+    "film_style": "auto",
+    "polaroid_shadow": 0,
+    "polaroid_depth": 0,
     "layout_seed": 12345,
     "bg_mode": "solid",
     "bg_color2": "#ff2680eb",
@@ -40,7 +43,7 @@
    },
    "items": [
     {
-     "uid": 9014,
+     "uid": 10674,
      "rel": "foto_01.png",
      "x": 0.0,
      "y": 0.0,
@@ -60,6 +63,7 @@
      "page_locked": false,
      "border_width": 0.0,
      "auto_border": false,
+     "frame": "",
      "image": [
       600,
       800
@@ -67,7 +71,7 @@
      "ratio": 0.75
     },
     {
-     "uid": 9015,
+     "uid": 10675,
      "rel": "foto_02.png",
      "x": 0.0,
      "y": 0.0,
@@ -87,6 +91,7 @@
      "page_locked": false,
      "border_width": 0.0,
      "auto_border": false,
+     "frame": "",
      "image": [
       800,
       600
@@ -94,7 +99,7 @@
      "ratio": 1.333333
     },
     {
-     "uid": 9016,
+     "uid": 10676,
      "rel": "foto_03.png",
      "x": 0.0,
      "y": 0.0,
@@ -114,6 +119,7 @@
      "page_locked": false,
      "border_width": 0.0,
      "auto_border": false,
+     "frame": "",
      "image": [
       600,
       600
@@ -121,7 +127,7 @@
      "ratio": 1.0
     },
     {
-     "uid": 9017,
+     "uid": 10677,
      "rel": "foto_04.png",
      "x": 0.0,
      "y": 0.0,
@@ -141,6 +147,7 @@
      "page_locked": false,
      "border_width": 0.0,
      "auto_border": false,
+     "frame": "",
      "image": [
       960,
       540
@@ -148,7 +155,7 @@
      "ratio": 1.777778
     },
     {
-     "uid": 9018,
+     "uid": 10678,
      "rel": "foto_05.png",
      "x": 0.0,
      "y": 0.0,
@@ -168,6 +175,7 @@
      "page_locked": false,
      "border_width": 0.0,
      "auto_border": false,
+     "frame": "",
      "image": [
       540,
       960
@@ -175,7 +183,7 @@
      "ratio": 0.5625
     },
     {
-     "uid": 9019,
+     "uid": 10679,
      "rel": "foto_06.png",
      "x": 0.0,
      "y": 0.0,
@@ -195,6 +203,7 @@
      "page_locked": false,
      "border_width": 0.0,
      "auto_border": false,
+     "frame": "",
      "image": [
       600,
       900
@@ -202,7 +211,7 @@
      "ratio": 0.666667
     },
     {
-     "uid": 9020,
+     "uid": 10680,
      "rel": "foto_07.png",
      "x": 0.0,
      "y": 0.0,
@@ -222,6 +231,7 @@
      "page_locked": false,
      "border_width": 0.0,
      "auto_border": false,
+     "frame": "",
      "image": [
       900,
       600
@@ -229,7 +239,7 @@
      "ratio": 1.5
     },
     {
-     "uid": 9021,
+     "uid": 10681,
      "rel": "foto_08.png",
      "x": 0.0,
      "y": 0.0,
@@ -249,6 +259,7 @@
      "page_locked": false,
      "border_width": 0.0,
      "auto_border": false,
+     "frame": "",
      "image": [
       1200,
       400
@@ -256,7 +267,7 @@
      "ratio": 3.0
     },
     {
-     "uid": 9022,
+     "uid": 10682,
      "rel": "foto_09.png",
      "x": 0.0,
      "y": 0.0,
@@ -276,6 +287,7 @@
      "page_locked": false,
      "border_width": 0.0,
      "auto_border": false,
+     "frame": "",
      "image": [
       400,
       1200
@@ -300,94 +312,103 @@
    },
    "items": [
     {
-     "uid": 9014,
+     "uid": 10674,
      "x": 24.0,
      "y": 24.0,
      "w": 505.945946,
      "h": 501.628278,
      "rotation": 0.0,
      "border_width": 0.0,
-     "auto_border": false
+     "auto_border": false,
+     "frame": ""
     },
     {
-     "uid": 9015,
+     "uid": 10675,
      "x": 545.945946,
      "y": 24.0,
      "w": 899.459459,
      "h": 501.628278,
      "rotation": 0.0,
      "border_width": 0.0,
-     "auto_border": false
+     "auto_border": false,
+     "frame": ""
     },
     {
-     "uid": 9016,
+     "uid": 10676,
      "x": 1461.405405,
      "y": 24.0,
      "w": 674.594595,
      "h": 501.628278,
      "rotation": 0.0,
      "border_width": 0.0,
-     "auto_border": false
+     "auto_border": false,
+     "frame": ""
     },
     {
-     "uid": 9017,
+     "uid": 10677,
      "x": 24.0,
      "y": 541.628278,
      "w": 1229.745958,
      "h": 514.371722,
      "rotation": 0.0,
      "border_width": 0.0,
-     "auto_border": false
+     "auto_border": false,
+     "frame": ""
     },
     {
-     "uid": 9018,
+     "uid": 10678,
      "x": 1269.745958,
      "y": 541.628278,
      "w": 389.099307,
      "h": 514.371722,
      "rotation": 0.0,
      "border_width": 0.0,
-     "auto_border": false
+     "auto_border": false,
+     "frame": ""
     },
     {
-     "uid": 9019,
+     "uid": 10679,
      "x": 1674.845266,
      "y": 541.628278,
      "w": 461.154734,
      "h": 514.371722,
      "rotation": 0.0,
      "border_width": 0.0,
-     "auto_border": false
+     "auto_border": false,
+     "frame": ""
     },
     {
-     "uid": 9020,
+     "uid": 10680,
      "x": 2184.0,
      "y": 24.0,
      "w": 1032.0,
      "h": 558.8,
      "rotation": 0.0,
      "border_width": 0.0,
-     "auto_border": false
+     "auto_border": false,
+     "frame": ""
     },
     {
-     "uid": 9021,
+     "uid": 10681,
      "x": 2184.0,
      "y": 598.8,
      "w": 508.0,
      "h": 457.2,
      "rotation": 0.0,
      "border_width": 0.0,
-     "auto_border": false
+     "auto_border": false,
+     "frame": ""
     },
     {
-     "uid": 9022,
+     "uid": 10682,
      "x": 2708.0,
      "y": 598.8,
      "w": 508.0,
      "h": 457.2,
      "rotation": 0.0,
      "border_width": 0.0,
-     "auto_border": false
+     "auto_border": false,
+     "frame": ""
     }
    ]
   }
@@ -414,6 +435,9 @@
    "page_locks": [],
    "layout_mode": "mosaic",
    "mosaic_style": "auto",
+   "film_style": "auto",
+   "polaroid_shadow": 0,
+   "polaroid_depth": 0,
    "layout_seed": 12345,
    "bg_mode": "solid",
    "bg_color2": "#ff2680eb",
@@ -432,7 +456,7 @@
   },
   "items": [
    {
-    "uid": 9014,
+    "uid": 10674,
     "path": "foto_01.png",
     "x": 24.0,
     "y": 24.0,
@@ -456,6 +480,7 @@
     "border_width": 0.0,
     "border_color": "#ffffffff",
     "auto_border": false,
+    "frame": "",
     "adjust": {
      "brightness": 0,
      "contrast": 0,
@@ -484,7 +509,7 @@
     "rel": "foto_01.png"
    },
    {
-    "uid": 9015,
+    "uid": 10675,
     "path": "foto_02.png",
     "x": 545.946,
     "y": 24.0,
@@ -508,6 +533,7 @@
     "border_width": 0.0,
     "border_color": "#ffffffff",
     "auto_border": false,
+    "frame": "",
     "adjust": {
      "brightness": 0,
      "contrast": 0,
@@ -536,7 +562,7 @@
     "rel": "foto_02.png"
    },
    {
-    "uid": 9016,
+    "uid": 10676,
     "path": "foto_03.png",
     "x": 1461.405,
     "y": 24.0,
@@ -560,6 +586,7 @@
     "border_width": 0.0,
     "border_color": "#ffffffff",
     "auto_border": false,
+    "frame": "",
     "adjust": {
      "brightness": 0,
      "contrast": 0,
@@ -588,7 +615,7 @@
     "rel": "foto_03.png"
    },
    {
-    "uid": 9017,
+    "uid": 10677,
     "path": "foto_04.png",
     "x": 24.0,
     "y": 541.628,
@@ -612,6 +639,7 @@
     "border_width": 0.0,
     "border_color": "#ffffffff",
     "auto_border": false,
+    "frame": "",
     "adjust": {
      "brightness": 0,
      "contrast": 0,
@@ -640,7 +668,7 @@
     "rel": "foto_04.png"
    },
    {
-    "uid": 9018,
+    "uid": 10678,
     "path": "foto_05.png",
     "x": 1269.746,
     "y": 541.628,
@@ -664,6 +692,7 @@
     "border_width": 0.0,
     "border_color": "#ffffffff",
     "auto_border": false,
+    "frame": "",
     "adjust": {
      "brightness": 0,
      "contrast": 0,
@@ -692,7 +721,7 @@
     "rel": "foto_05.png"
    },
    {
-    "uid": 9019,
+    "uid": 10679,
     "path": "foto_06.png",
     "x": 1674.845,
     "y": 541.628,
@@ -716,6 +745,7 @@
     "border_width": 0.0,
     "border_color": "#ffffffff",
     "auto_border": false,
+    "frame": "",
     "adjust": {
      "brightness": 0,
      "contrast": 0,
@@ -744,7 +774,7 @@
     "rel": "foto_06.png"
    },
    {
-    "uid": 9020,
+    "uid": 10680,
     "path": "foto_07.png",
     "x": 2184.0,
     "y": 24.0,
@@ -768,6 +798,7 @@
     "border_width": 0.0,
     "border_color": "#ffffffff",
     "auto_border": false,
+    "frame": "",
     "adjust": {
      "brightness": 0,
      "contrast": 0,
@@ -796,7 +827,7 @@
     "rel": "foto_07.png"
    },
    {
-    "uid": 9021,
+    "uid": 10681,
     "path": "foto_08.png",
     "x": 2184.0,
     "y": 598.8,
@@ -820,6 +851,7 @@
     "border_width": 0.0,
     "border_color": "#ffffffff",
     "auto_border": false,
+    "frame": "",
     "adjust": {
      "brightness": 0,
      "contrast": 0,
@@ -848,7 +880,7 @@
     "rel": "foto_08.png"
    },
    {
-    "uid": 9022,
+    "uid": 10682,
     "path": "foto_09.png",
     "x": 2708.0,
     "y": 598.8,
@@ -872,6 +904,7 @@
     "border_width": 0.0,
     "border_color": "#ffffffff",
     "auto_border": false,
+    "frame": "",
     "adjust": {
      "brightness": 0,
      "contrast": 0,

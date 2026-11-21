@@ -48,6 +48,32 @@ EngineResult setMosaicStyle(Snapshot s, String style, EngineContext ctx) {
   return EngineResult.done(sc);
 }
 
+/// `_on_film_style_changed`: verso delle strisce di «Pellicola», ridispone se la disposizione è Pellicola.
+EngineResult setFilmStyle(Snapshot s, String style, EngineContext ctx) {
+  final sc = Scene(s, ctx);
+  sc.filmStyle = FilmStyles.all.contains(style) ? style : 'auto';
+  if (sc.layoutMode == LayoutModes.film) relayoutKeep(sc);
+  return EngineResult.done(sc);
+}
+
+/// `_on_polaroid_look_changed`: ombra e rilievo dei cartoncini Polaroid (0–100). Cambia solo il disegno:
+/// le foto restano dove sono.
+EngineResult setPolaroidLook(
+  Snapshot s,
+  EngineContext ctx, {
+  int? shadow,
+  int? depth,
+}) {
+  final sc = Scene(s, ctx);
+  final dopo = sc.toSnapshot(
+    canvas: (c) => c.copyWith(
+      polaroidShadow: shadow?.clamp(0, 100),
+      polaroidDepth: depth?.clamp(0, 100),
+    ),
+  );
+  return EngineResult(dopo, notices: sc.notices);
+}
+
 /// Spaziatura (0–80) e margine (0–120): ridispone come gli slider del desktop.
 EngineResult setSpacing(
   Snapshot s,

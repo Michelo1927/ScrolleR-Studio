@@ -152,6 +152,38 @@ class PanelsMixin:
         self.mosaic_style_box.setVisible(False)
         lay.addWidget(self.mosaic_style_box)
 
+        # Pellicola: verso delle strisce
+        self.film_style_box = QWidget()
+        fs = QHBoxLayout(self.film_style_box)
+        fs.setContentsMargins(0, 2, 0, 0)
+        fs.setSpacing(8)
+        fs.addWidget(self._label("Strisce", "FieldLabel"))
+        self.combo_film = QComboBox()
+        self.combo_film.setIconSize(QSize(18, 18))
+        for key, text, tip in self.FILM_STYLES:
+            self.combo_film.addItem(make_icon("film_v" if key == "vertical" else "film", THEME["text"], 18), text, key)
+            self.combo_film.setItemData(self.combo_film.count() - 1, tip, Qt.ItemDataRole.ToolTipRole)
+        self.combo_film.setToolTip("Verso delle strisce di pellicola")
+        self.combo_film.currentIndexChanged.connect(self._on_film_style_changed)
+        fs.addWidget(self.combo_film, 1)
+        self.film_style_box.setVisible(False)
+        lay.addWidget(self.film_style_box)
+
+        # Polaroid: ombra sullo sfondo e rilievo 3D dei cartoncini
+        self.polaroid_box = QWidget()
+        pl = QVBoxLayout(self.polaroid_box)
+        pl.setContentsMargins(0, 2, 0, 0)
+        pl.setSpacing(6)
+        self.slider_polaroid_shadow = self._make_slider(pl, "Ombra delle Polaroid", 0, 100, 0, resettable=True)
+        self.slider_polaroid_shadow.setToolTip("Ombra morbida dei cartoncini sullo sfondo")
+        self.slider_polaroid_shadow.valueChanged.connect(self._on_polaroid_look_changed)
+        self.slider_polaroid_depth = self._make_slider(pl, "Rilievo 3D", 0, 100, 0, resettable=True)
+        self.slider_polaroid_depth.setToolTip("Riflesso lucido sulla foto, foto incassata nel cartoncino e\n"
+                                              "spessore della carta: le Polaroid sembrano vere")
+        self.slider_polaroid_depth.valueChanged.connect(self._on_polaroid_look_changed)
+        self.polaroid_box.setVisible(False)
+        lay.addWidget(self.polaroid_box)
+
         self.chk_per_frame = ToggleSwitch("Una disposizione per ogni pagina")
         self.chk_per_frame.setChecked(True)
         self.chk_per_frame.setToolTip(

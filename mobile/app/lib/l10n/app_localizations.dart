@@ -631,6 +631,42 @@ abstract class Testi {
   /// **'Mosaico'**
   String get parMosaico;
 
+  /// Parametro: verso delle strisce della disposizione Pellicola
+  ///
+  /// In it, this message translates to:
+  /// **'Strisce'**
+  String get parStrisce;
+
+  /// Parametro: ombra dei cartoncini della disposizione Polaroid sullo sfondo
+  ///
+  /// In it, this message translates to:
+  /// **'Ombra'**
+  String get parOmbraPolaroid;
+
+  /// Parametro: rilievo 3D dei cartoncini Polaroid (riflesso, foto incassata, spessore della carta)
+  ///
+  /// In it, this message translates to:
+  /// **'Rilievo 3D'**
+  String get parRilievo;
+
+  /// Verso delle strisce di pellicola scelto dall'app
+  ///
+  /// In it, this message translates to:
+  /// **'Automatico'**
+  String get strisceAutomatico;
+
+  /// Strisce di pellicola orizzontali
+  ///
+  /// In it, this message translates to:
+  /// **'Orizzontali'**
+  String get strisceOrizzontali;
+
+  /// Strisce di pellicola verticali
+  ///
+  /// In it, this message translates to:
+  /// **'Verticali'**
+  String get strisceVerticali;
+
   /// Parametro: numero di pagine
   ///
   /// In it, this message translates to:
@@ -750,6 +786,12 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Polaroid'**
   String get dispPolaroid;
+
+  /// Nome di una disposizione (come LAYOUTS del desktop): fotogrammi su strisce di pellicola
+  ///
+  /// In it, this message translates to:
+  /// **'Pellicola'**
+  String get dispPellicola;
 
   /// Nome di una disposizione (come LAYOUTS del desktop)
   ///
@@ -2436,6 +2478,24 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Stile mosaico'**
   String get cambStileMosaico;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Verso della pellicola'**
+  String get cambVersoPellicola;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Ombra delle Polaroid'**
+  String get cambOmbraPolaroid;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'Rilievo delle Polaroid'**
+  String get cambRilievoPolaroid;
 
   /// Nome di un passaggio
   ///
