@@ -238,6 +238,11 @@ class TestiEn extends Testi {
   }
 
   @override
+  String videoNumero(int n) {
+    return 'Video $n';
+  }
+
+  @override
   String aggiungiNFoto(int n) {
     String _temp0 = intl.Intl.pluralLogic(
       n,
@@ -462,12 +467,28 @@ class TestiEn extends Testi {
   String get stileMuratura => 'Masonry';
 
   @override
-  String libreriaTitolo(int n) {
+  String libreriaTitolo(String conteggio) {
+    return 'Library · $conteggio';
+  }
+
+  @override
+  String contaFoto(int n) {
     String _temp0 = intl.Intl.pluralLogic(
       n,
       locale: localeName,
-      other: 'Library · $n photos',
-      one: 'Library · 1 photo',
+      other: '$n photos',
+      one: '1 photo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String contaVideo(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n videos',
+      one: '1 video',
     );
     return '$_temp0';
   }
@@ -484,7 +505,23 @@ class TestiEn extends Testi {
   }
 
   @override
-  String get libreriaVuota => 'Add photos from your phone';
+  String videoScelti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n videos selected',
+      one: '1 video selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mediaScelti(String conteggio) {
+    return '$conteggio selected';
+  }
+
+  @override
+  String get libreriaVuota => 'Add photos and videos from your phone';
 
   @override
   String get aggiungiDalTelefono => 'Add from phone';
@@ -493,16 +530,16 @@ class TestiEn extends Testi {
   String get aggiungiAllaTela => 'Add to canvas';
 
   @override
-  String get comeFotoLibera => 'As free photo';
+  String get comeFotoLibera => 'Outside the layout';
 
   @override
-  String get soloQueste => 'Only these';
+  String get soloQueste => 'Only the selection';
 
   @override
   String get rimuoviDallaLibreria => 'Remove from library';
 
   @override
-  String get mettiTutte => 'Put all';
+  String get mettiTutte => 'Put everything';
 
   @override
   String get svuotaTela => 'Clear canvas';
@@ -528,6 +565,22 @@ class TestiEn extends Testi {
       one: '1 photo added',
     );
     return '$_temp0';
+  }
+
+  @override
+  String avvisoVideoAggiunti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n videos added',
+      one: '1 video added',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String avvisoMediaAggiunti(String conteggio) {
+    return '$conteggio added';
   }
 
   @override

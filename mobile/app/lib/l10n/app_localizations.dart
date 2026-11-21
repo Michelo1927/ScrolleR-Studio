@@ -463,6 +463,12 @@ abstract class Testi {
   /// **'Foto {n}'**
   String fotoNumero(int n);
 
+  /// Etichetta di una miniatura video
+  ///
+  /// In it, this message translates to:
+  /// **'Video {n}'**
+  String videoNumero(int n);
+
   /// Pulsante che aggiunge le foto scelte
   ///
   /// In it, this message translates to:
@@ -847,11 +853,23 @@ abstract class Testi {
   /// **'Muratura'**
   String get stileMuratura;
 
-  /// Titolo del pannello Foto
+  /// Titolo del pannello Foto: «Libreria · 6 foto · 2 video»
   ///
   /// In it, this message translates to:
-  /// **'{n, plural, =1{Libreria · 1 foto} other{Libreria · {n} foto}}'**
-  String libreriaTitolo(int n);
+  /// **'Libreria · {conteggio}'**
+  String libreriaTitolo(String conteggio);
+
+  /// Numero di foto nei conteggi della libreria
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 foto} other{{n} foto}}'**
+  String contaFoto(int n);
+
+  /// Numero di video nei conteggi della libreria
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 video} other{{n} video}}'**
+  String contaVideo(int n);
 
   /// Titolo del pannello Foto con una selezione
   ///
@@ -859,10 +877,22 @@ abstract class Testi {
   /// **'{n, plural, =1{1 foto scelta} other{{n} foto scelte}}'**
   String fotoScelte(int n);
 
+  /// Titolo del pannello Foto con solo video scelti
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 video scelto} other{{n} video scelti}}'**
+  String videoScelti(int n);
+
+  /// Titolo del pannello Foto con foto e video scelti
+  ///
+  /// In it, this message translates to:
+  /// **'{conteggio} scelti'**
+  String mediaScelti(String conteggio);
+
   /// Libreria vuota
   ///
   /// In it, this message translates to:
-  /// **'Aggiungi le foto dal telefono'**
+  /// **'Aggiungi foto e video dal telefono'**
   String get libreriaVuota;
 
   /// Azione della libreria
@@ -877,16 +907,16 @@ abstract class Testi {
   /// **'Aggiungi alla tela'**
   String get aggiungiAllaTela;
 
-  /// Azione della libreria
+  /// Azione della libreria: aggiunge la selezione come elementi liberi
   ///
   /// In it, this message translates to:
-  /// **'Come foto libera'**
+  /// **'Fuori dalla disposizione'**
   String get comeFotoLibera;
 
-  /// Azione della libreria: sostituisce le foto sulla tela
+  /// Azione della libreria: sostituisce quello che c'è sulla tela con la selezione
   ///
   /// In it, this message translates to:
-  /// **'Solo queste'**
+  /// **'Solo la selezione'**
   String get soloQueste;
 
   /// Azione della libreria
@@ -895,10 +925,10 @@ abstract class Testi {
   /// **'Rimuovi dalla libreria'**
   String get rimuoviDallaLibreria;
 
-  /// Azione della libreria: tutte le foto sulla tela
+  /// Azione della libreria: tutta la libreria sulla tela
   ///
   /// In it, this message translates to:
-  /// **'Metti tutte'**
+  /// **'Metti tutto'**
   String get mettiTutte;
 
   /// Azione della libreria
@@ -936,6 +966,18 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'{n, plural, =1{1 foto aggiunta} other{{n} foto aggiunte}}'**
   String avvisoFotoAggiunte(int n);
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{1 video aggiunto} other{{n} video aggiunti}}'**
+  String avvisoVideoAggiunti(int n);
+
+  /// Messaggio breve: foto e video aggiunti insieme
+  ///
+  /// In it, this message translates to:
+  /// **'{conteggio} aggiunti'**
+  String avvisoMediaAggiunti(String conteggio);
 
   /// Messaggio breve
   ///

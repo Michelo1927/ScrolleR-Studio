@@ -248,6 +248,7 @@ class ProjectMixin:
 
     def closeEvent(self, event):
         if self._confirm_discard_changes():
+            self._save_panel_widths()
             self._remove_autosave()
             event.accept()
         else:

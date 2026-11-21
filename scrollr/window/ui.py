@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
 )
 
 from scrollr import __version__
-from scrollr.config import REPO_URL
+from scrollr.config import REPO_URL, VIDEO_SUPPORTED
 from scrollr.dialogs import ShortcutsDialog
 from scrollr.icons import icon_pixmap, make_icon
 from scrollr.keys import HISTORY_KEY, kb
@@ -80,14 +80,16 @@ class UiMixin:
             row.addWidget(trailing)
         layout.addLayout(row)
 
-    def _scroll_panel(self, content: QWidget, width: int) -> QScrollArea:
+    def _scroll_panel(self, content: QWidget, width: int, max_width: int) -> QScrollArea:
+        """Pannello laterale che scorre in verticale; trascinandone il bordo si allarga da `width` a `max_width`."""
         scroll = QScrollArea()
         scroll.setObjectName("PanelScroll")
         scroll.setWidget(content)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setFixedWidth(width)
+        scroll.setMinimumWidth(width)
+        scroll.setMaximumWidth(max_width)
         scroll.viewport().setAutoFillBackground(False)
         content.setObjectName("Panel")
         content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -116,6 +118,9 @@ class UiMixin:
         hl.addStretch()
         lay.addWidget(header)
         lay.addWidget(content, 1)
+        # Il pannello non va oltre il suo contenuto: allargandolo non resta una fascia vuota a lato
+        dock.setMinimumWidth(content.minimumWidth())
+        dock.setMaximumWidth(content.maximumWidth())
         return dock
 
     def _build_tool_strip(self) -> QWidget:
@@ -267,15 +272,18 @@ class UiMixin:
         ws.addWidget(self._build_tool_strip())
         ws.addWidget(self._build_document_area(), 1)
 
+        # I due pannelli si allargano trascinandone il bordo (la larghezza scelta si ricorda)
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setHandleWidth(1)
+        splitter.setHandleWidth(3)
         splitter.setChildrenCollapsible(False)
-        splitter.addWidget(self._dock("Libreria", self._scroll_panel(self._build_left_panel(), 296)))
+        splitter.addWidget(self._dock("Libreria", self._scroll_panel(self._build_left_panel(), 296, 640)))
         splitter.addWidget(workspace)
-        splitter.addWidget(self._dock("Proprietà", self._scroll_panel(self._build_inspector(), 286)))
+        splitter.addWidget(self._dock("Proprietà", self._scroll_panel(self._build_inspector(), 286, 520)))
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
+        self.main_splitter = splitter
+        self._restore_panel_widths()
         root.addWidget(splitter, 1)
         self._refresh_bg_swatches()
 
@@ -286,6 +294,24 @@ class UiMixin:
         badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         badge.setToolTip("ScrolleR Studio")
         self.menuBar().setCornerWidget(badge, Qt.Corner.TopLeftCorner)
+
+    def _restore_panel_widths(self):
+        """Larghezze dei pannelli Libreria e Proprietà dell'ultima volta (altrimenti le minime)."""
+        left, right = 296, 286
+        try:
+            saved = self._settings().value("panel_widths")
+            if saved:
+                left, right = (int(v) for v in list(saved)[:2])
+        except (TypeError, ValueError):
+            pass
+        left, right = min(max(left, 296), 640), min(max(right, 286), 520)
+        # Il documento prende tutto il resto: i pannelli si fermano alle loro misure minima e massima
+        self.main_splitter.setSizes([left, 100000, right])
+
+    def _save_panel_widths(self):
+        sizes = self.main_splitter.sizes()
+        if len(sizes) == 3:
+            self._settings().setValue("panel_widths", [sizes[0], sizes[2]])
 
     def _build_top_bar(self) -> QHBoxLayout:
         bar = QHBoxLayout()
@@ -505,7 +531,7 @@ class UiMixin:
 
         m_file = menubar.addMenu("&File")
         make("Nuovo progetto", self.new_project, QKeySequence.StandardKey.New, m_file)
-        make("Aggiungi foto…", self.open_file_dialog, QKeySequence.StandardKey.Open, m_file)
+        make("Aggiungi foto e video…" if VIDEO_SUPPORTED else "Aggiungi foto…", self.open_file_dialog, QKeySequence.StandardKey.Open, m_file)
         m_file.addSeparator()
         make("Apri progetto…", self.open_project, QKeySequence("Ctrl+Shift+O"), m_file)
         self.menu_recent = m_file.addMenu("Apri recenti")

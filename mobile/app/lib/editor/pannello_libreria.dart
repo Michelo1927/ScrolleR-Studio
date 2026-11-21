@@ -17,6 +17,7 @@ import '../project/crea_progetto.dart';
 import '../theme/tokens.dart';
 import 'sessione.dart';
 import 'stato.dart';
+import 'testi_avvisi.dart';
 import 'widget_comuni.dart';
 
 class PannelloLibreria extends ConsumerStatefulWidget {
@@ -59,6 +60,8 @@ class _PannelloLibreriaState extends ConsumerState<PannelloLibreria> {
     setState(_scelte.clear);
   }
 
+  static bool _eVideo(LibraryEntry v) => Scene.isVideoPath(v.path);
+
   @override
   Widget build(BuildContext context) {
     final t = Testi.of(context);
@@ -67,6 +70,8 @@ class _PannelloLibreriaState extends ConsumerState<PannelloLibreria> {
     final sulla = {for (final p in stato.snapshot.items) chiaveMedia(p)};
     final scelte = _vociScelte(libreria);
     final haScelte = scelte.isNotEmpty;
+    final video = libreria.where(_eVideo).length;
+    final videoScelti = scelte.where(_eVideo).length;
     return PannelloBasso(
       onScarta: _ctrl.chiudiStrumento,
       child: Column(
@@ -80,8 +85,14 @@ class _PannelloLibreriaState extends ConsumerState<PannelloLibreria> {
                 Expanded(
                   child: Text(
                     haScelte
-                        ? t.fotoScelte(scelte.length)
-                        : t.libreriaTitolo(libreria.length),
+                        ? testoScelte(
+                            t,
+                            scelte.length - videoScelti,
+                            videoScelti,
+                          )
+                        : t.libreriaTitolo(
+                            conteggioMedia(t, libreria.length - video, video),
+                          ),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -123,7 +134,9 @@ class _PannelloLibreriaState extends ConsumerState<PannelloLibreria> {
                             voce: v,
                             scelta: _scelte.contains(k),
                             sullaTela: sulla.contains(k),
-                            etichetta: t.fotoNumero(i + 1),
+                            etichetta: _eVideo(v)
+                                ? t.videoNumero(i + 1)
+                                : t.fotoNumero(i + 1),
                             onTap: () => setState(() {
                               if (!_scelte.remove(k)) _scelte.add(k);
                             }),

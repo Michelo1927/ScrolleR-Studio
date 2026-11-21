@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QAbstractScrollArea
 )
 
-from scrollr.config import LIBRARY_MIME, is_video
+from scrollr.config import LIBRARY_MIME, VIDEO_SUPPORTED, is_video
 
 from scrollr.icons import color_wheel_icon, icon_pixmap, no_color_icon, swatch_icon
 from scrollr.theme import SWATCHES, THEME, ui_font
@@ -101,6 +101,32 @@ class LibraryListWidget(QListWidget):
     Nel trascinamento c'è anche l'elenco dei percorsi (formato interno, non file veri: così
     rilasciandole fuori dall'app non si copiano file per sbaglio).
     """
+
+    CELL = 86      # Misura di partenza di una casella (miniatura + spazio)
+    MIN_COLS = 3   # Colonne minime: con poco spazio le caselle si stringono invece di perdere una colonna
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._fit_cells()
+
+    def _fit_cells(self):
+        """
+        Caselle larghe quanto serve per riempire la riga, con almeno MIN_COLS colonne. Lo spazio della
+        barra di scorrimento si tiene sempre da parte: così il numero di colonne non cambia quando la barra
+        compare o sparisce (per esempio selezionando una foto, che allunga il pannello).
+        """
+        # QListView va a capo prima del bordo (tiene da parte lo spazio della barra anche quando non c'è):
+        # si lascia il doppio della barra più un pixel, così la terza colonna non va mai a capo
+        bar = max(self.verticalScrollBar().sizeHint().width(),
+                  self.style().pixelMetric(QStyle.PixelMetric.PM_ScrollBarExtent, None, self))
+        width = self.width() - 2 * self.frameWidth() - 2 * bar - 1
+        if width <= 0:
+            return
+        cols = max(self.MIN_COLS, width // self.CELL)
+        cell = max(40, width // cols)
+        if self.gridSize().width() != cell:
+            self.setGridSize(QSize(cell, cell))
+            self.setIconSize(QSize(cell - 6, cell - 6))
 
     def mimeData(self, items):
         data = super().mimeData(items)
@@ -203,7 +229,7 @@ class DropZone(QFrame):
         p.drawPixmap(QPointF(c.x() - 17, c.y() - 52), self._icon)
         p.setPen(QColor(THEME["text"]))
         p.setFont(ui_font(13, QFont.Weight.DemiBold))
-        p.drawText(QRectF(r.left(), c.y() - 12, r.width(), 22), Qt.AlignmentFlag.AlignHCenter, "Trascina qui le foto")
+        p.drawText(QRectF(r.left(), c.y() - 12, r.width(), 22), Qt.AlignmentFlag.AlignHCenter, "Trascina qui foto e video" if VIDEO_SUPPORTED else "Trascina qui le foto")
         p.setPen(QColor(THEME["muted"]))
         p.setFont(ui_font(11))
         p.drawText(QRectF(r.left() + 16, c.y() + 12, r.width() - 32, 40),

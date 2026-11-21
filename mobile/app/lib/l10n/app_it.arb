@@ -318,6 +318,16 @@
       }
     }
   },
+  "videoNumero": "Video {n}",
+  "@videoNumero": {
+    "description": "Etichetta di una miniatura video",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
   "aggiungiNFoto": "{n, plural, =0{Aggiungi} =1{Aggiungi 1 foto} other{Aggiungi {n} foto}}",
   "@aggiungiNFoto": {
     "description": "Pulsante che aggiunge le foto scelte",
@@ -614,9 +624,29 @@
   "@stileMuratura": {
     "description": "Stile del mosaico (come MOSAIC_STYLES del desktop)"
   },
-  "libreriaTitolo": "{n, plural, =1{Libreria · 1 foto} other{Libreria · {n} foto}}",
+  "libreriaTitolo": "Libreria · {conteggio}",
   "@libreriaTitolo": {
-    "description": "Titolo del pannello Foto",
+    "description": "Titolo del pannello Foto: «Libreria · 6 foto · 2 video»",
+    "placeholders": {
+      "conteggio": {
+        "type": "String",
+        "example": "6 foto · 2 video"
+      }
+    }
+  },
+  "contaFoto": "{n, plural, =1{1 foto} other{{n} foto}}",
+  "@contaFoto": {
+    "description": "Numero di foto nei conteggi della libreria",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "contaVideo": "{n, plural, =1{1 video} other{{n} video}}",
+  "@contaVideo": {
+    "description": "Numero di video nei conteggi della libreria",
     "placeholders": {
       "n": {
         "type": "int",
@@ -634,7 +664,27 @@
       }
     }
   },
-  "libreriaVuota": "Aggiungi le foto dal telefono",
+  "videoScelti": "{n, plural, =1{1 video scelto} other{{n} video scelti}}",
+  "@videoScelti": {
+    "description": "Titolo del pannello Foto con solo video scelti",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "mediaScelti": "{conteggio} scelti",
+  "@mediaScelti": {
+    "description": "Titolo del pannello Foto con foto e video scelti",
+    "placeholders": {
+      "conteggio": {
+        "type": "String",
+        "example": "6 foto · 2 video"
+      }
+    }
+  },
+  "libreriaVuota": "Aggiungi foto e video dal telefono",
   "@libreriaVuota": {
     "description": "Libreria vuota"
   },
@@ -646,21 +696,21 @@
   "@aggiungiAllaTela": {
     "description": "Azione della libreria"
   },
-  "comeFotoLibera": "Come foto libera",
+  "comeFotoLibera": "Fuori dalla disposizione",
   "@comeFotoLibera": {
-    "description": "Azione della libreria"
+    "description": "Azione della libreria: aggiunge la selezione come elementi liberi"
   },
-  "soloQueste": "Solo queste",
+  "soloQueste": "Solo la selezione",
   "@soloQueste": {
-    "description": "Azione della libreria: sostituisce le foto sulla tela"
+    "description": "Azione della libreria: sostituisce quello che c'è sulla tela con la selezione"
   },
   "rimuoviDallaLibreria": "Rimuovi dalla libreria",
   "@rimuoviDallaLibreria": {
     "description": "Azione della libreria"
   },
-  "mettiTutte": "Metti tutte",
+  "mettiTutte": "Metti tutto",
   "@mettiTutte": {
-    "description": "Azione della libreria: tutte le foto sulla tela"
+    "description": "Azione della libreria: tutta la libreria sulla tela"
   },
   "svuotaTela": "Svuota tela",
   "@svuotaTela": {
@@ -689,6 +739,26 @@
       "n": {
         "type": "int",
         "example": "3"
+      }
+    }
+  },
+  "avvisoVideoAggiunti": "{n, plural, =1{1 video aggiunto} other{{n} video aggiunti}}",
+  "@avvisoVideoAggiunti": {
+    "description": "Messaggio breve",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "avvisoMediaAggiunti": "{conteggio} aggiunti",
+  "@avvisoMediaAggiunti": {
+    "description": "Messaggio breve: foto e video aggiunti insieme",
+    "placeholders": {
+      "conteggio": {
+        "type": "String",
+        "example": "6 foto · 2 video"
       }
     }
   },
@@ -3389,8 +3459,14 @@
   "@espPagineScelte": {
     "description": "Foglio Esporta: quante pagine sono scelte",
     "placeholders": {
-      "n": {"type": "int", "example": "3"},
-      "tot": {"type": "int", "example": "5"}
+      "n": {
+        "type": "int",
+        "example": "3"
+      },
+      "tot": {
+        "type": "int",
+        "example": "5"
+      }
     }
   },
   "tutteLeOpzioni": "Tutte le opzioni",

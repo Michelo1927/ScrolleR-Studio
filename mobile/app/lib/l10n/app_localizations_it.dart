@@ -237,6 +237,11 @@ class TestiIt extends Testi {
   }
 
   @override
+  String videoNumero(int n) {
+    return 'Video $n';
+  }
+
+  @override
   String aggiungiNFoto(int n) {
     String _temp0 = intl.Intl.pluralLogic(
       n,
@@ -461,12 +466,28 @@ class TestiIt extends Testi {
   String get stileMuratura => 'Muratura';
 
   @override
-  String libreriaTitolo(int n) {
+  String libreriaTitolo(String conteggio) {
+    return 'Libreria · $conteggio';
+  }
+
+  @override
+  String contaFoto(int n) {
     String _temp0 = intl.Intl.pluralLogic(
       n,
       locale: localeName,
-      other: 'Libreria · $n foto',
-      one: 'Libreria · 1 foto',
+      other: '$n foto',
+      one: '1 foto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String contaVideo(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n video',
+      one: '1 video',
     );
     return '$_temp0';
   }
@@ -483,7 +504,23 @@ class TestiIt extends Testi {
   }
 
   @override
-  String get libreriaVuota => 'Aggiungi le foto dal telefono';
+  String videoScelti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n video scelti',
+      one: '1 video scelto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mediaScelti(String conteggio) {
+    return '$conteggio scelti';
+  }
+
+  @override
+  String get libreriaVuota => 'Aggiungi foto e video dal telefono';
 
   @override
   String get aggiungiDalTelefono => 'Aggiungi dal telefono';
@@ -492,16 +529,16 @@ class TestiIt extends Testi {
   String get aggiungiAllaTela => 'Aggiungi alla tela';
 
   @override
-  String get comeFotoLibera => 'Come foto libera';
+  String get comeFotoLibera => 'Fuori dalla disposizione';
 
   @override
-  String get soloQueste => 'Solo queste';
+  String get soloQueste => 'Solo la selezione';
 
   @override
   String get rimuoviDallaLibreria => 'Rimuovi dalla libreria';
 
   @override
-  String get mettiTutte => 'Metti tutte';
+  String get mettiTutte => 'Metti tutto';
 
   @override
   String get svuotaTela => 'Svuota tela';
@@ -527,6 +564,22 @@ class TestiIt extends Testi {
       one: '1 foto aggiunta',
     );
     return '$_temp0';
+  }
+
+  @override
+  String avvisoVideoAggiunti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n video aggiunti',
+      one: '1 video aggiunto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String avvisoMediaAggiunti(String conteggio) {
+    return '$conteggio aggiunti';
   }
 
   @override

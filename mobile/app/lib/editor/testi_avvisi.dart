@@ -7,12 +7,32 @@ import 'package:scrl_engine/scrl_engine.dart'
 import '../l10n/app_localizations.dart';
 import 'stato.dart';
 
+/// «8 foto», «2 video», «6 foto · 2 video» (come `media_count` del desktop); vuota dà «0 foto».
+String conteggioMedia(Testi t, int foto, int video) => [
+  if (foto > 0 || video == 0) t.contaFoto(foto),
+  if (video > 0) t.contaVideo(video),
+].join(' · ');
+
+/// Quante miniature sono scelte, accordato a foto, video o tutte e due (`selection_text` del desktop).
+String testoScelte(Testi t, int foto, int video) {
+  if (video == 0) return t.fotoScelte(foto);
+  if (foto == 0) return t.videoScelti(video);
+  return t.mediaScelti(conteggioMedia(t, foto, video));
+}
+
+/// «3 foto aggiunte», «1 video aggiunto», «2 foto · 1 video aggiunti».
+String testoAggiunti(Testi t, int foto, int video) {
+  if (video == 0) return t.avvisoFotoAggiunte(foto);
+  if (foto == 0) return t.avvisoVideoAggiunti(video);
+  return t.avvisoMediaAggiunti(conteggioMedia(t, foto, video));
+}
+
 /// Testo di un avviso da mostrare in basso sopra la barra.
 String testoAvviso(Testi t, Avviso a) {
   final n = a.notice;
   if (n != null) return _notice(t, n);
   return switch (a.messaggio) {
-    MessaggioEditor.fotoAggiunte => t.avvisoFotoAggiunte(a.n),
+    MessaggioEditor.fotoAggiunte => testoAggiunti(t, a.n - a.nVideo, a.nVideo),
     MessaggioEditor.fotoRicollegate => t.avvisoFotoRicollegate(a.n),
     MessaggioEditor.elementoEliminato => t.avvisoEliminato,
     MessaggioEditor.elementiEliminati => t.avvisoEliminati(a.n),

@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 from scrollr.icons import icon_pixmap, make_icon, swatch_icon
 from scrollr.imaging import PRESETS
 from scrollr.keys import kb
+from scrollr.config import VIDEO_SUPPORTED
 from scrollr.shapes import SHAPE_KINDS
 from scrollr.theme import THEME
 from scrollr.widgets import ColorSwatchRow, DropZone, LibraryCheckDelegate, LibraryListWidget, ToggleSwitch
@@ -28,10 +29,11 @@ class PanelsMixin:
 
         # --- Foto ---
         self.lbl_library_count = self._label("", "Hint")
-        self._section_header(lay, "Foto", self.lbl_library_count)
+        self._section_header(lay, "Foto e video" if VIDEO_SUPPORTED else "Foto", self.lbl_library_count)
 
-        lay.addWidget(self._button("Aggiungi foto", self.open_file_dialog, "plus",
-                                   tooltip=kb("Ctrl+O — puoi anche trascinarle sulla tela")))
+        lay.addWidget(self._button("Aggiungi foto e video" if VIDEO_SUPPORTED else "Aggiungi foto",
+                                   self.open_file_dialog, "plus",
+                                   tooltip=kb("Ctrl+O — puoi anche trascinarli sulla tela")))
 
         self.library_stack = QStackedWidget()
         drop = DropZone()
@@ -54,8 +56,8 @@ class PanelsMixin:
         self.list_library.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.list_library.setItemDelegate(LibraryCheckDelegate(self.list_library, lambda path: path in self._canvas_paths))
         self.list_library.setMinimumHeight(100)
-        self.list_library.setToolTip("Clic per scegliere le foto (di nuovo per toglierle),\n"
-                                     "poi «Metti le selezionate».\nTrascina una miniatura per cambiare l'ordine.\n"
+        self.list_library.setToolTip("Clic su una miniatura per sceglierla (di nuovo per toglierla),\n"
+                                     "poi «Metti la selezione».\nTrascina una miniatura per cambiare l'ordine.\n"
                                      "Clic destro per altre opzioni.")
         self.list_library.itemSelectionChanged.connect(self._update_library_selection_ui)
         self.list_library.itemDoubleClicked.connect(self._on_library_item_double_clicked)
@@ -66,14 +68,14 @@ class PanelsMixin:
 
         sel_row = QHBoxLayout()
         sel_row.setSpacing(6)
-        self.lbl_library_sel = self._label("Clicca le foto per sceglierle", "Hint")
+        self.lbl_library_sel = self._label("Clicca le miniature per sceglierle", "Hint")
         # Va a capo invece di allargare il pannello (che ha larghezza fissa e taglierebbe i pulsanti)
         self.lbl_library_sel.setWordWrap(True)
         self.lbl_library_sel.setMinimumWidth(1)
         sel_row.addWidget(self.lbl_library_sel, 1)
-        self.btn_library_sel_all = self._button("Tutte", self.list_library.selectAll, obj="Ghost",
-                                                tooltip="Seleziona tutte le foto della libreria")
-        self.btn_library_sel_none = self._button("Nessuna", self.list_library.clearSelection, obj="Ghost",
+        self.btn_library_sel_all = self._button("Tutto", self.list_library.selectAll, obj="Ghost",
+                                                tooltip="Seleziona tutta la libreria")
+        self.btn_library_sel_none = self._button("Niente", self.list_library.clearSelection, obj="Ghost",
                                                  tooltip="Togli la selezione")
         sel_row.addWidget(self.btn_library_sel_all)
         sel_row.addWidget(self.btn_library_sel_none)
@@ -83,16 +85,16 @@ class PanelsMixin:
         self.library_sel_box.setVisible(False)
         lay.addWidget(self.library_sel_box)
 
-        # Azioni sulle foto selezionate: compaiono solo quando ce n'è almeno una
+        # Azioni sulla selezione: compaiono solo quando c'è almeno una miniatura scelta
         self.library_actions_box = QWidget()
         act_row = QVBoxLayout(self.library_actions_box)
         act_row.setContentsMargins(0, 0, 0, 0)
         act_row.setSpacing(4)
         self.btn_library_add = self._button("Aggiungi alla tela", self._add_selected_library_to_canvas, "plus",
-                                            tooltip="Aggiunge le foto selezionate a quelle già sulla tela e ridispone tutto")
+                                            tooltip="Aggiunge la selezione a quello che c'è già sulla tela e ridispone tutto")
         self.btn_library_remove = self._button("Rimuovi dalla libreria", self._remove_selected_from_library, "trash",
-                                               "Danger", tooltip="Toglie le foto selezionate dalla libreria\n"
-                                                                 "(quelle già sulla tela restano)")
+                                               "Danger", tooltip="Toglie la selezione dalla libreria\n"
+                                                                 "(quello che è già sulla tela resta)")
         act_row.addWidget(self.btn_library_add)
         act_row.addWidget(self.btn_library_remove)
         self.library_actions_box.setVisible(False)
@@ -100,7 +102,7 @@ class PanelsMixin:
 
         lib_btns = QHBoxLayout()
         lib_btns.setSpacing(6)
-        self.btn_add_all = self._button("Metti tutte sulla tela", self.add_all_library_to_canvas, obj="Ghost")
+        self.btn_add_all = self._button("Metti tutto sulla tela", self.add_all_library_to_canvas, obj="Ghost")
         self.btn_clear_canvas = self._button("Svuota tela", self.clear_canvas_photos, obj="Ghost")
         lib_btns.addWidget(self.btn_add_all)
         lib_btns.addWidget(self.btn_clear_canvas)

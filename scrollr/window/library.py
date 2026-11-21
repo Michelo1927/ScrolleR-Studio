@@ -17,6 +17,25 @@ from scrollr.imaging import IMAGE_CACHE, ImageCache, normalize_path
 from scrollr.theme import THEME
 
 
+def media_count(photos: int, videos: int) -> str:
+    """«8 foto», «2 video», «6 foto · 2 video» ("" se non c'è niente)."""
+    parts = []
+    if photos:
+        parts.append(f"{photos} foto")
+    if videos:
+        parts.append(f"{videos} video")
+    return " · ".join(parts)
+
+
+def selection_text(photos: int, videos: int) -> str:
+    """Quante miniature sono scelte, accordato a foto, video o tutte e due."""
+    if not videos:
+        return "1 foto scelta" if photos == 1 else f"{photos} foto scelte"
+    if not photos:
+        return "1 video scelto" if videos == 1 else f"{videos} video scelti"
+    return f"{media_count(photos, videos)} scelti"
+
+
 class LibraryMixin:
     """Caricamento foto, libreria ed elementi sulla tela."""
 
@@ -65,7 +84,8 @@ class LibraryMixin:
                     continue
                 if p not in self.loaded_library:
                     self.loaded_library.append(p)
-                    item = QListWidgetItem(QIcon(rounded_thumb(pixmap, 80)), "")
+                    # Più grande delle caselle di partenza: resta nitida anche allargando il pannello
+                    item = QListWidgetItem(QIcon(rounded_thumb(pixmap, 120)), "")
                     item.setData(Qt.ItemDataRole.UserRole, p)
                     item.setToolTip(os.path.basename(p))
                     item.setSizeHint(QSize(86, 86))
@@ -84,12 +104,13 @@ class LibraryMixin:
         if errors:
             shown = "\n".join(errors[:15])
             more = f"\n… e altri {len(errors) - 15}" if len(errors) > 15 else ""
-            QMessageBox.warning(self, "Alcune foto non sono state caricate",
+            QMessageBox.warning(self, "Alcuni file non sono stati caricati",
                                 "Questi file non sono foto o video leggibili:\n\n" + shown + more)
 
     def _update_library_ui(self):
         n = len(self.loaded_library)
-        self.lbl_library_count.setText("" if n == 0 else ("1 foto" if n == 1 else f"{n} foto"))
+        n_video = sum(1 for p in self.loaded_library if is_video(p))
+        self.lbl_library_count.setText(media_count(n - n_video, n_video))
         self.library_stack.setCurrentIndex(1 if n else 0)
         self.btn_add_all.setEnabled(n > 0)
         self._update_library_selection_ui()
@@ -127,14 +148,15 @@ class LibraryMixin:
         self.btn_library_sel_none.setEnabled(n_sel > 0)
         self.btn_library_sel_all.setEnabled(n_sel < n_lib)
         if n_sel:
-            self.lbl_library_sel.setText("1 selezionata" if n_sel == 1 else f"{n_sel} selezionate")
-            self.btn_add_all.setText("Metti solo la selezionata" if n_sel == 1 else f"Metti le {n_sel} selezionate")
-            self.btn_add_all.setToolTip("Sostituisce le foto sulla tela con quelle selezionate e le dispone")
+            sel_video = sum(1 for p in self._library_selected_paths() if is_video(p))
+            self.lbl_library_sel.setText(selection_text(n_sel - sel_video, sel_video))
+            self.btn_add_all.setText("Metti la selezione")
+            self.btn_add_all.setToolTip("Sostituisce quello che c'è sulla tela con la selezione e lo dispone")
             self.btn_add_all.setObjectName("Primary")
         else:
-            self.lbl_library_sel.setText("Clicca le foto per sceglierle")
-            self.btn_add_all.setText("Metti tutte sulla tela")
-            self.btn_add_all.setToolTip("Sostituisce le foto sulla tela con tutte quelle della libreria")
+            self.lbl_library_sel.setText("Clicca le miniature per sceglierle")
+            self.btn_add_all.setText("Metti tutto sulla tela")
+            self.btn_add_all.setToolTip("Sostituisce quello che c'è sulla tela con tutta la libreria")
             self.btn_add_all.setObjectName("Ghost")
         self.btn_add_all.style().unpolish(self.btn_add_all)
         self.btn_add_all.style().polish(self.btn_add_all)
@@ -146,8 +168,10 @@ class LibraryMixin:
             self._canvas_paths = paths
             self.list_library.viewport().update()
         n = len(self.get_canvas_photos())
+        n_video = sum(1 for p in self.get_canvas_photos() if is_video(p.image_path))
         others = bool(self.get_canvas_texts() or self.get_canvas_shapes())
-        text = ("Nessuna foto sulla tela" if others else "Tela vuota") if n == 0 else             ("1 foto sulla tela" if n == 1 else f"{n} foto sulla tela")
+        text = ("Nessuna foto sulla tela" if others else "Tela vuota") if n == 0 else \
+            media_count(n - n_video, n_video) + " sulla tela"
         missing = self._missing_on_canvas()
         if missing:
             text += f"  ·  {missing} mancant" + ("e" if missing == 1 else "i")
@@ -243,9 +267,9 @@ class LibraryMixin:
         if not items:
             return
         menu = QMenu(self)
-        act_only = menu.addAction(make_icon("grid", THEME["text"], 16), "Metti sulla tela solo queste")
-        act_add = menu.addAction(make_icon("plus", THEME["text"], 16), "Aggiungi alla tela (tieni le altre)")
-        act_free = menu.addAction(make_icon("scatter", THEME["text"], 16), "Aggiungi come foto libera")
+        act_only = menu.addAction(make_icon("grid", THEME["text"], 16), "Metti sulla tela solo la selezione")
+        act_add = menu.addAction(make_icon("plus", THEME["text"], 16), "Aggiungi alla tela (tieni il resto)")
+        act_free = menu.addAction(make_icon("scatter", THEME["text"], 16), "Aggiungi fuori dalla disposizione")
         menu.addSeparator()
         act_remove = menu.addAction(make_icon("trash", THEME["text"], 16), "Rimuovi dalla libreria")
         chosen = menu.exec(self.list_library.mapToGlobal(pos))

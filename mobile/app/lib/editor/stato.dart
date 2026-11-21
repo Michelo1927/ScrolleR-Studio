@@ -158,13 +158,22 @@ enum MessaggioEditor {
 
 /// Un messaggio da mostrare: [id] cresce a ogni messaggio nuovo, così l'interfaccia riconosce i nuovi.
 class Avviso {
-  const Avviso(this.id, {this.notice, this.messaggio, this.n = 0});
+  const Avviso(
+    this.id, {
+    this.notice,
+    this.messaggio,
+    this.n = 0,
+    this.nVideo = 0,
+  });
   final int id;
 
   /// Avviso del motore (pagina bloccata, massimo di pagine…).
   final Notice? notice;
   final MessaggioEditor? messaggio;
   final int n;
+
+  /// Quanti degli [n] elementi sono video (per «6 foto · 2 video aggiunti»).
+  final int nVideo;
 
   /// Dopo l'avviso si può tornare indietro con «Annulla».
   bool get annullabile =>
@@ -528,6 +537,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
     Set<RifElemento>? selezione,
     MessaggioEditor? messaggio,
     int n = 0,
+    int nVideo = 0,
   }) {
     final c = state.cronologia.commit(s, _s.ctx);
     final tutti = [...notice, ...c.notices];
@@ -540,7 +550,12 @@ class ControlloEditor extends Notifier<StatoEditor> {
     final pagina = state.pagina.clamp(0, snap.canvas.numFrames - 1);
     Avviso? avviso;
     if (messaggio != null) {
-      avviso = Avviso(_prossimoAvviso++, messaggio: messaggio, n: n);
+      avviso = Avviso(
+        _prossimoAvviso++,
+        messaggio: messaggio,
+        n: n,
+        nVideo: nVideo,
+      );
     } else if (tutti.isNotEmpty) {
       avviso = Avviso(_prossimoAvviso++, notice: tutti.first);
     }
@@ -1240,7 +1255,11 @@ class ControlloEditor extends Notifier<StatoEditor> {
     video: Scene.isVideoPath(e.path),
   );
 
-  /// «Aggiungi alla tela» / «Come foto libera»: le foto entrano nella pagina corrente e restano selezionate.
+  /// Quanti video ci sono fra le [voci] messe sulla tela (al massimo [n], gli elementi entrati davvero).
+  static int _quantiVideo(List<LibraryEntry> voci, int n) =>
+      voci.where((v) => Scene.isVideoPath(v.path)).length.clamp(0, n);
+
+  /// «Aggiungi alla tela» / «Fuori dalla disposizione»: le foto entrano nella pagina corrente e restano selezionate.
   void aggiungiATela(List<LibraryEntry> voci, {bool libere = false}) {
     if (voci.isEmpty) return;
     final a = aggiungiFoto(
@@ -1260,10 +1279,11 @@ class ControlloEditor extends Notifier<StatoEditor> {
       selezione: {for (final u in a.uids) (tipo: ElementKind.photo, uid: u)},
       messaggio: MessaggioEditor.fotoAggiunte,
       n: a.uids.length,
+      nVideo: _quantiVideo(voci, a.uids.length),
     );
   }
 
-  /// «Solo queste» e «Metti tutte»: sostituisce le foto della tela con queste e le dispone.
+  /// «Solo la selezione» e «Metti tutto»: sostituisce le foto della tela con queste e le dispone.
   void mettiSullaTela(List<LibraryEntry> voci) {
     if (voci.isEmpty) return;
     final a = mettiFotoSullaTela(state.snapshot, [
@@ -1275,6 +1295,7 @@ class ControlloEditor extends Notifier<StatoEditor> {
       selezione: {},
       messaggio: MessaggioEditor.fotoAggiunte,
       n: a.uids.length,
+      nVideo: _quantiVideo(voci, a.uids.length),
     );
   }
 
