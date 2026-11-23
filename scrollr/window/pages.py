@@ -1,6 +1,6 @@
 """Pagine del carosello e anteprima."""
 import math
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPixmap, QImage, QPainter
@@ -10,6 +10,7 @@ from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.dialogs import CarouselPreview, PageOrderDialog
 from scrollr.icons import make_icon
+from scrollr.imaging import IMAGE_CACHE
 from scrollr.keys import kb
 from scrollr.theme import THEME
 
@@ -509,11 +510,72 @@ class PagesMixin:
             self.scene.update()
         return pages
 
-    def show_carousel_preview(self):
-        self._flush_pending_commit()
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+    def _render_preview_region(self, k: int, part: QRectF, out_w: int, out_h: int) -> QPixmap:
+        """
+        Parte `part` (0..1) della pagina k a out_w × out_h pixel, come la disegnerebbe Esporta:
+        foto ricampionate dagli originali, non dalle anteprime.
+        """
+        fw, fh = self.scene.frame_w, self.scene.frame_h
+        source = QRectF((k + part.x()) * fw, part.y() * fh, part.width() * fw, part.height() * fh)
+        self.scene.is_exporting = True
         try:
-            pages = self._render_page_previews()
+            img = self._render_region(source, max(1, out_w), max(1, out_h))
         finally:
-            QApplication.restoreOverrideCursor()
-        CarouselPreview(pages, self.scene.frame_w / self.scene.frame_h, self).exec()
+            self.scene.is_exporting = False
+            self.scene.update()
+        return QPixmap.fromImage(img) if img is not None else QPixmap()
+
+    PREVIEW_ZOOM_SCALE = 2.0         # Pagine dell'anteprima al doppio della tela: lo zoom è già pronto
+    PREVIEW_MAX_SIDE = 4096          # Lato lungo massimo di una pagina
+    PREVIEW_PIXEL_BUDGET = 120e6     # Pixel in tutto (circa 480 MB): con molte pagine si scende un po'
+
+    def _carousel_preview_size(self, n: int) -> Tuple[int, int]:
+        """
+        Misura in pixel delle pagine dell'anteprima: il doppio della tela, ma senza superare il lato
+        massimo né la memoria totale, e mai meno di quanto serve a riempire la finestra nitida.
+        """
+        fw, fh = self.scene.frame_w, self.scene.frame_h
+        view_w, view_h = CarouselPreview.viewer_size(self.screen().availableGeometry(), fw / fh)
+        # Un filo più grande dello spazio previsto: la finestra cambia di poco e resta nitida
+        fit = min(view_w / fw, view_h / fh) * self.devicePixelRatioF() * 1.1
+        budget = math.sqrt(self.PREVIEW_PIXEL_BUDGET / max(1, n) / (fw * fh))
+        scale = max(fit, min(self.PREVIEW_ZOOM_SCALE, self.PREVIEW_MAX_SIDE / max(fw, fh), budget))
+        return max(1, round(fw * scale)), max(1, round(fh * scale))
+
+    def show_carousel_preview(self):
+        """
+        Le pagine si preparano tutte all'apertura, nitide e già grandi per lo zoom: scorrere e zoomare
+        sono immediati. Solo oltre quella misura l'anteprima ridisegna nitida la parte che si vede.
+        """
+        self._flush_pending_commit()
+        self._stop_all_videos()
+        fw, fh = self.scene.frame_w, self.scene.frame_h
+        n = self.scene.num_frames
+        out_w, out_h = self._carousel_preview_size(n)
+        scale = out_w / fw
+        n_photos = self._export_photo_count()
+        progress = self._export_progress(n_photos + n)
+        progress.setWindowTitle("Anteprima carosello")
+        pages: List[QPixmap] = []
+        ready = False
+        try:
+            # Originali letti in parallelo, ognuno grande quanto serve
+            if self._prefetch_originals(scale, progress):
+                ready = True
+                for k in range(n):
+                    progress.setValue(n_photos + k)
+                    progress.setLabelText(f"Preparazione delle pagine…  ({k + 1} di {n})")
+                    QApplication.processEvents()
+                    if progress.wasCanceled():
+                        ready = False
+                        break
+                    pages.append(self._render_preview_region(k, QRectF(0, 0, 1, 1), out_w, out_h))
+        finally:
+            progress.setValue(progress.maximum())
+            progress.close()
+        try:
+            if ready:
+                CarouselPreview(pages, self._render_preview_region, (fw, fh), self).exec()
+        finally:
+            IMAGE_CACHE.release_full()
+            self.scene.update()

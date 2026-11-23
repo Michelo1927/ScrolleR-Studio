@@ -59,7 +59,7 @@ SHORTCUTS = [
         ("Ctrl++  ·  Ctrl+-", "Zoom avanti · indietro"),
         ("Ctrl+1", "Dimensioni reali (100%)"),
         ("Ctrl+0", "Adatta alla finestra"),
-        ("F5", "Anteprima del carosello (frecce ← → per scorrere, Esc per chiudere)"),
+        ("F5", "Anteprima del carosello (frecce ← → per scorrere, rotella o + − per lo zoom, Esc per chiudere)"),
         ("F1", "Questa guida"),
     ]),
     ("Mouse sulla tela", [

@@ -1,10 +1,10 @@
 """Finestre di dialogo: anteprima carosello, ordine delle pagine, pagine da esportare, scorciatoie e sfondo."""
 from typing import TYPE_CHECKING
 import os
-from typing import Dict, List
+from typing import Callable, Dict, List, Optional, Tuple
 
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QPixmap, QColor, QIcon
+from PyQt6.QtCore import Qt, QSize, QPointF, QRect, QRectF, QTimer, pyqtSignal
+from PyQt6.QtGui import QPixmap, QColor, QIcon, QPainter, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QColorDialog,
     QButtonGroup, QDialog, QRadioButton, QListWidget, QListWidgetItem, QListView, QAbstractItemView, QLineEdit,
@@ -20,21 +20,268 @@ if TYPE_CHECKING:
     from scrollr.window.main_window import MainWindow
 
 
-class CarouselPreview(QDialog):
-    """Anteprima delle pagine una alla volta, come le vedrà chi scorre il carosello."""
+class PageViewer(QWidget):
+    """
+    Una pagina dell'anteprima, con zoom: rotella (verso il puntatore), doppio clic per ingrandire o
+    tornare ad Adatta, trascinamento per spostarsi quando la pagina è più grande della finestra.
 
-    def __init__(self, pages: List[QPixmap], page_ratio: float, parent=None):
+    La pagina intera arriva già pronta e grande (di solito il doppio della tela), così lo zoom non
+    aspetta. Solo se la si mostra più grande di così (molte pagine, finestra ingrandita) e la vista
+    resta ferma un attimo, chiede con `detailWanted` la parte
+    visibile disegnata nitida alla misura giusta, e la mette sopra la pagina intera.
+    """
+
+    zoomChanged = pyqtSignal(float)
+    detailWanted = pyqtSignal(QRectF, int, int)  # Parte della pagina (0..1), larghezza e altezza in pixel
+
+    MAX_PX_PER_UNIT = 3.0    # Zoom massimo: 3 pixel dello schermo per unità della tela
+    DOUBLE_CLICK_ZOOM = 2.5
+    SOFT = 1.15              # Oltre 1,15 pixel dello schermo per pixel dell'immagine serve più dettaglio
+    DETAIL_MARGIN = 0.25     # Parte in più intorno al visibile, per spostarsi un po' senza ridisegnare
+
+    def __init__(self, page_w: float, page_h: float, parent=None):
+        super().__init__(parent)
+        self.setMinimumSize(240, 240)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self._page_w, self._page_h = max(1.0, page_w), max(1.0, page_h)
+        self._pm = QPixmap()
+        self._zoom = 1.0                  # 1 = pagina intera nella finestra (Adatta)
+        self._center = QPointF(0.5, 0.5)  # Punto della pagina (0..1) al centro della finestra
+        self._drag: Optional[QPointF] = None
+        self._scaled: Optional[QPixmap] = None  # Copia ridotta con buon filtro, per le misure sotto 1:1
+        self._detail: Optional[tuple] = None    # (parte della pagina 0..1, immagine nitida di quella parte)
+        self._detail_timer = QTimer(self)
+        self._detail_timer.setSingleShot(True)
+        self._detail_timer.setInterval(250)
+        self._detail_timer.timeout.connect(self._ask_detail)
+
+    # ---- Stato ----
+    def set_pixmap(self, pm: QPixmap):
+        """Nuova pagina: si riparte da Adatta."""
+        self._pm = pm
+        self._scaled = None
+        self._detail = None
+        self.reset_zoom()
+
+    def set_detail(self, rect: QRectF, pm: QPixmap):
+        if not pm.isNull():
+            self._detail = (QRectF(rect), pm)
+            self.update()
+
+    def zoom(self) -> float:
+        return self._zoom
+
+    def max_zoom(self) -> float:
+        """
+        Fin dove la pagina già pronta resta nitida (niente attese), al massimo MAX_PX_PER_UNIT.
+        Comunque almeno 2×: oltre la pagina pronta si ridisegna nitida la parte visibile.
+        """
+        fit = self._fit_scale()
+        limit = self.MAX_PX_PER_UNIT
+        if not self._pm.isNull():
+            limit = min(limit, self._pm.width() / self._page_w * self.SOFT)
+        return max(2.0, limit / max(1e-6, fit * self.devicePixelRatioF()))
+
+    def reset_zoom(self):
+        self._zoom = 1.0
+        self._center = QPointF(0.5, 0.5)
+        self._changed()
+
+    def zoom_by(self, factor: float, anchor: Optional[QPointF] = None):
+        """Cambia lo zoom tenendo fermo sotto `anchor` (punto della finestra) lo stesso punto della pagina."""
+        if self._pm.isNull():
+            return
+        new = max(1.0, min(self.max_zoom(), self._zoom * factor))
+        if abs(new - self._zoom) < 1e-6:
+            return
+        if anchor is None:
+            anchor = QPointF(self.width() / 2.0, self.height() / 2.0)
+        before = self._to_page(anchor)
+        self._zoom = new
+        after = self._to_page(anchor)
+        self._center += before - after
+        self._changed()
+
+    # ---- Geometria ----
+    def _fit_scale(self) -> float:
+        """Pixel della finestra (logici) per unità della tela con zoom Adatta."""
+        return min(self.width() / self._page_w, self.height() / self._page_h)
+
+    def _target(self) -> QRectF:
+        """Rettangolo della pagina nella finestra."""
+        s = self._fit_scale() * self._zoom
+        w, h = self._page_w * s, self._page_h * s
+        return QRectF(self.width() / 2.0 - self._center.x() * w, self.height() / 2.0 - self._center.y() * h, w, h)
+
+    def _to_page(self, p: QPointF) -> QPointF:
+        t = self._target()
+        return QPointF((p.x() - t.x()) / max(1e-6, t.width()), (p.y() - t.y()) / max(1e-6, t.height()))
+
+    def _visible(self) -> QRectF:
+        """Parte della pagina (0..1) che si vede nella finestra."""
+        t = self._target()
+        r = QRectF(-t.x() / t.width(), -t.y() / t.height(), self.width() / t.width(), self.height() / t.height())
+        return r.intersected(QRectF(0, 0, 1, 1))
+
+    def _clamp(self):
+        """La pagina non esce dalla finestra: più piccola resta al centro, più grande la copre tutta."""
+        t = self._target()
+        cx, cy = self._center.x(), self._center.y()
+        if t.width() <= self.width():
+            cx = 0.5
+        else:
+            half = self.width() / 2.0 / t.width()
+            cx = max(half, min(1.0 - half, cx))
+        if t.height() <= self.height():
+            cy = 0.5
+        else:
+            half = self.height() / 2.0 / t.height()
+            cy = max(half, min(1.0 - half, cy))
+        self._center = QPointF(cx, cy)
+
+    def _changed(self):
+        self._clamp()
+        self._update_cursor()
+        self._check_detail()
+        self.update()
+        self.zoomChanged.emit(self._zoom)
+
+    def _update_cursor(self):
+        if self._drag is not None:
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+        elif self._zoom > 1.0 + 1e-6:
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
+        else:
+            self.unsetCursor()
+
+    # ---- Dettaglio nitido ----
+    def _device_width(self, part: float) -> float:
+        """Pixel dello schermo occupati da una parte della pagina larga `part` (0..1)."""
+        return self._target().width() * part * self.devicePixelRatioF()
+
+    def _check_detail(self):
+        """Basta la pagina intera, va bene il dettaglio che c'è, oppure se ne chiede uno nuovo."""
+        if self._pm.isNull() or self._device_width(1.0) / self._pm.width() <= self.SOFT:
+            self._detail = None
+            self._detail_timer.stop()
+            return
+        if self._detail is not None:
+            rect, pm = self._detail
+            if rect.contains(self._visible()) and self._device_width(rect.width()) / pm.width() <= self.SOFT:
+                self._detail_timer.stop()
+                return
+        self._detail_timer.start()  # Si chiede quando la vista resta ferma
+
+    def _ask_detail(self):
+        vis = self._visible()
+        if vis.isEmpty():
+            return
+        mx, my = vis.width() * self.DETAIL_MARGIN, vis.height() * self.DETAIL_MARGIN
+        rect = vis.adjusted(-mx, -my, mx, my).intersected(QRectF(0, 0, 1, 1))
+        t = self._target()
+        dpr = self.devicePixelRatioF()
+        w = max(1, round(t.width() * rect.width() * dpr))
+        h = max(1, round(t.height() * rect.height() * dpr))
+        self.detailWanted.emit(rect, w, h)
+
+    # ---- Disegno ----
+    def paintEvent(self, event):
+        if self._pm.isNull():
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        t = self._target()
+        dpr = self.devicePixelRatioF()
+        w, h = round(t.width() * dpr), round(t.height() * dpr)
+        if w < self._pm.width() and h < self._pm.height():
+            # Pagina rimpicciolita: copia ridotta con il filtro buono (il bilineare darebbe seghettature)
+            if self._scaled is None or self._scaled.size() != QSize(w, h):
+                self._scaled = self._pm.scaled(w, h, Qt.AspectRatioMode.IgnoreAspectRatio,
+                                               Qt.TransformationMode.SmoothTransformation)
+            pm = self._scaled
+        else:
+            pm = self._pm
+        painter.drawPixmap(t, pm, QRectF(pm.rect()))
+        if self._detail is not None:
+            rect, dpm = self._detail
+            painter.drawPixmap(QRectF(t.x() + rect.x() * t.width(), t.y() + rect.y() * t.height(),
+                                      rect.width() * t.width(), rect.height() * t.height()),
+                               dpm, QRectF(dpm.rect()))
+        painter.end()
+
+    # ---- Mouse ----
+    def wheelEvent(self, event):
+        steps = event.angleDelta().y() / 120.0
+        if steps:
+            self.zoom_by(1.2 ** steps, event.position())
+        event.accept()
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self._zoom > 1.0 + 1e-6:
+                self.reset_zoom()
+            else:
+                self.zoom_by(self.DOUBLE_CLICK_ZOOM, event.position())
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self._zoom > 1.0 + 1e-6:
+            self._drag = event.position()
+            self._update_cursor()
+
+    def mouseMoveEvent(self, event):
+        if self._drag is None:
+            return
+        t = self._target()
+        d = event.position() - self._drag
+        self._drag = event.position()
+        self._center -= QPointF(d.x() / max(1e-6, t.width()), d.y() / max(1e-6, t.height()))
+        self._clamp()
+        self._check_detail()
+        self.update()
+
+    def mouseReleaseEvent(self, event):
+        self._drag = None
+        self._update_cursor()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._scaled = None
+        self._clamp()
+        self._check_detail()
+
+
+class CarouselPreview(QDialog):
+    """
+    Anteprima delle pagine una alla volta, come le vedrà chi scorre il carosello.
+    `pages` sono le pagine intere già pronte e nitide anche per lo zoom (scorrere è immediato);
+    `render_region(k, parte 0..1, w, h)` disegna nitida una parte della pagina k per lo zoom.
+    """
+
+    @staticmethod
+    def viewer_size(screen: QRect, page_ratio: float) -> Tuple[int, int]:
+        """Misura (logica) dello spazio per la pagina con cui si apre la finestra."""
+        img_h = int(screen.height() * 0.72)
+        img_w = int(img_h * page_ratio)
+        if img_w > screen.width() * 0.8:
+            img_w = int(screen.width() * 0.8)
+            img_h = int(img_w / page_ratio)
+        return img_w, img_h
+
+    def __init__(self, pages: List[QPixmap], render_region: Callable[[int, QRectF, int, int], QPixmap],
+                 page_size: Tuple[float, float], parent=None):
         super().__init__(parent)
         self.setWindowTitle("Anteprima carosello")
         self.pages = pages
+        self.count = len(pages)
+        self.render_region = render_region
         self.index = 0
         lay = QVBoxLayout(self)
         lay.setContentsMargins(16, 16, 16, 12)
         lay.setSpacing(10)
-        self.image = QLabel()
-        self.image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image.setMinimumSize(240, 240)
-        lay.addWidget(self.image, 1)
+        self.viewer = PageViewer(*page_size)
+        self.viewer.zoomChanged.connect(self._update_zoom_ui)
+        self.viewer.detailWanted.connect(self._render_detail)
+        lay.addWidget(self.viewer, 1)
 
         nav = QHBoxLayout()
         self.btn_prev = QPushButton("Pagina precedente")
@@ -46,56 +293,95 @@ class CarouselPreview(QDialog):
         self.btn_next.clicked.connect(lambda: self.step(1))
         self.lbl = QLabel()
         self.lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.btn_zoom_out = QPushButton("−")
+        self.btn_zoom_out.setToolTip("Riduci (−)")
+        self.btn_zoom_out.clicked.connect(lambda: self.viewer.zoom_by(1 / 1.5))
+        self.btn_fit = QPushButton("Adatta")
+        self.btn_fit.setToolTip("Pagina intera nella finestra (0)")
+        self.btn_fit.clicked.connect(self.viewer.reset_zoom)
+        self.btn_zoom_in = QPushButton("+")
+        self.btn_zoom_in.setToolTip("Ingrandisci (+)")
+        self.btn_zoom_in.clicked.connect(lambda: self.viewer.zoom_by(1.5))
+        for b in (self.btn_zoom_out, self.btn_zoom_in):
+            b.setFixedWidth(34)
+        self.lbl_zoom = QLabel()
+        self.lbl_zoom.setMinimumWidth(44)
+        self.lbl_zoom.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # I pulsanti non prendono il fuoco: altrimenti si tengono le frecce per spostarlo tra loro
+        for b in (self.btn_prev, self.btn_next, self.btn_zoom_out, self.btn_fit, self.btn_zoom_in):
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            b.setAutoDefault(False)
+
         nav.addWidget(self.btn_prev)
         nav.addStretch()
         nav.addWidget(self.lbl)
         nav.addStretch()
+        nav.addWidget(self.btn_zoom_out)
+        nav.addWidget(self.lbl_zoom)
+        nav.addWidget(self.btn_zoom_in)
+        nav.addWidget(self.btn_fit)
+        nav.addSpacing(12)
         nav.addWidget(self.btn_next)
         lay.addLayout(nav)
-        hint = QLabel("Frecce ← → della tastiera per scorrere, Esc per chiudere")
+        hint = QLabel("Frecce ← → per scorrere · rotella, + − o doppio clic per lo zoom, trascina per spostarti"
+                      " · Esc per chiudere")
         hint.setObjectName("Hint")
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(hint)
 
+        # Scorciatoie della finestra: valgono qualunque cosa abbia il fuoco
+        keys = (
+            (Qt.Key.Key_Left, lambda: self.step(-1)), (Qt.Key.Key_Right, lambda: self.step(1)),
+            (Qt.Key.Key_PageUp, lambda: self.step(-1)), (Qt.Key.Key_PageDown, lambda: self.step(1)),
+            (Qt.Key.Key_Home, lambda: self.go_to(0)), (Qt.Key.Key_End, lambda: self.go_to(self.count - 1)),
+            (Qt.Key.Key_Plus, lambda: self.viewer.zoom_by(1.5)), (Qt.Key.Key_Equal, lambda: self.viewer.zoom_by(1.5)),
+            (Qt.Key.Key_Minus, lambda: self.viewer.zoom_by(1 / 1.5)), (Qt.Key.Key_0, self.viewer.reset_zoom),
+        )
+        for key, slot in keys:
+            QShortcut(QKeySequence(key), self, activated=slot)
+
         screen = (parent.screen() if parent is not None else QApplication.primaryScreen()).availableGeometry()
-        img_h = int(screen.height() * 0.72)
-        img_w = int(img_h * page_ratio)
-        if img_w > screen.width() * 0.8:
-            img_w = int(screen.width() * 0.8)
-            img_h = int(img_w / page_ratio)
-        self.resize(max(460, img_w + 32), img_h + 110)
+        img_w, img_h = self.viewer_size(screen, page_size[0] / max(1e-6, page_size[1]))
+        self.resize(max(560, img_w + 32), img_h + 110)
         self._show()
+        self.viewer.setFocus()
 
     def step(self, delta: int):
-        self.index = max(0, min(len(self.pages) - 1, self.index + delta))
-        self._show()
+        self.go_to(self.index + delta)
+
+    def go_to(self, k: int):
+        k = max(0, min(self.count - 1, k))
+        if k != self.index:
+            self.index = k
+            self._show()
 
     def _show(self):
-        if not self.pages:
+        if self.count <= 0:
             return
-        pm = self.pages[self.index]
-        dpr = self.devicePixelRatioF()
-        target = self.image.size() * dpr
-        scaled = pm.scaled(target, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-        scaled.setDevicePixelRatio(dpr)
-        self.image.setPixmap(scaled)
-        n = len(self.pages)
+        self.viewer.set_pixmap(self.pages[self.index])
+        n = self.count
         dots = "  ".join("●" if i == self.index else "○" for i in range(n)) if n <= 12 else ""
         self.lbl.setText(f"Pagina {self.index + 1} di {n}" + (f"\n{dots}" if dots and n > 1 else ""))
         self.btn_prev.setEnabled(self.index > 0)
         self.btn_next.setEnabled(self.index < n - 1)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._show()
+    def _render_detail(self, rect: QRectF, w: int, h: int):
+        index = self.index
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            pm = self.render_region(index, rect, w, h)
+        finally:
+            QApplication.restoreOverrideCursor()
+        if index == self.index:
+            self.viewer.set_detail(rect, pm)
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Left:
-            self.step(-1)
-        elif event.key() == Qt.Key.Key_Right:
-            self.step(1)
-        else:
-            super().keyPressEvent(event)
+    def _update_zoom_ui(self, zoom: float):
+        self.lbl_zoom.setText(f"{round(zoom * 100)}%")
+        self.btn_zoom_out.setEnabled(zoom > 1.0 + 1e-6)
+        self.btn_fit.setEnabled(zoom > 1.0 + 1e-6)
+        self.btn_zoom_in.setEnabled(zoom < self.viewer.max_zoom() - 1e-6)
 
 
 class PageOrderDialog(QDialog):
