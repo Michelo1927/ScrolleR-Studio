@@ -133,8 +133,8 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self.page_grid.library_dropped.connect(self._on_library_dropped)
         self.page_grid.zoom_changed.connect(self._on_zoom_changed)
         self.page_grid.context_menu_requested.connect(lambda view, pos: self._show_canvas_context_menu(pos, view))
-        # Versione nitida di una foto pronta (zoom forte): la tela si ridisegna con quella
-        IMAGE_CACHE.hires_notifier().ready.connect(lambda *_: self.scene.update())
+        # Versione nitida di una foto pronta (zoom forte): si ridisegnano solo le foto che la usano
+        IMAGE_CACHE.hires_notifier().ready.connect(self._on_hires_ready)
 
         # Salvataggio automatico ogni minuto, per recuperare il lavoro dopo una chiusura improvvisa
         self._autosave_timer = QTimer(self)
@@ -329,6 +329,15 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         scale = self._current_zoom()
         if scale > 0:
             self._zoom_view(1.0 / scale)
+
+    def _on_hires_ready(self, path: str, _image=None):
+        if self.scene.hires_on_hold:
+            # Vista in movimento: ridisegnare ora tutta la foto farebbe scattare lo spostamento
+            self.scene.hires_wanted.add(path)
+            return
+        for it in self.get_canvas_photos():
+            if it.image_path == path:
+                it.update()
 
     def _on_zoom_changed(self, scale: float):
         self.lbl_zoom.setText(f"{round(scale * 100)}%")

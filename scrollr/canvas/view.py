@@ -1,15 +1,102 @@
 """Vista della tela: zoom, pan e trascinamento file."""
+import math
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QEvent, QPoint, QRectF, QPointF, pyqtSignal
+from PyQt6.QtCore import Qt, QEvent, QPoint, QRectF, QPointF, QTimer, pyqtSignal
 from PyQt6.QtGui import QPainter
 from PyQt6.QtWidgets import QGraphicsView, QFrame
 
 from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.scene import CollageScene
 from scrollr.config import LIBRARY_MIME
-from scrollr.imaging import image_paths_from_mime
+from scrollr.imaging import IMAGE_CACHE, image_paths_from_mime
 from scrollr.keys import IS_MAC
+
+
+def pan_quantum(widget) -> int:
+    """
+    Passo minimo, in pixel dell'app, che sullo schermo è un numero intero di pixel (1 al 100% e al 200%,
+    2 al 150%, 4 al 125%). Spostando la vista a multipli di questo passo Qt sposta i pixel già disegnati
+    e ridisegna solo la striscia che entra; con passi «a metà pixel» ridisegna tutto quello che si vede.
+    """
+    ratio = widget.devicePixelRatioF()
+    for n in range(1, 9):
+        if abs(n * ratio - round(n * ratio)) < 1e-3:
+            return n
+    return 1
+
+
+HIRES_IDLE_MS = 400  # Vista ferma da tanto: si caricano le versioni nitide delle foto visibili
+
+
+def _owner_scene(owner):
+    scene = getattr(owner, "_scene", None)  # La griglia a scacchiera tiene la tela in _scene
+    return scene if scene is not None else owner.scene()
+
+
+def hold_hires(owner):
+    """
+    Spostamento o zoom in corso: niente versioni nitide delle foto. Caricarle costa (decodifica in
+    sottofondo e conversione per lo schermo) e, andando avanti e indietro, si scaccerebbero a vicenda
+    di continuo: intanto basta l'anteprima. Si chiedono quando la vista resta ferma per HIRES_IDLE_MS.
+    """
+    scene = _owner_scene(owner)
+    if scene is None:
+        return
+    scene.hires_on_hold = True
+    timer = getattr(owner, "_hires_timer", None)
+    if timer is None:
+        timer = owner._hires_timer = QTimer(owner)
+        timer.setSingleShot(True)
+        timer.setInterval(HIRES_IDLE_MS)
+        timer.timeout.connect(lambda o=owner: _release_hires(o))
+    timer.start()
+
+
+def _release_hires(owner):
+    """Vista ferma: versioni nitide per le foto visibili che le chiedevano, partendo dal centro."""
+    scene = _owner_scene(owner)
+    if scene is None:
+        return
+    scene.hires_on_hold = False
+    wanted, scene.hires_wanted = scene.hires_wanted, set()
+    rects = owner.visible_scene_rects() if wanted else []
+    if not rects:
+        return
+    area = QRectF(rects[0])
+    for r in rects[1:]:
+        area = area.united(r)
+    center = area.center()
+    items = [it for it in scene.items() if isinstance(it, PhotoItem) and it.image_path in wanted
+             and any(r.intersects(it.sceneBoundingRect()) for r in rects)]
+    items.sort(key=lambda it: (it.sceneBoundingRect().center() - center).manhattanLength())
+    # Non più di quante ne tiene la memoria, altrimenti le ultime scaccerebbero le prime
+    paths = list(dict.fromkeys(it.image_path for it in items))[:IMAGE_CACHE.HIRES_CACHE_SIZE]
+    for path in paths:
+        if IMAGE_CACHE.hires(path) is None:
+            IMAGE_CACHE.request_hires(path)
+        else:
+            # Arrivata durante lo spostamento: ora la foto si ridisegna con quella
+            for it in items:
+                if it.image_path == path:
+                    it.update()
+
+
+def pan_bars_by(owner, h_bar, v_bar, dx: float, dy: float):
+    """
+    Sposta le barre di (dx, dy) pixel a multipli di pan_quantum(); il resto si tiene in `owner` per il
+    passo dopo, così la vista non resta indietro rispetto al mouse.
+    """
+    hold_hires(owner)
+    q = pan_quantum(owner)
+    rx, ry = getattr(owner, "_pan_rest", (0.0, 0.0))
+    dx, dy = dx + rx, dy + ry
+    sx, sy = q * math.trunc(dx / q), q * math.trunc(dy / q)
+    owner._pan_rest = (dx - sx, dy - sy)
+    if sx:
+        h_bar.setValue(h_bar.value() + sx)
+    if sy:
+        v_bar.setValue(v_bar.value() + sy)
 
 
 def is_trackpad_scroll(event) -> bool:
@@ -115,6 +202,19 @@ class CanvasView(QGraphicsView):
         """Barre mosse dal trascinamento col tasto centrale (la vista a scacchiera usa quelle della griglia)."""
         return self.horizontalScrollBar(), self.verticalScrollBar()
 
+    def _pan_owner(self):
+        """Chi tiene il resto dello spostamento a passi interi (la vista a scacchiera usa la griglia)."""
+        return self
+
+    def visible_scene_rects(self) -> list:
+        """Parte della tela visibile in questa vista."""
+        return [self.mapToScene(self.viewport().rect()).boundingRect()]
+
+    def _pan_by(self, dx: float, dy: float):
+        """Sposta la vista di (dx, dy) pixel: il contenuto va nella direzione del movimento."""
+        h_bar, v_bar = self._pan_bars()
+        pan_bars_by(self._pan_owner(), h_bar, v_bar, -dx, -dy)
+
     def current_scale(self) -> float:
         return self.transform().m11()
 
@@ -134,6 +234,7 @@ class CanvasView(QGraphicsView):
         target = self.current_scale() * factor
         if not (self.MIN_SCALE <= target <= self.MAX_SCALE):
             return
+        hold_hires(self)
         anchor = self.mapToScene(view_pos.toPoint())
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.NoAnchor)
         self.scale(factor, factor)
@@ -156,9 +257,7 @@ class CanvasView(QGraphicsView):
         self.zoom_at(factor, event.position())
 
     def _wheel_pan(self, dx: float, dy: float):
-        h_bar, v_bar = self._pan_bars()
-        h_bar.setValue(h_bar.value() - round(dx))
-        v_bar.setValue(v_bar.value() - round(dy))
+        self._pan_by(dx, dy)
 
     def wheelEvent(self, event):
         action = wheel_action(event, getattr(self.scene(), "wheel_mode", "auto"))
@@ -262,9 +361,7 @@ class CanvasView(QGraphicsView):
                 self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
             delta = pos - self._pan_start
             self._pan_start = pos
-            h_bar, v_bar = self._pan_bars()
-            h_bar.setValue(h_bar.value() - round(delta.x()))
-            v_bar.setValue(v_bar.value() - round(delta.y()))
+            self._pan_by(delta.x(), delta.y())
             event.accept()
             return
         super().mouseMoveEvent(event)

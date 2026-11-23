@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 from PyQt6.QtCore import Qt, QLineF, QRectF, QPointF, pyqtSignal
 from PyQt6.QtGui import (
     QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QCursor, QTransform, QImage, QRadialGradient,
-    QLinearGradient
+    QLinearGradient, QFont, QFontMetricsF
 )
 from PyQt6.QtWidgets import QGraphicsObject, QGraphicsItem
 from PIL import Image
@@ -132,6 +132,8 @@ class PhotoItem(QGraphicsObject):
         # Regolazioni colore già applicate, una per versione (anteprima e nitida per lo zoom)
         self._adjusted_cache: Dict[bool, Tuple[tuple, QPixmap]] = {}
         self._lod_cache: Dict[int, Tuple[int, QPixmap]] = {}  # Copie ridotte per la foto vista piccola
+        self._shadow_cache: Optional[Tuple[tuple, QPixmap]] = None  # Ombra pronta per la tela
+        self._brect_cache: Optional[Tuple[tuple, QRectF]] = None   # Ingombro (vedi boundingRect)
         self._auto_lut: Optional[Tuple[int, List[int]]] = None  # Livelli automatici (chiave dell'anteprima)
 
         # Stato interazione maniglie
@@ -496,8 +498,19 @@ class PhotoItem(QGraphicsObject):
         return max(0.0, (draw_w - need_w) / 2.0), max(0.0, (draw_h - need_h) / 2.0)
 
     def boundingRect(self) -> QRectF:
-        margin = max(self._handle_size() + 4.0 / self._view_scale(), self._shadow_extent() * 1.4)
-        return QRectF(-margin, -margin, self.cell_w + margin * 2, self.cell_h + margin * 2)
+        # Qt lo chiede molte volte a ogni ridisegno: si ricalcola solo se cambia qualcosa da cui dipende
+        scene = self.scene()
+        vs = max(0.01, getattr(scene, "display_scale", 1.0)) if scene else 1.0
+        shadow = self.effective_shadow() if self.frame == "polaroid" else self.shadow
+        key = (self.cell_w, self.cell_h, vs, shadow)
+        cached = self._brect_cache
+        if cached is not None and cached[0] == key:
+            return QRectF(cached[1])
+        ext = 0.0 if shadow <= 0 else min(self.cell_w, self.cell_h) * 0.05 + 8.0  # Come _shadow_extent()
+        margin = max(self.HANDLE_PX / vs + 4.0 / vs, ext * 1.4)
+        rect = QRectF(-margin, -margin, self.cell_w + margin * 2, self.cell_h + margin * 2)
+        self._brect_cache = (key, rect)
+        return QRectF(rect)
 
     def shape(self) -> QPainterPath:
         # Area cliccabile = solo la foto (+ maniglie se selezionata), non tutto il boundingRect
@@ -647,10 +660,19 @@ class PhotoItem(QGraphicsObject):
             return 0.0
         return max(0, min(100, int(getattr(self.scene(), "polaroid_depth", 0) or 0))) / 100.0
 
-    def _paint_shadow(self, painter: QPainter, radius: float):
+    SHADOW_STEPS = 12
+    SHADOW_MAX_PX = 512  # Lato massimo dell'ombra pronta (~1 MB): è sfumata, ingrandita non si nota
+
+    def _shadow_rect(self) -> QRectF:
+        """Ingombro dell'ombra, nelle coordinate della foto."""
+        ext = self._shadow_extent()
+        g = ext * 0.6
+        return QRectF(-g, -g + ext * 0.35, self.cell_w + 2 * g, self.cell_h + 2 * g)
+
+    def _draw_shadow_rings(self, painter: QPainter, radius: float):
         """Ombra morbida sotto la foto: rettangoli arrotondati sempre più piccoli e trasparenti."""
         ext = self._shadow_extent()
-        steps = 12
+        steps = self.SHADOW_STEPS
         alpha = max(1, min(255, round(255 * (self.effective_shadow() / 100.0) * 0.075)))
         off = ext * 0.35
         painter.save()
@@ -660,6 +682,38 @@ class PhotoItem(QGraphicsObject):
             g = ext * (1.0 - i / steps) * 0.6
             painter.drawRoundedRect(QRectF(-g, -g + off, self.cell_w + 2 * g, self.cell_h + 2 * g), radius + g, radius + g)
         painter.restore()
+
+    def _paint_shadow(self, painter: QPainter, radius: float, exact: bool = False):
+        """
+        Ombra della foto. Sulla tela si disegna da un'immagine pronta (i dodici rettangoli sfumati costano
+        molto a ogni ridisegno, anche solo scorrendo); in esportazione (`exact`) si disegna sempre da capo.
+        """
+        if exact:
+            self._draw_shadow_rings(painter, radius)
+            return
+        rect = self._shadow_rect()
+        t = painter.worldTransform()
+        device = painter.device()
+        ratio = device.devicePixelRatioF() if device is not None else 1.0
+        res = math.hypot(t.m11(), t.m12()) * ratio  # Pixel dello schermo per unità della foto
+        res = min(res, self.SHADOW_MAX_PX / max(1.0, rect.width(), rect.height()))
+        res = 2.0 ** (math.ceil(math.log2(max(1e-4, res)) * 4) / 4)  # A gradini: lo zoom non la rifà sempre
+        key = (round(self.cell_w, 2), round(self.cell_h, 2), round(radius, 2), self.effective_shadow(), res)
+        cached = self._shadow_cache
+        if cached is None or cached[0] != key:
+            w = max(1, math.ceil(rect.width() * res))
+            h = max(1, math.ceil(rect.height() * res))
+            img = QImage(w, h, QImage.Format.Format_ARGB32_Premultiplied)
+            img.fill(Qt.GlobalColor.transparent)
+            p = QPainter(img)
+            p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            p.scale(w / rect.width(), h / rect.height())
+            p.translate(-rect.left(), -rect.top())
+            self._draw_shadow_rings(p, radius)
+            p.end()
+            cached = self._shadow_cache = (key, QPixmap.fromImage(img))
+        pm = cached[1]
+        painter.drawPixmap(rect, pm, QRectF(0, 0, pm.width(), pm.height()))
 
     def paint(self, painter: QPainter, option, widget=None):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -674,9 +728,10 @@ class PhotoItem(QGraphicsObject):
         path = QPainterPath()
         radius = min(self.border_radius, self.cell_w / 2.0, self.cell_h / 2.0)
         path.addRoundedRect(cell_rect, radius, radius)
+        waiting_hires = False  # Zoom forte e versione nitida non ancora pronta: si vede l'anteprima
 
         if self.effective_shadow() > 0:
-            self._paint_shadow(painter, radius)
+            self._paint_shadow(painter, radius, exact=is_exporting)
 
         painter.save()
         if radius > 0:
@@ -697,8 +752,12 @@ class PhotoItem(QGraphicsObject):
             painter.restore()
         else:
             sharp = self._needs_sharp(painter)
-            if sharp:
-                IMAGE_CACHE.request_hires(self.image_path)  # In sottofondo: per ora si usa l'anteprima
+            if sharp and IMAGE_CACHE.hires(self.image_path) is None:
+                waiting_hires = not self.is_missing
+                if getattr(scene, "hires_on_hold", False):
+                    scene.hires_wanted.add(self.image_path)  # Vista in movimento: si chiede quando si ferma
+                else:
+                    IMAGE_CACHE.request_hires(self.image_path)  # In sottofondo: per ora si usa l'anteprima
             pm = self.display_pixmap(sharp)
             if pm.width() > 0 and pm.height() > 0:
                 src = self._crop_rect(pm.width(), pm.height())
@@ -739,6 +798,8 @@ class PhotoItem(QGraphicsObject):
 
         if clean:
             return
+        if waiting_hires:
+            self._paint_preview_badge(painter)
 
         accent = QColor(THEME["accent"])
         if self.isSelected():
@@ -777,6 +838,42 @@ class PhotoItem(QGraphicsObject):
             painter.setPen(hover_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(path)
+
+    PREVIEW_BADGE = "Anteprima"
+
+    def _paint_preview_badge(self, painter: QPainter):
+        """
+        Etichetta in basso a destra, a misura costante sullo schermo: la foto è più grande della sua
+        anteprima e la versione nitida non è ancora pronta (si carica quando la vista resta ferma).
+        Sparisce quando la foto si ridisegna con la versione nitida.
+        """
+        k = 1.0 / self._view_scale()
+        font = ui_font(10, QFont.Weight.DemiBold)
+        fm = QFontMetricsF(font)
+        h = 18.0
+        w = 22.0 + fm.horizontalAdvance(self.PREVIEW_BADGE) + 8.0
+        inset = 8.0  # Lontana dalla maniglia dell'angolo
+        if (w + 2 * inset) * k > self.cell_w or (h + 2 * inset) * k > self.cell_h:
+            return
+        painter.save()
+        painter.translate(self.cell_w - (w + inset) * k, self.cell_h - (h + inset) * k)
+        painter.scale(k, k)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(0, 0, 0, 165))
+        painter.drawRoundedRect(QRectF(0, 0, w, h), h / 2.0, h / 2.0)
+        ink = QColor(THEME["accent_ink"])
+        # Cerchio aperto: «in attesa di caricamento»
+        pen = QPen(ink, 1.6)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawArc(QRectF(7.0, 4.5, 9.0, 9.0), 90 * 16, 270 * 16)
+        painter.setPen(ink)
+        painter.setFont(font)
+        painter.drawText(QRectF(20.0, 0, w - 24.0, h),
+                         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self.PREVIEW_BADGE)
+        painter.restore()
 
     def _paint_missing(self, painter: QPainter, cell_rect: QRectF):
         """Segnaposto di una foto non trovata: tiene il posto e ricorda il nome del file."""

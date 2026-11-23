@@ -7,7 +7,7 @@ from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QFrame, QGridLayout, QScrollArea, QWidget
 
 from scrollr.canvas.scene import CollageScene
-from scrollr.canvas.view import CanvasView, wheel_action
+from scrollr.canvas.view import CanvasView, hold_hires, pan_bars_by, wheel_action
 from scrollr.theme import THEME, ui_font
 
 # Margini di ogni pagina sullo schermo, in pixel: in alto c'è l'etichetta "Pagina N"
@@ -64,6 +64,9 @@ class PageTileView(CanvasView):
     def _pan_bars(self):
         return self.grid.horizontalScrollBar(), self.grid.verticalScrollBar()
 
+    def _pan_owner(self):
+        return self.grid
+
     def drawForeground(self, painter: QPainter, rect: QRectF):
         super().drawForeground(painter, rect)
         sc = self.scene()
@@ -85,10 +88,11 @@ class PageTileView(CanvasView):
         painter.fillRect(QRectF(vp.left(), page_px.bottom(), vp.width(), vp.bottom() - page_px.bottom()), back)
         painter.fillRect(QRectF(vp.left(), page_px.top(), page_px.left() - vp.left(), page_px.height()), back)
         painter.fillRect(QRectF(page_px.right(), page_px.top(), vp.right() - page_px.right(), page_px.height()), back)
-        # Etichetta della pagina, in pixel dello schermo
-        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
-        painter.setFont(ui_font(11))
-        sc.draw_page_label(painter, QPointF(top_left.x() + 1, top_left.y() - 8), self.index)
+        # Etichetta della pagina, in pixel dello schermo: solo se la parte da ridisegnare arriva sopra la pagina
+        if rect.top() < page.top():
+            painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+            painter.setFont(ui_font(11))
+            sc.draw_page_label(painter, QPointF(top_left.x() + 1, top_left.y() - 8), self.index)
         painter.restore()
 
 
@@ -279,6 +283,7 @@ class PageGridView(QScrollArea):
         s = max(self.MIN_SCALE, min(self.MAX_SCALE, self.scale * factor))
         if abs(s - self.scale) < 1e-9:
             return
+        hold_hires(self)
         g = global_pos.toPoint()
         in_view = self.viewport().mapFromGlobal(g)
         in_grid = self._container.mapFromGlobal(g)
@@ -303,8 +308,7 @@ class PageGridView(QScrollArea):
         if action[0] == "zoom":
             self.zoom_at(action[1], event.globalPosition())
         elif action[0] == "pan":
-            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - round(action[1]))
-            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - round(action[2]))
+            pan_bars_by(self, self.horizontalScrollBar(), self.verticalScrollBar(), -action[1], -action[2])
         event.accept()
 
     def viewportEvent(self, event):
@@ -335,8 +339,7 @@ class PageGridView(QScrollArea):
             return
         self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
         delta = pos - last
-        self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - round(delta.x()))
-        self.verticalScrollBar().setValue(self.verticalScrollBar().value() - round(delta.y()))
+        pan_bars_by(self, self.horizontalScrollBar(), self.verticalScrollBar(), -delta.x(), -delta.y())
         self._drag = (button, origin, pos, True)
         event.accept()
 
@@ -353,6 +356,15 @@ class PageGridView(QScrollArea):
         super().mouseReleaseEvent(event)
 
     # ---------- Posizione ----------
+    def visible_scene_rects(self) -> list:
+        """Parti della tela visibili: una per ogni pagina che si vede nella finestra."""
+        rects = []
+        for tile in self.tiles:
+            r = tile.viewport().visibleRegion().boundingRect()
+            if not r.isEmpty():
+                rects.append(tile.mapToScene(r).boundingRect())
+        return rects
+
     def visible_center_scene(self) -> QPointF:
         """Punto della tela al centro della zona visibile (nella pagina più vicina al centro)."""
         if not self.tiles:

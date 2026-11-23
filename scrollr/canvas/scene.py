@@ -73,6 +73,9 @@ class CollageScene(QGraphicsScene):
         self.wheel_mode = "auto"         # Rotella: "auto" (trackpad sposta, mouse zooma), "zoom", "pan"
         self.grid_mode = False           # Pagine a scacchiera: etichette disegnate da ogni vista di pagina
         self.display_scale = 1.0         # Zoom della vista attiva (maniglie a misura costante sullo schermo)
+        # Spostamento o zoom in corso: le versioni nitide si chiedono quando la vista si ferma (vedi view.py)
+        self.hires_on_hold = False
+        self.hires_wanted: set = set()
         self.last_click_page: Optional[int] = None  # Pagina dell'ultimo clic sulla tela (dove incollare)
         self._snap_x: List[float] = []
         self._snap_y: List[float] = []
@@ -267,7 +270,8 @@ class CollageScene(QGraphicsScene):
         painter.drawText(box, Qt.AlignmentFlag.AlignCenter, text)
         return h
 
-    def paint_page_overlays(self, painter: QPainter):
+    def paint_page_overlays(self, painter: QPainter, rect: Optional[QRectF] = None):
+        """Numeri di pagina e «scorri»; con `rect` solo sulle pagine che lo toccano."""
         if not (self.page_numbers or self.swipe_hint):
             return
         painter.save()
@@ -279,6 +283,8 @@ class CollageScene(QGraphicsScene):
         n = self.num_frames
         for i in range(n):
             page = QRectF(i * self.frame_w, 0, self.frame_w, self.frame_h)
+            if rect is not None and not page.intersects(rect):
+                continue
             lift = 0.0
             if self.swipe_hint and i < n - 1 and self.swipe_text.strip():
                 h = self._overlay_badge(painter, page, self.swipe_text.strip(), self.swipe_pos, font)
@@ -289,7 +295,7 @@ class CollageScene(QGraphicsScene):
 
     def drawForeground(self, painter: QPainter, rect: QRectF):
         if not (self.is_exporting and self.skip_overlays):
-            self.paint_page_overlays(painter)
+            self.paint_page_overlays(painter, None if self.is_exporting else rect)
         if self.is_exporting or self.clean_render:
             return
 
@@ -307,7 +313,9 @@ class CollageScene(QGraphicsScene):
             painter.fillPath(outer_path.subtracted(inner_path), veil)
 
         light_bg = is_light(self.bg_color)
-        has_photos = any(isinstance(it, (PhotoItem, TextItem, ShapeItem)) for it in self.items())
+        # Scorre tutti gli elementi: solo se serve (a scacchiera, senza guide, no)
+        has_photos = (self.show_guides or not self.grid_mode) and any(
+            isinstance(it, (PhotoItem, TextItem, ShapeItem)) for it in self.items())
         if self.show_guides and has_photos:
             # Linee guida centrali leggere
             guide = QColor(THEME["guide"])
@@ -316,9 +324,11 @@ class CollageScene(QGraphicsScene):
             guide_pen.setCosmetic(True)
             painter.setPen(guide_pen)
             painter.drawLine(QPointF(0, self.frame_h / 2.0), QPointF(canvas_rect.width(), self.frame_h / 2.0))
+            pad = 3.0 / max(1e-6, painter.worldTransform().m11())  # Il filo sfuma su due pixel
             for i in range(self.num_frames):
                 cx = i * self.frame_w + self.frame_w / 2.0
-                painter.drawLine(QPointF(cx, 0), QPointF(cx, self.frame_h))
+                if rect.left() - pad <= cx <= rect.right() + pad:
+                    painter.drawLine(QPointF(cx, 0), QPointF(cx, self.frame_h))
 
         # Giunzioni tra le pagine del carosello: sempre visibili, come guide piene
         # (non a scacchiera: lì le pagine sono già separate e la linea resterebbe a metà sul bordo)
