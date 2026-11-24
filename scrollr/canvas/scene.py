@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QRectF, QPointF
 from PyQt6.QtGui import (
-    QPixmap, QPainter, QPen, QColor, QBrush, QFont, QFontMetricsF, QPainterPath, QTransform, QLinearGradient
+    QPixmap, QPainter, QPen, QColor, QBrush, QFont, QFontMetricsF, QPainterPath, QPolygonF, QTransform, QLinearGradient
 )
 from PyQt6.QtWidgets import QGraphicsScene
 from PIL import ImageEnhance, ImageFilter
@@ -16,17 +16,25 @@ from scrollr.imaging import IMAGE_CACHE, pil_to_qimage, qimage_to_pil
 from scrollr.keys import kb
 from scrollr.theme import THEME, font_family, is_light, ui_font
 
-# Zona sicura dei reel: nelle pagine 9:16 Instagram copre con la sua interfaccia il 14% in alto (titolo,
-# fotocamera), il 35% in basso (nome, didascalia, audio, pulsanti) e il 6% ai lati. Misure diffuse, non ufficiali.
-REEL_SAFE_MARGINS = (0.06, 0.14, 0.06, 0.35)  # Sinistra, alto, destra, basso, in frazioni della pagina
+# Zona sicura dei reel: nelle pagine 9:16 Instagram copre con la sua interfaccia l'11% in alto (titolo,
+# fotocamera), il 16% in basso (nome, didascalia, audio) e il 6% ai lati; dal 61% dell'altezza in giù la colonna
+# dei pulsanti (mi piace, commenti, condividi) copre il 21% a destra. Misure da una guida diffusa, non ufficiali.
+REEL_SAFE_MARGINS = (0.06, 0.11, 0.06, 0.16)  # Sinistra, alto, destra, basso, in frazioni della pagina
+REEL_SAFE_BUTTONS = (0.21, 0.61)  # Margine destro della colonna dei pulsanti e altezza da cui comincia
 
 
-def reel_safe_rect(w: float, h: float) -> Optional[QRectF]:
-    """Zona sicura di una pagina w × h nelle sue coordinate, solo se la pagina è 9:16; altrimenti None."""
+def reel_safe_polygon(w: float, h: float) -> Optional[QPolygonF]:
+    """
+    Zona sicura di una pagina w × h nelle sue coordinate, solo se la pagina è 9:16 (altrimenti None):
+    un rettangolo con il rientro in basso a destra, in senso orario dall'angolo in alto a sinistra.
+    """
     if h <= 0 or abs(w / h - 9.0 / 16.0) > 0.01:
         return None
     left, top, right, bottom = REEL_SAFE_MARGINS
-    return QRectF(w * left, h * top, w * (1.0 - left - right), h * (1.0 - top - bottom))
+    btn_right, btn_top = REEL_SAFE_BUTTONS
+    return QPolygonF([QPointF(w * left, h * top), QPointF(w * (1.0 - right), h * top),
+                      QPointF(w * (1.0 - right), h * btn_top), QPointF(w * (1.0 - btn_right), h * btn_top),
+                      QPointF(w * (1.0 - btn_right), h * (1.0 - bottom)), QPointF(w * left, h * (1.0 - bottom))])
 
 
 class CollageScene(QGraphicsScene):
@@ -306,7 +314,7 @@ class CollageScene(QGraphicsScene):
                 self._overlay_badge(painter, page, self.page_number_text(i), self.page_number_pos, font, lift)
         painter.restore()
 
-    def _paint_reel_safe(self, painter: QPainter, rect: QRectF, safe: QRectF):
+    def _paint_reel_safe(self, painter: QPainter, rect: QRectF, safe: QPolygonF):
         """
         Pagine 9:16: fasce coperte dall'interfaccia dei reel appena velate e bordo tratteggiato della zona sicura,
         con la scritta «Zona sicura reel» se c'è posto sullo schermo. Solo sulla tela, mai nell'esportazione.
@@ -326,13 +334,14 @@ class CollageScene(QGraphicsScene):
             band = QPainterPath()
             band.addRect(page)
             hole = QPainterPath()
-            hole.addRect(inner)
+            hole.addPolygon(inner)
+            hole.closeSubpath()
             painter.fillPath(band.subtracted(hole), veil)
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRect(inner)
+            painter.drawPolygon(inner)
             # Scritta in pixel dello schermo, appena sopra il bordo alto della zona
-            dev = t.mapRect(inner)
+            dev = t.mapRect(inner.boundingRect())
             if dev.width() > 160 and dev.top() - t.mapRect(page).top() > 22:
                 painter.save()
                 painter.resetTransform()
@@ -380,7 +389,7 @@ class CollageScene(QGraphicsScene):
                 if rect.left() - pad <= cx <= rect.right() + pad:
                     painter.drawLine(QPointF(cx, 0), QPointF(cx, self.frame_h))
 
-        safe = reel_safe_rect(self.frame_w, self.frame_h) if self.show_guides and self.is_reel else None
+        safe = reel_safe_polygon(self.frame_w, self.frame_h) if self.show_guides and self.is_reel else None
         if safe is not None:
             self._paint_reel_safe(painter, rect, safe)
 

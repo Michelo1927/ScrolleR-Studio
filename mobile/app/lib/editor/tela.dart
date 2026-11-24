@@ -1128,36 +1128,35 @@ class _PitturaPagine extends CustomPainter {
 
   /// Zona sicura dei reel (`_paint_reel_safe` del desktop): fasce coperte dall'interfaccia di Instagram appena
   /// velate, bordo tratteggiato e scritta, se c'è posto. Solo sulla tela, mai nell'esportazione.
-  void _zonaReel(Canvas canvas, motore.Rect zona) {
-    final r = Rect.fromLTWH(
-      zona.x * geo.scala,
-      zona.y * geo.scala,
-      zona.w * geo.scala,
-      zona.h * geo.scala,
-    );
+  void _zonaReel(Canvas canvas, List<(double, double)> zona) {
+    final punti = [
+      for (final (x, y) in zona) Offset(x * geo.scala, y * geo.scala),
+    ];
+    final bordo = Path()..addPolygon(punti, true);
     final pagina = Rect.fromLTWH(0, 0, geo.pw, geo.ph);
     canvas.drawPath(
-      Path.combine(
-        PathOperation.difference,
-        Path()..addRect(pagina),
-        Path()..addRect(r),
-      ),
+      Path.combine(PathOperation.difference, Path()..addRect(pagina), bordo),
       Paint()..color = ColoriScrl.guida.withAlpha(40),
     );
     final p = Paint()
       ..color = ColoriScrl.guida.withAlpha(170)
       ..strokeWidth = 1;
+    // Bordo tratteggiato, lato per lato (i lati sono orizzontali o verticali)
     const tratto = 5.0, vuoto = 4.0;
-    for (var x = r.left; x < r.right; x += tratto + vuoto) {
-      final x2 = math.min(x + tratto, r.right);
-      canvas.drawLine(Offset(x, r.top), Offset(x2, r.top), p);
-      canvas.drawLine(Offset(x, r.bottom), Offset(x2, r.bottom), p);
+    for (var i = 0; i < punti.length; i++) {
+      final a = punti[i], b = punti[(i + 1) % punti.length];
+      final lunghezza = (b - a).distance;
+      if (lunghezza == 0) continue;
+      final dir = (b - a) / lunghezza;
+      for (var d = 0.0; d < lunghezza; d += tratto + vuoto) {
+        canvas.drawLine(
+          a + dir * d,
+          a + dir * math.min(d + tratto, lunghezza),
+          p,
+        );
+      }
     }
-    for (var y = r.top; y < r.bottom; y += tratto + vuoto) {
-      final y2 = math.min(y + tratto, r.bottom);
-      canvas.drawLine(Offset(r.left, y), Offset(r.left, y2), p);
-      canvas.drawLine(Offset(r.right, y), Offset(r.right, y2), p);
-    }
+    final r = bordo.getBounds();
     if (r.width < 120 || r.top < 18) return;
     final scritta = TextPainter(
       text: TextSpan(

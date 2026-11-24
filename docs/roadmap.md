@@ -25,8 +25,9 @@ Le scelte segnate come **decise** sono state prese con l'autore; le **idee** res
 - **Durata dei video.** Con Inizio e Fine si sceglie la parte da mostrare: oltre il massimo l'altro estremo segue.
   - Il PC accorcia anche i video aggiunti, e quelli dei progetti vecchi all'apertura.
   - Il telefono accorcia solo con i cursori e nella conversione. Negli altri casi l'MP4 si ferma comunque al massimo, quindi esce identico.
-- **Zona sicura.** Fasce del 14% in alto, 35% in basso e 6% ai lati: misure diffuse, non ufficiali di Meta. Non entra mai nell'esportazione.
-  - Codice: `reel_safe_rect` in `scrollr/canvas/scene.py`, `zonaSicuraReel` nel motore.
+- **Zona sicura.** 11% in alto, 16% in basso e 6% ai lati, più il rientro della colonna dei pulsanti: dal 61% dell'altezza in giù il margine destro è del 21%. Misure prese da una guida diffusa scelta dall'autore, non ufficiali di Meta. Non entra mai nell'esportazione.
+  - Prima versione (1.11.0 / mobile 1.2.0): rettangolo con 14% in alto, 35% in basso e 6% ai lati.
+  - Codice: `reel_safe_polygon` in `scrollr/canvas/scene.py`, `zonaSicuraReel` nel motore.
 - **Riferimenti mobile** rigenerati con `genera_riferimenti.py`: cambiano solo `project_type` e alcuni semi casuali.
 
 **Da provare sul Pixel 7:**

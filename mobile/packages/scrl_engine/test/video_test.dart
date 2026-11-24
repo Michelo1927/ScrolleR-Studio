@@ -203,16 +203,60 @@ void main() {
     });
   });
 
-  test('zonaSicuraReel come reel_safe_rect', () {
-    // Valori del desktop: reel_safe_rect(1080, 1920), (720, 1280), (1080, 1919)
+  test('zonaSicuraReel come reel_safe_polygon', () {
+    // Valori del desktop: reel_safe_polygon(1080, 1920), (720, 1280), (1080, 1919)
     final attesi = <(double, double), List<double>>{
-      (1080, 1920): [64.8, 268.8, 950.4, 979.2],
-      (720, 1280): [43.2, 179.2, 633.6, 652.8],
-      (1080, 1919): [64.8, 268.66, 950.4, 978.69],
+      (1080, 1920): [
+        64.8,
+        211.2,
+        1015.2,
+        211.2,
+        1015.2,
+        1171.2,
+        853.2,
+        1171.2,
+        853.2,
+        1612.8,
+        64.8,
+        1612.8,
+      ],
+      (720, 1280): [
+        43.2,
+        140.8,
+        676.8,
+        140.8,
+        676.8,
+        780.8,
+        568.8,
+        780.8,
+        568.8,
+        1075.2,
+        43.2,
+        1075.2,
+      ],
+      (1080, 1919): [
+        64.8,
+        211.09,
+        1015.2,
+        211.09,
+        1015.2,
+        1170.59,
+        853.2,
+        1170.59,
+        853.2,
+        1611.96,
+        64.8,
+        1611.96,
+      ],
     };
-    attesi.forEach((misura, r) {
+    attesi.forEach((misura, v) {
       final z = zonaSicuraReel(misura.$1, misura.$2)!;
-      expect([z.x, z.y, z.w, z.h], [for (final v in r) closeTo(v, 1e-9)]);
+      expect(
+        [
+          for (final p in z) ...[p.$1, p.$2],
+        ],
+        [for (final x in v) closeTo(x, 1e-9)],
+      );
     });
     expect(zonaSicuraReel(1080, 1350), isNull);
     expect(zonaSicuraReel(1080, 0), isNull);
