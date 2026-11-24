@@ -8,6 +8,7 @@ from PyQt6.QtCore import QRectF, QStandardPaths, Qt, QUrl
 from PyQt6.QtGui import QDesktopServices, QImage, QPainter
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox, QProgressDialog
 
+from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.video_item import VideoItem
 from scrollr.crashlog import log_handled
 from scrollr.dialogs import PageExportDialog
@@ -216,6 +217,44 @@ class ExportMixin:
 
     def _remember_export_dir(self, folder: str):
         self._settings().setValue("export_dir", folder)
+
+    def _save_cutout_png(self, item=None):
+        """Salva il soggetto della foto con la sagoma come PNG trasparente, alla risoluzione originale."""
+        if not isinstance(item, PhotoItem):
+            item = self._get_primary_selected()
+        if item is None or not item.has_cutout:
+            self.statusBar().showMessage("Seleziona una foto con la sagoma (Ritaglia o scontorna › Sagoma)", 5000)
+            return
+        if item.is_missing:
+            self.statusBar().showMessage("La foto è mancante: ricollegala prima di salvare la sagoma", 5000)
+            return
+        base = self._clean_file_name(os.path.splitext(os.path.basename(item.image_path))[0]) or "foto"
+        path, _ = QFileDialog.getSaveFileName(self, "Salva sagoma come PNG",
+                                              os.path.join(self._export_dir(), f"{base}_sagoma.png"),
+                                              "Immagine PNG (*.png)")
+        if not path:
+            return
+        if not path.lower().endswith(".png"):
+            path += ".png"
+        self._remember_export_dir(os.path.dirname(path))
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            img = item.cutout_image()
+            if img is None:
+                raise ValueError("sagoma non disponibile")
+            img.save(path, "PNG")
+            ok = True
+        except Exception:
+            log_handled("Salvataggio della sagoma come PNG")
+            ok = False
+        finally:
+            QApplication.restoreOverrideCursor()
+        if ok:
+            self.statusBar().showMessage(f"Sagoma salvata: {os.path.basename(path)}", 5000)
+        else:
+            QMessageBox.warning(self, "Salva sagoma come PNG",
+                                "Non sono riuscito a salvare l'immagine. Controlla che la cartella sia scrivibile "
+                                "e che ci sia spazio sul disco.")
 
     def _export_done(self, title: str, text: str, folder: str, warning: bool = False):
         """Messaggio finale con «Apri cartella», così si vede subito dove sono i file."""

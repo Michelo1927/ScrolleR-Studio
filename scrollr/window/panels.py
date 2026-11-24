@@ -481,9 +481,15 @@ class PanelsMixin:
         lay.addLayout(fit_row)
 
         self._section_header(lay, "Inquadratura")
-        lay.addWidget(self._icon_button("crop", kb("Ritaglia la foto e scegli le sue proporzioni (Ctrl+Shift+R)\n"
+        lay.addWidget(self._icon_button("crop", kb("Ritaglia la foto e scegli le sue proporzioni, oppure disegna la\n"
+                                                   "sagoma del soggetto per togliere lo sfondo (Ctrl+Shift+R).\n"
                                                    "Anche con un doppio clic sulla foto."),
-                                        self._crop_photo, "Ritaglia e proporzioni…", "SoftButton"))
+                                        self._crop_photo, "Ritaglia o scontorna…", "SoftButton"))
+        self.btn_save_cutout = self._icon_button("download", "Salva il soggetto scontornato come immagine PNG\n"
+                                                 "con lo sfondo trasparente, alla risoluzione originale",
+                                                 self._save_cutout_png, "Salva sagoma come PNG…", "SoftButton")
+        self.btn_save_cutout.setVisible(False)
+        lay.addWidget(self.btn_save_cutout)
         self.slider_inner_zoom = self._make_slider(lay, "Zoom", 100, 400, 100, "%", resettable=True)
         self.slider_inner_zoom.valueChanged.connect(lambda v: self._on_inspector_slider("zoom", v))
         self.slider_pan_x = self._make_slider(lay, "Orizzontale", -100, 100, 0, signed=True, resettable=True)

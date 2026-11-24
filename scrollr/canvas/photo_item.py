@@ -2,17 +2,21 @@
 import math
 import os
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QLineF, QRectF, QPointF, pyqtSignal
 from PyQt6.QtGui import (
     QPixmap, QPainter, QPen, QColor, QBrush, QPainterPath, QCursor, QTransform, QImage, QRadialGradient,
-    QLinearGradient, QFont, QFontMetricsF
+    QLinearGradient, QFont, QFontMetricsF, QPainterPathStroker, QPolygonF
 )
 from PyQt6.QtWidgets import QGraphicsObject, QGraphicsItem
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from scrollr.canvas.snap import snap_selection
+from scrollr.cutout import (
+    DEFAULT_SOFT, Points, apply_mask, bounding_crop, clean_cutout, clean_soft, cut_image, gray_qimage_to_pil,
+    mask_image
+)
 from scrollr.icons import draw_lock_badge, icon_pixmap
 from scrollr.imaging import (
     IMAGE_CACHE, NEUTRAL_ADJUST, PIXEL_ADJUST, adjustments_active, apply_adjustments, auto_levels_lut,
@@ -79,6 +83,7 @@ class PhotoItem(QGraphicsObject):
     EXPORT_RESAMPLE = Image.Resampling.LANCZOS  # Ricampionamento in esportazione
     MISSING_LABEL = "Foto mancante"
     MIN_CELL = 40.0
+    SUPPORTS_CUTOUT = True  # La sagoma (scontorno a mano) vale per le foto, non per i video
 
     _next_uid = 1
 
@@ -115,6 +120,10 @@ class PhotoItem(QGraphicsObject):
         self.border_color = QColor("#FFFFFF")
         self.auto_border = False    # Bordo aggiunto automaticamente dal layout Polaroid (progetti vecchi)
         self.frame = ""             # Cornice delle disposizioni Polaroid e Pellicola (vedi FRAME_STYLES)
+        # Sagoma: contorno del soggetto da tenere (punti 0..1 sulla foto non specchiata, vedi scrollr/cutout.py);
+        # fuori diventa trasparente. Con la sagoma bordo e ombra seguono il soggetto (effetto adesivo).
+        self.cutout: Optional[Points] = None
+        self.cutout_soft = DEFAULT_SOFT  # Morbidezza del bordo della sagoma 0..100
 
         # Colore, specchio, riempimento, opacità, ombra, blocco
         self.adjust = dict(NEUTRAL_ADJUST)
@@ -135,6 +144,8 @@ class PhotoItem(QGraphicsObject):
         self._shadow_cache: Optional[Tuple[tuple, QPixmap]] = None  # Ombra pronta per la tela
         self._brect_cache: Optional[Tuple[tuple, QRectF]] = None   # Ingombro (vedi boundingRect)
         self._auto_lut: Optional[Tuple[int, List[int]]] = None  # Livelli automatici (chiave dell'anteprima)
+        self._cut_cache: Dict[bool, Tuple[tuple, QPixmap]] = {}  # Foto scontornata (anteprima e nitida)
+        self._sticker_cache: Optional[Tuple[tuple, QPainterPath]] = None  # Sagoma con il contorno, sulla cella
 
         # Stato interazione maniglie
         self._resizing_handle: Optional[str] = None
@@ -166,9 +177,21 @@ class PhotoItem(QGraphicsObject):
 
     def display_pixmap(self, sharp: bool = False) -> QPixmap:
         """
-        Anteprima con le regolazioni colore applicate (ricalcolata solo quando cambiano).
+        Anteprima con le regolazioni colore applicate e la sagoma, se c'è (ricalcolata solo quando cambiano).
         Con sharp=True usa la versione nitida per lo zoom, se è già pronta.
         """
+        pm = self._adjusted_pixmap(sharp)
+        if not self.has_cutout or pm.isNull():
+            return pm
+        key = (pm.cacheKey(), tuple(self.cutout), self.cutout_soft)
+        cached = self._cut_cache.get(sharp)
+        if cached is None or cached[0] != key:
+            out = cut_image(qimage_to_pil(pm.toImage()), self.cutout, self.cutout_soft)
+            cached = self._cut_cache[sharp] = (key, QPixmap.fromImage(pil_to_qimage(out)))
+        return cached[1]
+
+    def _adjusted_pixmap(self, sharp: bool = False) -> QPixmap:
+        """Anteprima (o versione nitida) con le sole regolazioni colore, senza la sagoma."""
         hires = IMAGE_CACHE.hires(self.image_path) if sharp else None
         sharp = hires is not None
         pm = hires if sharp else self.pixmap
@@ -267,6 +290,101 @@ class PhotoItem(QGraphicsObject):
         self.shadow = int(value)
         self.update()
 
+    # ---------- Sagoma ----------
+    @property
+    def has_cutout(self) -> bool:
+        return self.SUPPORTS_CUTOUT and self.cutout is not None
+
+    def apply_cutout(self, points, soft: int = DEFAULT_SOFT):
+        """
+        Imposta la sagoma (None la toglie). Con una sagoma il ritaglio si stringe attorno al soggetto
+        e il riquadro ne prende la forma, come con «Ritaglia».
+        """
+        had_cutout = self.cutout is not None
+        self.cutout = clean_cutout(points) if self.SUPPORTS_CUTOUT else None
+        self.cutout_soft = clean_soft(soft)
+        self._sticker_cache = None
+        self.prepareGeometryChange()
+        # Con la sagoma il soggetto deve entrare sempre tutto nel riquadro, qualunque forma gli dia la
+        # disposizione (attorno è trasparente, non si vedono bande); senza, si torna a riempire il riquadro
+        if self.cutout is not None:
+            self.fit_mode = "contain"
+        elif had_cutout:
+            self.fit_mode = "cover"
+        if self.cutout is not None:
+            pm = self.pixmap
+            w, h = (pm.width(), pm.height()) if not pm.isNull() else (1000, 1000)
+            self.apply_crop(bounding_crop(self.cutout, self.cutout_soft, w, h), fit_cell=True)
+        self.update()
+
+    def cutout_image(self) -> Optional[Image.Image]:
+        """
+        Il soggetto scontornato alla risoluzione dell'originale, per «Salva sagoma come PNG»: ritagliato
+        attorno alla sagoma, con le regolazioni colore e lo specchio, sfondo trasparente. None se non si può.
+        """
+        if not self.has_cutout or self.is_missing:
+            return None
+        full = IMAGE_CACHE.decode_full(self.image_path)
+        x0, y0, x1, y1 = bounding_crop(self.cutout, self.cutout_soft, full.width, full.height)
+        box = (math.floor(x0 * full.width), math.floor(y0 * full.height),
+               math.ceil(x1 * full.width), math.ceil(y1 * full.height))
+        part = full.crop(box)
+        part = apply_adjustments(part, self.adjust, detail_scale=full.width / 1000.0, auto_lut=self.auto_lut())
+        out = apply_mask(part, mask_image(self.cutout, self.cutout_soft, full.width, full.height,
+                                          tuple(float(v) for v in box), part.size))
+        if self.flip_h:
+            out = out.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        if self.flip_v:
+            out = out.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+        return out
+
+    def _sticker(self) -> bool:
+        """Sagoma su una foto senza cornice: bordo e ombra seguono il soggetto invece del riquadro."""
+        return self.has_cutout and not self.frame and not self.is_missing
+
+    def silhouette_path(self) -> Optional[QPainterPath]:
+        """Sagoma nelle coordinate della cella, così come si vede (ritaglio, zoom, rotazione, specchio),
+        tagliata dal riquadro con i suoi angoli arrotondati. None se non c'è."""
+        pm = self.pixmap
+        if not self.has_cutout or pm.width() <= 0 or pm.height() <= 0:
+            return None
+        src = self._crop_rect(pm.width(), pm.height())
+        _, dx, dy, dw, dh = self._cover_geometry(src.width(), src.height())
+        x0, y0, x1, y1 = self.crop
+        kx, ky = dw / max(1e-9, x1 - x0), dh / max(1e-9, y1 - y0)
+        path = QPainterPath()
+        path.addPolygon(QPolygonF([QPointF(dx + (u - x0) * kx, dy + (v - y0) * ky) for u, v in self.cutout]))
+        path.closeSubpath()
+        path.setFillRule(Qt.FillRule.WindingFill)  # Come la maschera (scrollr/cutout.py)
+        path = self._image_transform().map(path)
+        radius = min(self.border_radius, self.cell_w / 2.0, self.cell_h / 2.0)
+        box = QPainterPath()
+        box.addRoundedRect(self.window_rect(), radius, radius)
+        return path.intersected(box)
+
+    def _sticker_key(self) -> tuple:
+        return (tuple(self.cutout or ()), self.crop, self.cell_w, self.cell_h, self.inner_zoom, self.pan_x, self.pan_y,
+                self.inner_rotation, self.flip_h, self.flip_v, self.stretch, self.fit_mode, self.border_radius,
+                self.border_width, self.pixmap.cacheKey())
+
+    def sticker_shape(self) -> Optional[QPainterPath]:
+        """Sagoma più il contorno «adesivo» largo quanto il bordo (in coordinate della cella)."""
+        key = self._sticker_key()
+        if self._sticker_cache is not None and self._sticker_cache[0] == key:
+            return self._sticker_cache[1]
+        sil = self.silhouette_path()
+        if sil is None:
+            return None
+        shape = sil
+        if self.border_width > 0:
+            stroker = QPainterPathStroker()
+            stroker.setWidth(self.border_width * 2.0)
+            stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
+            shape = stroker.createStroke(sil).united(sil)
+        self._sticker_cache = (key, shape)
+        return shape
+
     # ---------- Stato (per Annulla/Ripeti e salvataggio progetto) ----------
     def get_state(self) -> dict:
         return {
@@ -290,6 +408,8 @@ class PhotoItem(QGraphicsObject):
             "border_color": self.border_color.name(QColor.NameFormat.HexArgb),
             "auto_border": self.auto_border,
             "frame": self.frame,
+            "cutout": [[round(x, 5), round(y, 5)] for x, y in self.cutout] if self.cutout else None,
+            "cutout_soft": self.cutout_soft,
             "adjust": dict(self.adjust),
             "flip_h": self.flip_h,
             "flip_v": self.flip_v,
@@ -321,6 +441,10 @@ class PhotoItem(QGraphicsObject):
         self.auto_border = s.get("auto_border", False)
         frame = s.get("frame", "")
         self.frame = frame if frame in FRAME_STYLES else ""
+        self.prepareGeometryChange()  # Con la sagoma il contorno adesivo esce dal riquadro
+        self.cutout = clean_cutout(s.get("cutout")) if self.SUPPORTS_CUTOUT else None
+        self.cutout_soft = clean_soft(s.get("cutout_soft", DEFAULT_SOFT))
+        self._sticker_cache = None
         self.adjust = dict(NEUTRAL_ADJUST, **s.get("adjust", {}))
         self.flip_h = s.get("flip_h", False)
         self.flip_v = s.get("flip_v", False)
@@ -502,12 +626,14 @@ class PhotoItem(QGraphicsObject):
         scene = self.scene()
         vs = max(0.01, getattr(scene, "display_scale", 1.0)) if scene else 1.0
         shadow = self.effective_shadow() if self.frame == "polaroid" else self.shadow
-        key = (self.cell_w, self.cell_h, vs, shadow)
+        # Con la sagoma il contorno adesivo esce dal riquadro di quanto è largo il bordo
+        sticker = self.border_width if self.has_cutout and not self.frame else 0.0
+        key = (self.cell_w, self.cell_h, vs, shadow, sticker)
         cached = self._brect_cache
         if cached is not None and cached[0] == key:
             return QRectF(cached[1])
         ext = 0.0 if shadow <= 0 else min(self.cell_w, self.cell_h) * 0.05 + 8.0  # Come _shadow_extent()
-        margin = max(self.HANDLE_PX / vs + 4.0 / vs, ext * 1.4)
+        margin = max(self.HANDLE_PX / vs + 4.0 / vs, ext * 1.4 + sticker, sticker + 2.0)
         rect = QRectF(-margin, -margin, self.cell_w + margin * 2, self.cell_h + margin * 2)
         self._brect_cache = (key, rect)
         return QRectF(rect)
@@ -728,10 +854,17 @@ class PhotoItem(QGraphicsObject):
         path = QPainterPath()
         radius = min(self.border_radius, self.cell_w / 2.0, self.cell_h / 2.0)
         path.addRoundedRect(cell_rect, radius, radius)
-        waiting_hires = False  # Zoom forte e versione nitida non ancora pronta: si vede l'anteprima
+        sticker = self._sticker()
 
         if self.effective_shadow() > 0:
-            self._paint_shadow(painter, radius, exact=is_exporting)
+            if sticker:
+                self._paint_sticker_shadow(painter, exact=is_exporting)
+            else:
+                self._paint_shadow(painter, radius, exact=is_exporting)
+        if sticker and self.border_width > 0:
+            shape = self.sticker_shape()
+            if shape is not None:
+                painter.fillPath(shape, self.border_color)  # Contorno adesivo, sotto la foto
 
         painter.save()
         if radius > 0:
@@ -746,34 +879,13 @@ class PhotoItem(QGraphicsObject):
             image_rect = self.window_rect()
             painter.setClipRect(image_rect.adjusted(-0.5, -0.5, 0.5, 0.5), Qt.ClipOperation.IntersectClip)
             painter.fillRect(image_rect.adjusted(-0.5, -0.5, 0.5, 0.5), QColor(FRAME_COLORS[self.frame]))
-        if is_exporting:
-            painter.save()
-            self._paint_full_resolution(painter, image_rect)
-            painter.restore()
+        # Zoom forte e versione nitida non ancora pronta: si vede l'anteprima (con l'etichetta)
+        if self.has_cutout and not self.is_missing and self._effects_active():
+            waiting_hires = self._paint_cut_layer(painter, image_rect, is_exporting, clean)
         else:
-            sharp = self._needs_sharp(painter)
-            if sharp and IMAGE_CACHE.hires(self.image_path) is None:
-                waiting_hires = not self.is_missing
-                if getattr(scene, "hires_on_hold", False):
-                    scene.hires_wanted.add(self.image_path)  # Vista in movimento: si chiede quando si ferma
-                else:
-                    IMAGE_CACHE.request_hires(self.image_path)  # In sottofondo: per ora si usa l'anteprima
-            pm = self.display_pixmap(sharp)
-            if pm.width() > 0 and pm.height() > 0:
-                src = self._crop_rect(pm.width(), pm.height())
-                _, dx, dy, draw_w, draw_h = self._cover_geometry(src.width(), src.height())
-                painter.save()
-                painter.setTransform(self._image_transform(), True)
-                if not sharp:
-                    small = self._lod_pixmap(pm, painter, src.width(), draw_w)
-                    if small is not pm:
-                        pm, src = small, self._crop_rect(small.width(), small.height())
-                painter.drawPixmap(QRectF(dx, dy, draw_w, draw_h), pm, src)
-                painter.restore()
-            elif not clean and self.is_missing:
-                self._paint_missing(painter, cell_rect)
-        if not self.is_missing:
-            self._paint_effects(painter, image_rect)
+            waiting_hires = self._paint_photo(painter, image_rect, is_exporting, clean)[0]
+            if not self.is_missing:
+                self._paint_effects(painter, image_rect)
         depth = self.polaroid_depth()
         if depth > 0:
             self._paint_depth_window(painter, image_rect, depth)
@@ -784,7 +896,8 @@ class PhotoItem(QGraphicsObject):
             self._paint_depth_card(painter, path, image_rect, depth)
 
         # Bordo interno: non sborda nel gap e non viene tagliato ai margini della tela
-        if self.border_width > 0:
+        # (con la sagoma il bordo è il contorno adesivo, disegnato sotto la foto)
+        if self.border_width > 0 and not sticker:
             bw = min(self.border_width, self.cell_w / 2.0, self.cell_h / 2.0)
             inner = cell_rect.adjusted(bw / 2.0, bw / 2.0, -bw / 2.0, -bw / 2.0)
             inner_radius = max(0.0, radius - bw / 2.0)
@@ -838,6 +951,144 @@ class PhotoItem(QGraphicsObject):
             painter.setPen(hover_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(path)
+
+    def _paint_photo(self, painter: QPainter, image_rect: QRectF, is_exporting: bool, clean: bool,
+                     cut: bool = True) -> Tuple[bool, Optional[Callable[[QPainter], None]]]:
+        """
+        Disegna la foto nel riquadro (in esportazione dall'originale). Con cut=False senza la sagoma.
+        Restituisce (si aspetta la versione nitida, funzione che ridisegna la foto scontornata nello stesso
+        punto: serve a ritagliare con la sagoma un livello che ha anche vignettatura e grana).
+        """
+        if is_exporting:
+            painter.save()
+            redraw = self._paint_full_resolution(painter, image_rect, cut)
+            painter.restore()
+            return False, redraw
+        waiting = False
+        sharp = self._needs_sharp(painter)
+        if sharp and IMAGE_CACHE.hires(self.image_path) is None:
+            scene = self.scene()
+            waiting = not self.is_missing
+            if getattr(scene, "hires_on_hold", False):
+                scene.hires_wanted.add(self.image_path)  # Vista in movimento: si chiede quando si ferma
+            else:
+                IMAGE_CACHE.request_hires(self.image_path)  # In sottofondo: per ora si usa l'anteprima
+        pm = self.display_pixmap(sharp) if cut else self._adjusted_pixmap(sharp)
+        redraw = None
+        if pm.width() > 0 and pm.height() > 0:
+            src = self._crop_rect(pm.width(), pm.height())
+            _, dx, dy, draw_w, draw_h = self._cover_geometry(src.width(), src.height())
+            target = QRectF(dx, dy, draw_w, draw_h)
+            painter.save()
+            painter.setTransform(self._image_transform(), True)
+            if cut and not sharp:
+                small = self._lod_pixmap(pm, painter, src.width(), draw_w)
+                if small is not pm:
+                    pm, src = small, self._crop_rect(small.width(), small.height())
+            painter.drawPixmap(target, pm, src)
+            if self.has_cutout:
+                wt = painter.worldTransform()
+                masked = pm if cut else self.display_pixmap(sharp)
+                msrc = self._crop_rect(masked.width(), masked.height())
+
+                def redraw(p: QPainter):
+                    p.save()
+                    p.setWorldTransform(wt)
+                    p.drawPixmap(target, masked, msrc)
+                    p.restore()
+            painter.restore()
+        elif not clean and self.is_missing:
+            self._paint_missing(painter, QRectF(0, 0, self.cell_w, self.cell_h))
+        return waiting, redraw
+
+    def _effects_active(self) -> bool:
+        return bool(self.adjust.get("vignette") or self.adjust.get("grain")) and not self._showing_original()
+
+    def _paint_cut_layer(self, painter: QPainter, image_rect: QRectF, is_exporting: bool, clean: bool) -> bool:
+        """
+        Foto con sagoma, vignettatura e grana: foto intera ed effetti si disegnano su un livello a parte,
+        che poi la sagoma ritaglia. Così gli effetti restano sul soggetto e non sporcano lo sfondo.
+        """
+        device = painter.device()
+        dpr = device.devicePixelRatioF() if device is not None else 1.0
+        t = painter.worldTransform()
+        dev = t.mapRect(image_rect)
+        if device is not None:
+            dev = dev.intersected(QRectF(0, 0, device.width(), device.height()))
+        box = dev.toAlignedRect()
+        layer = QImage(max(1, math.ceil(box.width() * dpr)), max(1, math.ceil(box.height() * dpr)),
+                       QImage.Format.Format_ARGB32_Premultiplied) if not box.isEmpty() else QImage()
+        if layer.isNull():
+            return False
+        layer.setDevicePixelRatio(dpr)
+        layer.fill(Qt.GlobalColor.transparent)
+        lp = QPainter(layer)
+        lp.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        lp.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        lp.setWorldTransform(t * QTransform.fromTranslate(-box.x(), -box.y()))
+        lp.setClipRect(image_rect)
+        waiting, redraw = self._paint_photo(lp, image_rect, is_exporting, clean, cut=False)
+        if redraw is not None:
+            self._paint_effects(lp, image_rect)
+            # La trasparenza della foto scontornata, su un livello grande quanto l'altro: applicata su tutti
+            # i pixel, così fuori dalla foto non resta niente degli effetti (nemmeno un filo sui bordi)
+            alpha = QImage(layer.size(), QImage.Format.Format_ARGB32_Premultiplied)
+            alpha.setDevicePixelRatio(dpr)
+            alpha.fill(Qt.GlobalColor.transparent)
+            ap = QPainter(alpha)
+            ap.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            ap.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+            ap.setClipRect(lp.worldTransform().mapRect(image_rect))
+            redraw(ap)
+            ap.end()
+            lp.resetTransform()
+            lp.setClipping(False)
+            lp.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationIn)
+            lp.drawImage(QPointF(0.0, 0.0), alpha)
+        lp.end()
+        if redraw is not None:
+            painter.save()
+            painter.resetTransform()
+            painter.drawImage(QPointF(box.x(), box.y()), layer)
+            painter.restore()
+        return waiting
+
+    def _paint_sticker_shadow(self, painter: QPainter, exact: bool = False):
+        """Ombra che segue la sagoma (e il contorno adesivo): la forma sfumata, spostata un po' in basso."""
+        shape = self.sticker_shape()
+        if shape is None or shape.isEmpty():
+            return
+        ext = self._shadow_extent()
+        off, sigma = ext * 0.35, ext * 0.25
+        rect = shape.boundingRect().adjusted(-sigma * 3, -sigma * 3, sigma * 3, sigma * 3)
+        t = painter.worldTransform()
+        device = painter.device()
+        ratio = device.devicePixelRatioF() if device is not None else 1.0
+        res = math.hypot(t.m11(), t.m12()) * ratio  # Pixel dello schermo per unità della foto
+        res = min(res, (2048 if exact else self.SHADOW_MAX_PX) / max(1.0, rect.width(), rect.height()))
+        if not exact:
+            res = 2.0 ** (math.ceil(math.log2(max(1e-4, res)) * 4) / 4)  # A gradini: lo zoom non la rifà sempre
+        key = ("sagoma", self._sticker_key(), self.effective_shadow(), res)
+        cached = self._shadow_cache
+        if cached is None or cached[0] != key:
+            w = max(1, math.ceil(rect.width() * res))
+            h = max(1, math.ceil(rect.height() * res))
+            img = QImage(w, h, QImage.Format.Format_Grayscale8)
+            img.fill(0)
+            p = QPainter(img)
+            p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            p.scale(w / rect.width(), h / rect.height())
+            p.translate(-rect.left(), -rect.top())
+            p.fillPath(shape, QColor(255, 255, 255))
+            p.end()
+            strength = 1.0 - (1.0 - 0.075 * self.effective_shadow() / 100.0) ** self.SHADOW_STEPS
+            alpha = gray_qimage_to_pil(img).filter(ImageFilter.GaussianBlur(sigma * res))
+            alpha = alpha.point(lambda v: round(v * strength))
+            shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            shadow.putalpha(alpha)
+            cached = self._shadow_cache = (key, QPixmap.fromImage(pil_to_qimage(shadow)))
+        pm = cached[1]
+        painter.drawPixmap(rect.translated(0.0, off), pm, QRectF(0, 0, pm.width(), pm.height()))
 
     PREVIEW_BADGE = "Anteprima"
 
@@ -922,19 +1173,32 @@ class PhotoItem(QGraphicsObject):
         """Immagine da cui ricampionare in esportazione: l'originale letto almeno a `side` px."""
         return IMAGE_CACHE.full(self.image_path, side)
 
-    def _paint_full_resolution(self, painter: QPainter, cell_rect: QRectF):
-        """In esportazione ricampiona dall'originale solo la porzione visibile, alla risoluzione di uscita."""
+    def _paint_full_resolution(self, painter: QPainter, cell_rect: QRectF,
+                               cut: bool = True) -> Optional[Callable[[QPainter], None]]:
+        """
+        In esportazione ricampiona dall'originale solo la porzione visibile, alla risoluzione di uscita.
+        Con la sagoma restituisce una funzione che ridisegna la porzione scontornata (vedi _paint_photo).
+        """
         t0 = painter.worldTransform()
         full = self._export_source(self.export_side(math.hypot(t0.m11(), t0.m12()) or 1.0))
         img_t = self._image_transform()
         painter.setTransform(img_t, True)
         if full is None:
-            pm = self.display_pixmap()
+            pm = self.display_pixmap() if cut else self._adjusted_pixmap()
             if pm.width() > 0 and pm.height() > 0:
                 src = self._crop_rect(pm.width(), pm.height())
                 _, dx, dy, dw, dh = self._cover_geometry(src.width(), src.height())
                 painter.drawPixmap(QRectF(dx, dy, dw, dh), pm, src)
-            return
+                if self.has_cutout:
+                    wt, masked = painter.worldTransform(), self.display_pixmap()
+
+                    def redraw_preview(p: QPainter):
+                        p.save()
+                        p.setWorldTransform(wt)
+                        p.drawPixmap(QRectF(dx, dy, dw, dh), masked, self._crop_rect(masked.width(), masked.height()))
+                        p.restore()
+                    return redraw_preview
+            return None
 
         src = self._crop_rect(full.width, full.height)
         img_w, img_h = src.width(), src.height()
@@ -943,7 +1207,7 @@ class PhotoItem(QGraphicsObject):
         cell_in_img = img_t.inverted()[0].mapRect(cell_rect)
         visible = QRectF(dx, dy, draw_w, draw_h).intersected(cell_in_img)
         if visible.isEmpty():
-            return
+            return None
 
         t = painter.worldTransform()
         device_scale = math.hypot(t.m11(), t.m12()) or 1.0
@@ -961,7 +1225,21 @@ class PhotoItem(QGraphicsObject):
         # Larghezza che avrebbe la foto intera a questa risoluzione: la nitidezza resta come in anteprima
         whole_w = out_h * full.height / max(1e-6, box[3] - box[1]) * full.width / full.height
         resized = apply_adjustments(resized, self.adjust, detail_scale=whole_w / 1000.0, auto_lut=self.auto_lut())
-        painter.drawImage(visible, pil_to_qimage(resized))
+        if not self.has_cutout:
+            painter.drawImage(visible, pil_to_qimage(resized))
+            return None
+        masked = apply_mask(resized, mask_image(self.cutout, self.cutout_soft, full.width, full.height, box,
+                                                (out_w, out_h)))
+        masked_q = pil_to_qimage(masked)
+        painter.drawImage(visible, masked_q if cut else pil_to_qimage(resized))
+        wt = painter.worldTransform()
+
+        def redraw(p: QPainter):
+            p.save()
+            p.setWorldTransform(wt)
+            p.drawImage(visible, masked_q)
+            p.restore()
+        return redraw
 
     # ---------- Vignettatura e grana ----------
     def _visible_image_rect(self, cell_rect: QRectF) -> QRectF:

@@ -243,6 +243,7 @@ class InspectorMixin:
             self.slider_shadow.setValue(item.shadow)
             self.btn_paste_style.setEnabled(self._style_clipboard is not None)
             self._update_ratio_button()
+            self.btn_save_cutout.setVisible(item.has_cutout)
         primary = item if item is not None else (texts[0] if texts else (shapes[0] if shapes else None))
         if primary is not None:
             for sw in self._lock_switches:
@@ -638,13 +639,34 @@ class InspectorMixin:
                                          + ("è mancante" if item.is_missing else "la pagina è bloccata"), 4000)
             return
         dlg = CropDialog(item.pixmap, item.crop, item.flip_h, item.flip_v,
-                         item.cell_w / item.cell_h / item.stretch if item.cell_h > 0 else 1.0, item.image_path, self)
+                         item.cell_w / item.cell_h / item.stretch if item.cell_h > 0 else 1.0, item.image_path, self,
+                         cutout=item.cutout, cutout_soft=item.cutout_soft, allow_cutout=item.SUPPORTS_CUTOUT)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
-        item.apply_crop(dlg.crop(), dlg.fit_cell())
+        points = dlg.cutout() if item.SUPPORTS_CUTOUT else None
+        if points:
+            item.apply_cutout(points, dlg.cutout_soft())
+            message = "Sagoma applicata: bordo e ombra ora seguono il soggetto"
+        else:
+            had_cutout = item.has_cutout
+            item.apply_cutout(None)
+            item.apply_crop(dlg.crop(), dlg.fit_cell())
+            message = ("Sagoma tolta" if had_cutout else
+                       "Ritaglio applicato" if item.has_crop() else "Ritaglio tolto: foto intera")
         self._sync_inspector_from_item(self._get_primary_selected())
         self._schedule_commit()
-        self.statusBar().showMessage("Ritaglio applicato" if item.has_crop() else "Ritaglio tolto: foto intera", 3000)
+        self.statusBar().showMessage(message, 4000)
+
+    def _remove_cutout_selected(self):
+        """Toglie la sagoma dalle foto selezionate: tornano intere, con il riquadro nella forma della foto."""
+        changed = [p for p in self._selected_photos() if p.has_cutout and not p.page_locked]
+        for p in changed:
+            p.apply_cutout(None)
+            p.apply_crop((0.0, 0.0, 1.0, 1.0), fit_cell=True)
+        if changed:
+            self._sync_inspector_from_item(self._get_primary_selected())
+            self._schedule_commit()
+            self.statusBar().showMessage("Sagoma tolta: la foto torna intera", 3000)
 
     def _restore_selected_original_ratio(self):
         """Interruttore: proporzioni originali della foto ⇄ riquadro com'era prima."""
@@ -766,7 +788,10 @@ class InspectorMixin:
             ("scatter", "Rimetti nella disposizione" if has_photo and all(p.free for p in self._selected_photos())
              else "Rendi foto libera (fuori dalla disposizione)", self._toggle_free_selected, has_photo),
             ("swap", "Scambia le 2 foto selezionate", self.swap_two_selected_photos, n_photos == 2),
-            ("crop", "Ritaglia foto…", self._crop_photo, has_photo),
+            ("crop", "Ritaglia o scontorna foto…", self._crop_photo, has_photo),
+            *([("download", "Salva sagoma come PNG…", self._save_cutout_png, True),
+               ("reset", "Togli sagoma", self._remove_cutout_selected, True)]
+              if any(p.has_cutout for p in self._selected_photos()) else []),
             ("reset", "Reimposta zoom e posizione", self._reset_selected_framing, has_photo),
             ("ratio", self._ratio_button_text(long=True), self._restore_selected_original_ratio, has_photo),
             ("flip_h", "Specchia orizzontalmente", lambda: self._flip_selected("h"), has_photo),

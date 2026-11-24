@@ -31,6 +31,8 @@ THEME = {
     "danger": "#E34850",
     "guide": "#29D5F5",
     "snap": "#FF3DCB",
+    "checker_light": "#CACACA",  # Scacchiera della trasparenza (anteprima dello scontorno): casella chiara
+    "checker_dark": "#9C9C9C",   # ... e casella scura
 }
 
 # Colori rapidi per forme e disegni (contenuto del collage, non dell'interfaccia)

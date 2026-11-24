@@ -29,6 +29,7 @@ class VideoItem(PhotoItem):
     PLAY_SIDE = 960                       # Fotogrammi della riproduzione: leggeri, bastano per guardare
     EXPORT_RESAMPLE = Image.Resampling.BILINEAR  # Un fotogramma alla volta: conta la velocità
     MISSING_LABEL = "Video mancante"
+    SUPPORTS_CUTOUT = False  # La sagoma vale solo per le foto
 
     def __init__(self, image_path: str, cell_w: float = 400.0, cell_h: float = 500.0, uid: Optional[int] = None):
         super().__init__(image_path, cell_w, cell_h, uid)
