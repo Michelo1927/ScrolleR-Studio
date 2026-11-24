@@ -276,7 +276,7 @@ class _PannelloDisposizioneState extends ConsumerState<PannelloDisposizione> {
                       (s, ctx) => setNumFrames(s, s.canvas.numFrames - 1, ctx),
                     )
                   : null,
-              onPiu: c.numFrames < pagineMassime
+              onPiu: c.numFrames < (c.projectType == 'reel' ? 1 : pagineMassime)
                   ? () => _modifica(
                       (s, ctx) => setNumFrames(s, s.canvas.numFrames + 1, ctx),
                     )

@@ -11,7 +11,6 @@ import '../model/canvas_state.dart';
 import '../model/context.dart';
 import '../model/elements.dart';
 import '../model/scene.dart';
-import '../project/formato.dart';
 import '../util/py.dart';
 import '../util/py_random.dart';
 
@@ -43,8 +42,9 @@ void applyAutoLayoutIn(Scene sc, String mode) {
 
   final ctx = sc.ctx;
   if (mode == LayoutModes.seam) {
-    if (sc.numFrames < 2) {
+    if (sc.numFrames < 2 && sc.maxPages > 1) {
       // "A cavallo" richiede almeno 2 pagine: le aggiunge e ricorda quante ce n'erano prima
+      // (non in un reel, che ha una pagina sola)
       final frames = math.max(2, pyCeilDiv(photos.length, 4));
       ctx.seamAddedFrames = (sc.numFrames, frames);
       sc.setFramesSilently(frames);
@@ -91,7 +91,7 @@ void applyAutoLayoutIn(Scene sc, String mode) {
       final frames = [
         1,
         needed,
-        ...textPages.where((p) => p <= pagineMassime),
+        ...textPages.where((p) => p <= sc.maxPages),
       ].reduce(math.max);
       if (frames != sc.numFrames) sc.setFramesSilently(frames);
     }
@@ -230,7 +230,7 @@ List<int> pagePhotoCounts(Scene sc, int n) {
   if (perPage > 0) {
     final counts = <int>[];
     var left = n;
-    while (left > 0 && counts.length < pagineMassime) {
+    while (left > 0 && counts.length < sc.maxPages) {
       final f = fixedAt(counts.length);
       final c = math.min(f ?? perPage, left);
       counts.add(c);

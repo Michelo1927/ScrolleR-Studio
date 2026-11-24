@@ -1101,6 +1101,9 @@ class TestiEn extends Testi {
   String get stileGuide => 'Guides';
 
   @override
+  String get zonaSicuraReel => 'Reel safe zone';
+
+  @override
   String get stileAggancio => 'Snap';
 
   @override
@@ -1946,8 +1949,13 @@ class TestiEn extends Testi {
   String get videoSenzaAudioAvviso => 'This video has no audio';
 
   @override
-  String videoLimiteInstagram(int secondi) {
-    return 'Instagram accepts slides up to $secondi s: the exported page stops there.';
+  String videoLimiteReel(int minuti) {
+    return 'Reels use at most $minuti minutes: choose the part with Start and End.';
+  }
+
+  @override
+  String videoLimiteCarosello(int secondi) {
+    return 'Carousels use at most $secondi s: choose the part with Start and End, or convert the project to a reel.';
   }
 
   @override
@@ -2528,20 +2536,10 @@ class TestiEn extends Testi {
   String get catVideo => 'Video';
 
   @override
-  String get formatiPiuUsati => 'Most used';
-
-  @override
-  String get formatiPiuUsatiDesc =>
-      'Instagram formats for posts, stories and reels';
-
-  @override
-  String get formatiAltri => 'Other formats';
-
-  @override
   String get usoFormato45 => 'Feed post';
 
   @override
-  String get usoFormato916 => 'Stories and Reels';
+  String get usoFormato916 => 'Stories';
 
   @override
   String get usoFormato34 => 'Profile grid';
@@ -2634,4 +2632,53 @@ class TestiEn extends Testi {
 
   @override
   String get sagAnnullaSalvataggio => 'Cancel';
+
+  @override
+  String get tipoCarosello => 'Carousel or photos';
+
+  @override
+  String get tipoCaroselloDesc => 'Up to 30 pages, videos up to 60 s';
+
+  @override
+  String get tipoReel => 'Reel';
+
+  @override
+  String get tipoReelDesc => 'One page, videos up to 5 minutes';
+
+  @override
+  String get usoFormatoConsigliato => 'Suggested';
+
+  @override
+  String get formatoAiutoReel =>
+      'A reel has a single page; you can convert it to a carousel from Pages → Format.';
+
+  @override
+  String get convertiInReel => 'Convert to reel';
+
+  @override
+  String get convertiInCarosello => 'Convert to carousel';
+
+  @override
+  String get cambConvertitoReel => 'Converted to reel';
+
+  @override
+  String get cambConvertitoCarosello => 'Converted to carousel';
+
+  @override
+  String get noticeReelUnaPagina => 'A reel has only one page';
+
+  @override
+  String get noticeReelTogliPagine =>
+      'A reel has only one page: remove the other pages, then convert the project';
+
+  @override
+  String get noticeVideoPrimoMinuto =>
+      'Converted to carousel: videos longer than 60 s use their first minute. Choose the part with Start and End.';
+
+  @override
+  String get avvisoConvertitoReel =>
+      'Project converted to reel: videos can last up to 5 minutes';
+
+  @override
+  String get avvisoConvertitoCarosello => 'Project converted to carousel';
 }

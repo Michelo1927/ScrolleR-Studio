@@ -117,8 +117,105 @@ void main() {
   test('fotogrammiPaginaVideo come _video_page_frames', () {
     expect(fotogrammiPaginaVideo([]), 1);
     expect(fotogrammiPaginaVideo([2.5, 7.44]), 223);
+    // Carosello: al massimo 60 s; reel: al massimo 5 minuti
     expect(fotogrammiPaginaVideo([90]), 1800);
+    expect(fotogrammiPaginaVideo([90], tipoProgetto: 'reel'), 2700);
+    expect(fotogrammiPaginaVideo([400], tipoProgetto: 'reel'), 9000);
     expect(fotogrammiPaginaVideo([0.1]), 3);
+  });
+
+  group('tipo di progetto come toggle_project_type e limit_clip', () {
+    final ctx = EngineContext(
+      imageSize: (_) => (w: 600, h: 800),
+      textSize: (_) => (w: 200.0, h: 100.0),
+    );
+    PhotoItem video(double inizio, double? fine) => conTaglio(
+      PhotoItem(uid: 1, path: 'v.mp4', isVideo: true),
+      inizio,
+      fine,
+      400,
+    );
+
+    test("conLimiteTaglio tiene l'inizio o la fine", () {
+      final v = conLimiteTaglio(video(100, null), 60, 400);
+      expect([v.trimStart, v.trimEnd], [100.0, 160.0]);
+      final w = conLimiteTaglio(video(0, 300), 60, 400, tieniFine: true);
+      expect([w.trimStart, w.trimEnd], [240.0, 300.0]);
+      final corto = video(10, 40);
+      expect(conLimiteTaglio(corto, 60, 400), same(corto));
+    });
+
+    test("cursori: oltre il massimo l'altro estremo segue", () {
+      final v = conFine(video(0, 30), 300, 400, massimo: 60);
+      expect([v.trimStart, v.trimEnd], [240.0, 300.0]);
+      final w = conInizio(video(0, null), 100, 400, massimo: 60);
+      expect([w.trimStart, w.trimEnd], [100.0, 160.0]);
+    });
+
+    test('il tipo si legge e si scrive; i progetti vecchi sono caroselli', () {
+      expect(CanvasState.fromJson(const {}).projectType, 'carousel');
+      expect(
+        CanvasState.fromJson(const {'project_type': 'reel'}).projectType,
+        'reel',
+      );
+      expect(
+        CanvasState.fromJson(const {'project_type': 'boh'}).projectType,
+        'carousel',
+      );
+      expect(CanvasState(projectType: 'reel').toJson()['project_type'], 'reel');
+    });
+
+    test('reel: una sola pagina', () {
+      final s = Snapshot(
+        canvas: CanvasState(layoutSeed: 1, projectType: 'reel'),
+      );
+      final r = insertPageAt(s, 1, ctx);
+      expect(r.applied, isFalse);
+      expect(r.notices.single.kind, NoticeKind.reelSinglePage);
+      expect(setNumFrames(s, 3, ctx).applied, isFalse);
+    });
+
+    test('in reel solo con una pagina; in carosello il primo minuto', () {
+      final due = Snapshot(canvas: CanvasState(layoutSeed: 1, numFrames: 2));
+      final no = convertiTipoProgetto(due, const {}, ctx);
+      expect(no.applied, isFalse);
+      expect(no.notices.single.kind, NoticeKind.reelNeedsOnePage);
+
+      final una = Snapshot(
+        canvas: CanvasState(layoutSeed: 1),
+        items: [video(100, null)],
+      );
+      final reel = convertiTipoProgetto(una, const {'v.mp4': 400}, ctx);
+      expect(reel.snapshot.canvas.projectType, 'reel');
+      expect(reel.snapshot.items.single.trimEnd, isNull);
+
+      final car = convertiTipoProgetto(reel.snapshot, const {
+        'v.mp4': 400,
+      }, ctx);
+      expect(car.snapshot.canvas.projectType, 'carousel');
+      expect(car.snapshot.items.single.trimStart, 100.0);
+      expect(car.snapshot.items.single.trimEnd, 160.0);
+      expect(car.notices.single.kind, NoticeKind.videosTrimmedToCarousel);
+      expect(
+        describeChange(una, reel.snapshot).kind,
+        ChangeKind.convertedToReel,
+      );
+    });
+  });
+
+  test('zonaSicuraReel come reel_safe_rect', () {
+    // Valori del desktop: reel_safe_rect(1080, 1920), (720, 1280), (1080, 1919)
+    final attesi = <(double, double), List<double>>{
+      (1080, 1920): [64.8, 268.8, 950.4, 979.2],
+      (720, 1280): [43.2, 179.2, 633.6, 652.8],
+      (1080, 1919): [64.8, 268.66, 950.4, 978.69],
+    };
+    attesi.forEach((misura, r) {
+      final z = zonaSicuraReel(misura.$1, misura.$2)!;
+      expect([z.x, z.y, z.w, z.h], [for (final v in r) closeTo(v, 1e-9)]);
+    });
+    expect(zonaSicuraReel(1080, 1350), isNull);
+    expect(zonaSicuraReel(1080, 0), isNull);
   });
 
   test('tempoInRiproduzione ripete il taglio', () {

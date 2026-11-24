@@ -48,7 +48,8 @@
   "swipe_hint": true,
   "swipe_text": "Scorri ⟶",
   "swipe_pos": "br",
-  "export_name": "prova"
+  "export_name": "prova",
+  "project_type": "carousel"
  },
  "library": [
   {

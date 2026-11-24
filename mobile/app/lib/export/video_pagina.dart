@@ -137,7 +137,10 @@ Future<EsitoVideo> esportaPaginaVideo({
     if (video.isEmpty) {
       return EsitoVideo(false, errore: StateError('Nessun video nella pagina'));
     }
-    n = fotogrammiPaginaVideo(video.map((v) => v.durata));
+    n = fotogrammiPaginaVideo(
+      video.map((v) => v.durata),
+      tipoProgetto: s.canvas.projectType,
+    );
     final secondi = n / RegoleVideo.fps;
 
     await risorse.preparaEsportazione(s, k, px, annullato: annullato);

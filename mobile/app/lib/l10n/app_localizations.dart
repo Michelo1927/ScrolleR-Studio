@@ -1951,11 +1951,17 @@ abstract class Testi {
   /// **'Indicatore «scorri»'**
   String get stileScorri;
 
-  /// Stile: guide di centro sulla pagina
+  /// Stile: guide di centro sulla pagina e, sulle pagine 9:16, zona sicura dei reel
   ///
   /// In it, this message translates to:
   /// **'Guide'**
   String get stileGuide;
+
+  /// Scritta sopra il bordo della zona non coperta dall'interfaccia dei reel, sulle pagine 9:16
+  ///
+  /// In it, this message translates to:
+  /// **'Zona sicura reel'**
+  String get zonaSicuraReel;
 
   /// Stile: aggancio degli elementi
   ///
@@ -3235,11 +3241,17 @@ abstract class Testi {
   /// **'Questo video non ha audio'**
   String get videoSenzaAudioAvviso;
 
-  /// Taglio più lungo del massimo
+  /// Video più lungo del massimo di un reel
   ///
   /// In it, this message translates to:
-  /// **'Instagram accetta slide fino a {secondi} s: la pagina esportata si ferma lì.'**
-  String videoLimiteInstagram(int secondi);
+  /// **'Nei reel si usano al massimo {minuti} minuti: scegli la parte con Inizio e Fine.'**
+  String videoLimiteReel(int minuti);
+
+  /// Video più lungo del massimo di una slide di un carosello
+  ///
+  /// In it, this message translates to:
+  /// **'Nei caroselli si usano al massimo {secondi} s: scegli la parte con Inizio e Fine, o converti il progetto in reel.'**
+  String videoLimiteCarosello(int secondi);
 
   /// Avanzamento di una pagina con video
   ///
@@ -4063,24 +4075,6 @@ abstract class Testi {
   /// **'Video'**
   String get catVideo;
 
-  /// Nuovo progetto: titolo della sezione dei formati di Instagram, in cima
-  ///
-  /// In it, this message translates to:
-  /// **'I più usati'**
-  String get formatiPiuUsati;
-
-  /// Nuovo progetto: riga sotto «I più usati»
-  ///
-  /// In it, this message translates to:
-  /// **'I formati di Instagram per post, storie e reel'**
-  String get formatiPiuUsatiDesc;
-
-  /// Nuovo progetto: titolo della sezione con gli altri formati
-  ///
-  /// In it, this message translates to:
-  /// **'Altri formati'**
-  String get formatiAltri;
-
   /// Uso del formato 4:5
   ///
   /// In it, this message translates to:
@@ -4090,7 +4084,7 @@ abstract class Testi {
   /// Uso del formato 9:16
   ///
   /// In it, this message translates to:
-  /// **'Storie e Reel'**
+  /// **'Storie'**
   String get usoFormato916;
 
   /// Uso del formato 3:4
@@ -4260,6 +4254,96 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Annulla'**
   String get sagAnnullaSalvataggio;
+
+  /// Nuovo progetto: tipo carosello
+  ///
+  /// In it, this message translates to:
+  /// **'Carosello o foto'**
+  String get tipoCarosello;
+
+  /// Nuovo progetto: cosa vale nel carosello
+  ///
+  /// In it, this message translates to:
+  /// **'Fino a 30 pagine, video fino a 60 s'**
+  String get tipoCaroselloDesc;
+
+  /// Nuovo progetto: tipo reel
+  ///
+  /// In it, this message translates to:
+  /// **'Reel'**
+  String get tipoReel;
+
+  /// Nuovo progetto: cosa vale nel reel
+  ///
+  /// In it, this message translates to:
+  /// **'Una pagina, video fino a 5 minuti'**
+  String get tipoReelDesc;
+
+  /// Nuovo progetto: sotto il 9:16 nel gruppo Reel
+  ///
+  /// In it, this message translates to:
+  /// **'Consigliato'**
+  String get usoFormatoConsigliato;
+
+  /// Nuovo progetto: riga in fondo quando è scelto un formato da reel
+  ///
+  /// In it, this message translates to:
+  /// **'Il reel ha una pagina sola; si può convertire in carosello da Pagine → Formato.'**
+  String get formatoAiutoReel;
+
+  /// Pagine → Formato: converte il carosello in reel
+  ///
+  /// In it, this message translates to:
+  /// **'Converti in reel'**
+  String get convertiInReel;
+
+  /// Pagine → Formato: converte il reel in carosello
+  ///
+  /// In it, this message translates to:
+  /// **'Converti in carosello'**
+  String get convertiInCarosello;
+
+  /// Cronologia: progetto convertito in reel
+  ///
+  /// In it, this message translates to:
+  /// **'Convertito in reel'**
+  String get cambConvertitoReel;
+
+  /// Cronologia: progetto convertito in carosello
+  ///
+  /// In it, this message translates to:
+  /// **'Convertito in carosello'**
+  String get cambConvertitoCarosello;
+
+  /// Avviso: niente pagine in più in un reel
+  ///
+  /// In it, this message translates to:
+  /// **'Un reel ha una sola pagina'**
+  String get noticeReelUnaPagina;
+
+  /// Avviso: conversione in reel con più pagine
+  ///
+  /// In it, this message translates to:
+  /// **'Un reel ha una sola pagina: togli le altre pagine, poi converti il progetto'**
+  String get noticeReelTogliPagine;
+
+  /// Avviso: video accorciati passando a carosello
+  ///
+  /// In it, this message translates to:
+  /// **'Convertito in carosello: i video più lunghi di 60 s usano il primo minuto. Scegli la parte con Inizio e Fine.'**
+  String get noticeVideoPrimoMinuto;
+
+  /// Messaggio dopo la conversione in reel
+  ///
+  /// In it, this message translates to:
+  /// **'Progetto convertito in reel: i video arrivano a 5 minuti'**
+  String get avvisoConvertitoReel;
+
+  /// Messaggio dopo la conversione in carosello
+  ///
+  /// In it, this message translates to:
+  /// **'Progetto convertito in carosello'**
+  String get avvisoConvertitoCarosello;
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

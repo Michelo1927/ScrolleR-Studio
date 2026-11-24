@@ -13,7 +13,7 @@ import '../project/formato.dart';
 /// `_on_frames_changed`: numero di pagine scelto a mano (1–30).
 EngineResult setNumFrames(Snapshot s, int value, EngineContext ctx) {
   final sc = Scene(s, ctx);
-  value = value.clamp(1, pagineMassime);
+  value = value.clamp(1, sc.maxPages);
   if (value == sc.numFrames) return EngineResult.refused(s, sc);
   final locked = [
     for (var k = value; k < sc.numFrames; k++)

@@ -30,16 +30,25 @@ final _videoPrincipale = Provider.autoDispose<PhotoItem?>((ref) {
 /// Decimi di secondo come tempo leggibile («0:04,5»).
 String _decimi(int v) => formatoTempo(v / 10.0);
 
-/// Riga sotto il cursore (`_update_video_info`): durata, parte usata, senza audio, limite di Instagram.
-String testoInfoVideo(Testi t, PhotoItem v, double durata, bool audio) {
+/// Riga sotto il cursore (`_update_video_info`): durata, parte usata, senza audio e, per un video più lungo del
+/// massimo del tipo di progetto ([tipo]), come sceglierne la parte.
+String testoInfoVideo(
+  Testi t,
+  PhotoItem v,
+  double durata,
+  bool audio,
+  String tipo,
+) {
   final usati = clipLength(v, durata);
   final parti = [
     t.videoInfoDurata(formatoTempo(durata), formatoTempo(usati)),
     if (!audio) t.videoSenzaAudio,
   ];
   var testo = parti.join('  ·  ');
-  if (usati > LimitiVideo.secondiMassimi + 0.05) {
-    testo += '\n${t.videoLimiteInstagram(LimitiVideo.secondiMassimi.toInt())}';
+  if (durata > secondiMassimiPer(tipo) + 0.05) {
+    testo += tipo == 'reel'
+        ? '\n${t.videoLimiteReel(LimitiVideo.secondiMassimi ~/ 60)}'
+        : '\n${t.videoLimiteCarosello(LimitiVideo.secondiSlideCarosello.toInt())}';
   }
   return testo;
 }
@@ -93,7 +102,13 @@ abstract class _PannelloVideoState<T extends ConsumerStatefulWidget>
                 onFine: () {},
               ),
               Text(
-                testoInfoVideo(t, v, durata, info?.audio ?? false),
+                testoInfoVideo(
+                  t,
+                  v,
+                  durata,
+                  info?.audio ?? false,
+                  ref.read(editorProvider).snapshot.canvas.projectType,
+                ),
                 key: const ValueKey('video-info'),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -146,6 +161,10 @@ class _PannelloTaglioVideoState
     final v = ref.watch(_videoPrincipale);
     ref.watch(editorProvider.select((s) => s.snapshot));
     final durata = v == null ? 0.0 : _s.risorse.durataVideo(v);
+    // Oltre la durata massima del tipo di progetto l'altro estremo segue: si sceglie la parte da mostrare
+    final massimo = secondiMassimiPer(
+      ref.watch(editorProvider.select((s) => s.snapshot.canvas.projectType)),
+    );
     return Intelaiatura(
       nome: t.strTaglia,
       azioni: [_azioneRiproduci(t, ref)],
@@ -156,7 +175,13 @@ class _PannelloTaglioVideoState
           valore: v == null ? null : formatoTempo(v.trimStart),
           contenuto: v == null
               ? const SizedBox.shrink()
-              : cursore(v, t.parInizio, v.trimStart, 0, conInizio),
+              : cursore(
+                  v,
+                  t.parInizio,
+                  v.trimStart,
+                  0,
+                  (p, s, d) => conInizio(p, s, d, massimo: massimo),
+                ),
         ),
         SchedaStrumento(
           chiave: const ValueKey('video-fine'),
@@ -164,7 +189,13 @@ class _PannelloTaglioVideoState
           valore: v == null ? null : formatoTempo(clipEnd(v, durata)),
           contenuto: v == null
               ? const SizedBox.shrink()
-              : cursore(v, t.parFine, clipEnd(v, durata), durata, conFine),
+              : cursore(
+                  v,
+                  t.parFine,
+                  clipEnd(v, durata),
+                  durata,
+                  (p, s, d) => conFine(p, s, d, massimo: massimo),
+                ),
         ),
       ],
     );

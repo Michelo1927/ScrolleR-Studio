@@ -15,7 +15,12 @@ import 'geometria_foto.dart';
 /// Regole dei video del desktop (`scrollr/video.py`).
 abstract final class LimitiVideo {
   static const int fps = 30;
-  static const double secondiMassimi = 60.0;
+
+  /// `VIDEO_MAX_SECONDS`: 5 minuti, per i reel.
+  static const double secondiMassimi = 300.0;
+
+  /// `CAROUSEL_SLIDE_SECONDS`: nei caroselli Instagram una slide video arriva solo a 60 s.
+  static const double secondiSlideCarosello = 60.0;
 }
 
 /// `set_trim(start, end)`: inizio e fine del taglio in secondi; la fine a meno di 0,05 s dalla durata torna
@@ -32,13 +37,48 @@ PhotoItem conTaglio(PhotoItem v, double inizio, double? fine, double durata) {
   return v.copyWith(trimStart: start, trimEnd: () => end);
 }
 
-/// Cursore «Inizio» (`_on_video_slider("start")`): la fine resta, ma non si incrocia con l'inizio.
-PhotoItem conInizio(PhotoItem v, double secondi, double durata) =>
-    conTaglio(v, secondi, v.trimEnd, durata);
+/// Durata massima della parte usata (`max_video_seconds`): 5 minuti nei reel, 60 s nei caroselli.
+double secondiMassimiPer(String tipoProgetto) => tipoProgetto == 'reel'
+    ? LimitiVideo.secondiMassimi
+    : LimitiVideo.secondiSlideCarosello;
 
-/// Cursore «Fine» (`_on_video_slider("end")`).
-PhotoItem conFine(PhotoItem v, double secondi, double durata) =>
-    conTaglio(v, v.trimStart, secondi, durata);
+/// `limit_clip`: parte usata lunga al massimo [massimo] secondi; si accorcia la fine (o, con [tieniFine], l'inizio).
+PhotoItem conLimiteTaglio(
+  PhotoItem v,
+  double massimo,
+  double durata, {
+  bool tieniFine = false,
+}) {
+  if (clipLength(v, durata) <= massimo + 0.05) return v;
+  if (tieniFine) {
+    final fine = clipEnd(v, durata);
+    return conTaglio(v, math.max(0.0, fine - massimo), fine, durata);
+  }
+  return conTaglio(v, v.trimStart, v.trimStart + massimo, durata);
+}
+
+/// Cursore «Inizio» (`_on_video_slider("start")`): la fine resta, ma non si incrocia con l'inizio; oltre
+/// [massimo] secondi la fine segue.
+PhotoItem conInizio(
+  PhotoItem v,
+  double secondi,
+  double durata, {
+  double massimo = double.infinity,
+}) =>
+    conLimiteTaglio(conTaglio(v, secondi, v.trimEnd, durata), massimo, durata);
+
+/// Cursore «Fine» (`_on_video_slider("end")`): oltre [massimo] secondi l'inizio segue.
+PhotoItem conFine(
+  PhotoItem v,
+  double secondi,
+  double durata, {
+  double massimo = double.infinity,
+}) => conLimiteTaglio(
+  conTaglio(v, v.trimStart, secondi, durata),
+  massimo,
+  durata,
+  tieniFine: true,
+);
 
 /// Cursore «Copertina»: il secondo mostrato sulla tela, nelle anteprime e nel collage intero.
 PhotoItem conCopertina(PhotoItem v, double secondi, double durata) =>
@@ -82,12 +122,17 @@ List<PhotoItem> videoDellaPagina(Snapshot s, int k) {
 }
 
 /// `_video_page_frames`: fotogrammi dell'MP4 di una pagina con video lunghi [durateTaglio] secondi: dura quanto il
-/// più lungo, al massimo 60 s.
-int fotogrammiPaginaVideo(Iterable<double> durateTaglio) {
+/// più lungo, al massimo 5 minuti in un reel e 60 s in un carosello ([tipoProgetto]).
+int fotogrammiPaginaVideo(
+  Iterable<double> durateTaglio, {
+  String tipoProgetto = 'carousel',
+}) {
   final piuLungo = durateTaglio.fold(0.0, math.max);
   return math.max(
     1,
-    pyRound(math.min(piuLungo, LimitiVideo.secondiMassimi) * LimitiVideo.fps),
+    pyRound(
+      math.min(piuLungo, secondiMassimiPer(tipoProgetto)) * LimitiVideo.fps,
+    ),
   );
 }
 

@@ -1490,7 +1490,11 @@
   },
   "stileGuide": "Guide",
   "@stileGuide": {
-    "description": "Stile: guide di centro sulla pagina"
+    "description": "Stile: guide di centro sulla pagina e, sulle pagine 9:16, zona sicura dei reel"
+  },
+  "zonaSicuraReel": "Zona sicura reel",
+  "@zonaSicuraReel": {
+    "description": "Scritta sopra il bordo della zona non coperta dall'interfaccia dei reel, sulle pagine 9:16"
   },
   "stileAggancio": "Aggancio",
   "@stileAggancio": {
@@ -2694,9 +2698,19 @@
   "@videoSenzaAudioAvviso": {
     "description": "Tocco su Audio con un video senza traccia audio"
   },
-  "videoLimiteInstagram": "Instagram accetta slide fino a {secondi} s: la pagina esportata si ferma lì.",
-  "@videoLimiteInstagram": {
-    "description": "Taglio più lungo del massimo",
+  "videoLimiteReel": "Nei reel si usano al massimo {minuti} minuti: scegli la parte con Inizio e Fine.",
+  "@videoLimiteReel": {
+    "description": "Video più lungo del massimo di un reel",
+    "placeholders": {
+      "minuti": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "videoLimiteCarosello": "Nei caroselli si usano al massimo {secondi} s: scegli la parte con Inizio e Fine, o converti il progetto in reel.",
+  "@videoLimiteCarosello": {
+    "description": "Video più lungo del massimo di una slide di un carosello",
     "placeholders": {
       "secondi": {
         "type": "int",
@@ -3493,23 +3507,11 @@
   "@catVideo": {
     "description": "Categoria della barra di un video: riproduci, taglia, copertina, audio"
   },
-  "formatiPiuUsati": "I più usati",
-  "@formatiPiuUsati": {
-    "description": "Nuovo progetto: titolo della sezione dei formati di Instagram, in cima"
-  },
-  "formatiPiuUsatiDesc": "I formati di Instagram per post, storie e reel",
-  "@formatiPiuUsatiDesc": {
-    "description": "Nuovo progetto: riga sotto «I più usati»"
-  },
-  "formatiAltri": "Altri formati",
-  "@formatiAltri": {
-    "description": "Nuovo progetto: titolo della sezione con gli altri formati"
-  },
   "usoFormato45": "Post nel feed",
   "@usoFormato45": {
     "description": "Uso del formato 4:5"
   },
-  "usoFormato916": "Storie e Reel",
+  "usoFormato916": "Storie",
   "@usoFormato916": {
     "description": "Uso del formato 9:16"
   },
@@ -3630,5 +3632,65 @@
   "sagAnnullaSalvataggio": "Annulla",
   "@sagAnnullaSalvataggio": {
     "description": "Attesa del PNG della sagoma: pulsante"
+  },
+  "tipoCarosello": "Carosello o foto",
+  "@tipoCarosello": {
+    "description": "Nuovo progetto: tipo carosello"
+  },
+  "tipoCaroselloDesc": "Fino a 30 pagine, video fino a 60 s",
+  "@tipoCaroselloDesc": {
+    "description": "Nuovo progetto: cosa vale nel carosello"
+  },
+  "tipoReel": "Reel",
+  "@tipoReel": {
+    "description": "Nuovo progetto: tipo reel"
+  },
+  "tipoReelDesc": "Una pagina, video fino a 5 minuti",
+  "@tipoReelDesc": {
+    "description": "Nuovo progetto: cosa vale nel reel"
+  },
+  "usoFormatoConsigliato": "Consigliato",
+  "@usoFormatoConsigliato": {
+    "description": "Nuovo progetto: sotto il 9:16 nel gruppo Reel"
+  },
+  "formatoAiutoReel": "Il reel ha una pagina sola; si può convertire in carosello da Pagine → Formato.",
+  "@formatoAiutoReel": {
+    "description": "Nuovo progetto: riga in fondo quando è scelto un formato da reel"
+  },
+  "convertiInReel": "Converti in reel",
+  "@convertiInReel": {
+    "description": "Pagine → Formato: converte il carosello in reel"
+  },
+  "convertiInCarosello": "Converti in carosello",
+  "@convertiInCarosello": {
+    "description": "Pagine → Formato: converte il reel in carosello"
+  },
+  "cambConvertitoReel": "Convertito in reel",
+  "@cambConvertitoReel": {
+    "description": "Cronologia: progetto convertito in reel"
+  },
+  "cambConvertitoCarosello": "Convertito in carosello",
+  "@cambConvertitoCarosello": {
+    "description": "Cronologia: progetto convertito in carosello"
+  },
+  "noticeReelUnaPagina": "Un reel ha una sola pagina",
+  "@noticeReelUnaPagina": {
+    "description": "Avviso: niente pagine in più in un reel"
+  },
+  "noticeReelTogliPagine": "Un reel ha una sola pagina: togli le altre pagine, poi converti il progetto",
+  "@noticeReelTogliPagine": {
+    "description": "Avviso: conversione in reel con più pagine"
+  },
+  "noticeVideoPrimoMinuto": "Convertito in carosello: i video più lunghi di 60 s usano il primo minuto. Scegli la parte con Inizio e Fine.",
+  "@noticeVideoPrimoMinuto": {
+    "description": "Avviso: video accorciati passando a carosello"
+  },
+  "avvisoConvertitoReel": "Progetto convertito in reel: i video arrivano a 5 minuti",
+  "@avvisoConvertitoReel": {
+    "description": "Messaggio dopo la conversione in reel"
+  },
+  "avvisoConvertitoCarosello": "Progetto convertito in carosello",
+  "@avvisoConvertitoCarosello": {
+    "description": "Messaggio dopo la conversione in carosello"
   }
 }

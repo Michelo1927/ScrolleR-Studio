@@ -120,6 +120,9 @@ class CanvasState {
   final String swipePos;
   final String exportName;
 
+  /// `project_type`: «carousel» (carosello o foto) o «reel» (una pagina, video fino a 5 minuti).
+  final String projectType;
+
   /// Campi sconosciuti (da un desktop più recente): si riscrivono tali e quali.
   final Map<String, Object?> extra;
 
@@ -160,8 +163,10 @@ class CanvasState {
     this.swipeText = 'Scorri →',
     this.swipePos = 'br',
     this.exportName = '',
+    String projectType = 'carousel',
     Map<String, Object?> extra = const {},
   }) : filmStyle = FilmStyles.all.contains(filmStyle) ? filmStyle : 'auto',
+       projectType = projectType == 'reel' ? 'reel' : 'carousel',
        polaroidShadow = polaroidShadow.clamp(0, 100),
        polaroidDepth = polaroidDepth.clamp(0, 100),
        layoutSeed = layoutSeed ?? newLayoutSeed(),
@@ -212,6 +217,7 @@ class CanvasState {
     'swipe_text',
     'swipe_pos',
     'export_name',
+    'project_type',
   };
 
   /// Letto con i predefiniti di `_restore_snapshot` e i limiti dei controlli del desktop.
@@ -267,6 +273,7 @@ class CanvasState {
       swipeText: readString(m, 'swipe_text', 'Scorri →'),
       swipePos: readString(m, 'swipe_pos', 'br'),
       exportName: readString(m, 'export_name', ''),
+      projectType: readString(m, 'project_type', 'carousel'),
       extra: unknownFields(m, _noti),
     );
   }
@@ -308,6 +315,7 @@ class CanvasState {
     'swipe_text': swipeText,
     'swipe_pos': swipePos,
     'export_name': exportName,
+    'project_type': projectType,
     if (withRel && bgBlurRel != null) 'bg_blur_rel': bgBlurRel,
     ...extra,
   };
@@ -381,6 +389,7 @@ class CanvasState {
     String? swipeText,
     String? swipePos,
     String? exportName,
+    String? projectType,
     Map<String, Object?>? extra,
   }) => CanvasState(
     ratioIndex: ratioIndex ?? this.ratioIndex,
@@ -419,6 +428,7 @@ class CanvasState {
     swipeText: swipeText ?? this.swipeText,
     swipePos: swipePos ?? this.swipePos,
     exportName: exportName ?? this.exportName,
+    projectType: projectType ?? this.projectType,
     extra: extra ?? this.extra,
   );
 }

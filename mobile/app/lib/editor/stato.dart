@@ -121,6 +121,8 @@ enum MessaggioEditor {
   fotoLibere,
   fotoInDisposizione,
   paginaAggiunta,
+  convertitoReel,
+  convertitoCarosello,
   salvataggioNonRiuscito,
   stileCopiato,
   stileIncollato,
@@ -954,6 +956,23 @@ class ControlloEditor extends Notifier<StatoEditor> {
 
   /// «Pagina nuova» dopo la corrente.
   void aggiungiPagina() => inserisciPagina(state.pagina + 1);
+
+  /// Converti in reel / in carosello (`toggle_project_type`): un passo di cronologia. Passando a carosello i video
+  /// oltre 60 s usano il primo minuto; per questo servono le loro durate, lette dal file se non ci sono ancora.
+  Future<void> convertiTipo() async {
+    final durate = <String, double>{};
+    for (final p in state.snapshot.items.where((p) => p.isVideo)) {
+      final info = await _s.risorse.caricaInfoVideo(p);
+      if (info != null) durate[p.path] = info.durata;
+    }
+    final reel = state.snapshot.canvas.projectType == 'reel';
+    _comandoPagina(
+      convertiTipoProgetto(state.snapshot, durate, _s.ctx),
+      messaggio: reel
+          ? MessaggioEditor.convertitoCarosello
+          : MessaggioEditor.convertitoReel,
+    );
+  }
 
   /// Pagina vuota in posizione [posizione] (0 = all'inizio); la vista passa alla pagina nuova.
   void inserisciPagina(int posizione) => _comandoPagina(

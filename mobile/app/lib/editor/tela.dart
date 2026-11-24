@@ -1002,6 +1002,7 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
                         testi,
                         _sessione.risorse.versione,
                         stato.mostraGuide,
+                        t.zonaSicuraReel,
                       ),
                     ),
                   ),
@@ -1074,7 +1075,8 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
   }
 }
 
-/// Disegna le pagine visibili con lo stesso modulo dell'esportazione, più le guide di centro.
+/// Disegna le pagine visibili con lo stesso modulo dell'esportazione, più le guide di centro e, sulle
+/// pagine 9:16, la zona sicura dei reel.
 class _PitturaPagine extends CustomPainter {
   _PitturaPagine(
     this.s,
@@ -1083,6 +1085,7 @@ class _PitturaPagine extends CustomPainter {
     this.testi,
     this.versione,
     this.mostraGuide,
+    this.etichettaReel,
   );
 
   final Snapshot s;
@@ -1096,9 +1099,15 @@ class _PitturaPagine extends CustomPainter {
   /// Linee di centro leggere (`show_guides`): si accendono e spengono da Stile.
   final bool mostraGuide;
 
+  /// «Zona sicura reel», scritta sopra il bordo della zona.
+  final String etichettaReel;
+
   @override
   void paint(Canvas canvas, Size size) {
     final haElementi = s.allElements.isNotEmpty;
+    final zona = mostraGuide && s.canvas.projectType == 'reel'
+        ? zonaSicuraReel(s.canvas.frameW.toDouble(), s.canvas.frameH.toDouble())
+        : null;
     for (final i in geo.pagineVisibili(s.canvas.numFrames)) {
       canvas.save();
       canvas.translate(geo.sinistraPagina(i), geo.y0);
@@ -1112,8 +1121,55 @@ class _PitturaPagine extends CustomPainter {
         scala: geo.scala,
       );
       if (haElementi && mostraGuide) _guide(canvas);
+      if (zona != null) _zonaReel(canvas, zona);
       canvas.restore();
     }
+  }
+
+  /// Zona sicura dei reel (`_paint_reel_safe` del desktop): fasce coperte dall'interfaccia di Instagram appena
+  /// velate, bordo tratteggiato e scritta, se c'è posto. Solo sulla tela, mai nell'esportazione.
+  void _zonaReel(Canvas canvas, motore.Rect zona) {
+    final r = Rect.fromLTWH(
+      zona.x * geo.scala,
+      zona.y * geo.scala,
+      zona.w * geo.scala,
+      zona.h * geo.scala,
+    );
+    final pagina = Rect.fromLTWH(0, 0, geo.pw, geo.ph);
+    canvas.drawPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(pagina),
+        Path()..addRect(r),
+      ),
+      Paint()..color = ColoriScrl.guida.withAlpha(40),
+    );
+    final p = Paint()
+      ..color = ColoriScrl.guida.withAlpha(170)
+      ..strokeWidth = 1;
+    const tratto = 5.0, vuoto = 4.0;
+    for (var x = r.left; x < r.right; x += tratto + vuoto) {
+      final x2 = math.min(x + tratto, r.right);
+      canvas.drawLine(Offset(x, r.top), Offset(x2, r.top), p);
+      canvas.drawLine(Offset(x, r.bottom), Offset(x2, r.bottom), p);
+    }
+    for (var y = r.top; y < r.bottom; y += tratto + vuoto) {
+      final y2 = math.min(y + tratto, r.bottom);
+      canvas.drawLine(Offset(r.left, y), Offset(r.left, y2), p);
+      canvas.drawLine(Offset(r.right, y), Offset(r.right, y2), p);
+    }
+    if (r.width < 120 || r.top < 18) return;
+    final scritta = TextPainter(
+      text: TextSpan(
+        text: etichettaReel,
+        style: TextStyle(color: ColoriScrl.guida.withAlpha(200), fontSize: 10),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: r.width);
+    scritta.paint(canvas, Offset(r.left, r.top - scritta.height - 2));
+    scritta.dispose();
   }
 
   /// Linee di centro leggere, tratteggiate (`show_guides` del desktop).
@@ -1144,6 +1200,7 @@ class _PitturaPagine extends CustomPainter {
       old.geo.pos != geo.pos ||
       old.geo.scala != geo.scala ||
       old.mostraGuide != mostraGuide ||
+      old.etichettaReel != etichettaReel ||
       old.versione != versione;
 }
 

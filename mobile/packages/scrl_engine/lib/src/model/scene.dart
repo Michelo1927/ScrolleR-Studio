@@ -125,7 +125,12 @@ class Scene {
       seamGroups().firstWhere((g) => g.$1 <= k && k <= g.$2);
 
   /// `_set_frames_silently`.
-  void setFramesSilently(int frames) => numFrames = frames;
+  /// Pagine al massimo: un reel ne ha una sola.
+  int get maxPages => _base.projectType == 'reel' ? 1 : pagineMassime;
+
+  /// Mai oltre [maxPages] (`_set_frames_silently`).
+  void setFramesSilently(int frames) =>
+      numFrames = frames.clamp(1, maxPages).toInt();
 
   /// Elenchi con un valore per pagina, da tenere allineati alle pagine (`_page_lists`).
   List<List<Object?>> get pageLists => [

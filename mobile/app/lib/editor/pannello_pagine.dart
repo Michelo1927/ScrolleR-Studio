@@ -175,6 +175,26 @@ class _PannelloPagineState extends ConsumerState<PannelloPagine> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: MisureScrl.spazio),
             children: [
+              // Tipo di progetto: si converte da qui (un reel ha una sola pagina)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: TesseraScelta(
+                  key: const ValueKey('converti-tipo'),
+                  disegno: Icon(
+                    c.projectType == 'reel'
+                        ? Icons.view_carousel_rounded
+                        : Icons.movie_rounded,
+                    color: ColoriScrl.testoSecondario,
+                  ),
+                  etichetta: c.projectType == 'reel'
+                      ? t.convertiInCarosello
+                      : t.convertiInReel,
+                  scelta: false,
+                  larghezza: 96,
+                  altezza: 84,
+                  onTap: _ctrl.convertiTipo,
+                ),
+              ),
               for (final i in ordineFormati)
                 Padding(
                   padding: const EdgeInsets.only(right: 8),

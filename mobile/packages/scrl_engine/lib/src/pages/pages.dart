@@ -14,7 +14,6 @@ import '../model/elements.dart';
 import '../model/result.dart';
 import '../model/scene.dart';
 import '../model/snapshot.dart';
-import '../project/formato.dart';
 
 /// Pagina di un elemento: `floor(x_centro / frame_w)` (`_page_of`).
 int pageOf(Snapshot s, CanvasElement e, EngineContext ctx) =>
@@ -33,8 +32,11 @@ List<CanvasElement> elementsInPage(Snapshot s, int k, EngineContext ctx) {
 EngineResult insertPageAt(Snapshot s, int i, EngineContext ctx) {
   final sc = Scene(s, ctx);
   final n = sc.numFrames;
-  if (n >= pagineMassime) {
-    sc.notice(NoticeKind.maxPages, [n]);
+  if (n >= sc.maxPages) {
+    sc.notice(
+      sc.maxPages == 1 ? NoticeKind.reelSinglePage : NoticeKind.maxPages,
+      [n],
+    );
     return EngineResult.refused(s, sc);
   }
   final inside = sc.joined(
@@ -77,8 +79,11 @@ EngineResult duplicatePage(Snapshot s, int k, EngineContext ctx) {
   final sc = Scene(s, ctx);
   final n = sc.numFrames;
   if (!(0 <= k && k < n)) return EngineResult.refused(s, sc);
-  if (n >= pagineMassime) {
-    sc.notice(NoticeKind.maxPages, [n]);
+  if (n >= sc.maxPages) {
+    sc.notice(
+      sc.maxPages == 1 ? NoticeKind.reelSinglePage : NoticeKind.maxPages,
+      [n],
+    );
     return EngineResult.refused(s, sc);
   }
   if (sc.pageLocked(k) && sc.joined(k)) {

@@ -1103,6 +1103,9 @@ class TestiIt extends Testi {
   String get stileGuide => 'Guide';
 
   @override
+  String get zonaSicuraReel => 'Zona sicura reel';
+
+  @override
   String get stileAggancio => 'Aggancio';
 
   @override
@@ -1948,8 +1951,13 @@ class TestiIt extends Testi {
   String get videoSenzaAudioAvviso => 'Questo video non ha audio';
 
   @override
-  String videoLimiteInstagram(int secondi) {
-    return 'Instagram accetta slide fino a $secondi s: la pagina esportata si ferma lì.';
+  String videoLimiteReel(int minuti) {
+    return 'Nei reel si usano al massimo $minuti minuti: scegli la parte con Inizio e Fine.';
+  }
+
+  @override
+  String videoLimiteCarosello(int secondi) {
+    return 'Nei caroselli si usano al massimo $secondi s: scegli la parte con Inizio e Fine, o converti il progetto in reel.';
   }
 
   @override
@@ -2534,20 +2542,10 @@ class TestiIt extends Testi {
   String get catVideo => 'Video';
 
   @override
-  String get formatiPiuUsati => 'I più usati';
-
-  @override
-  String get formatiPiuUsatiDesc =>
-      'I formati di Instagram per post, storie e reel';
-
-  @override
-  String get formatiAltri => 'Altri formati';
-
-  @override
   String get usoFormato45 => 'Post nel feed';
 
   @override
-  String get usoFormato916 => 'Storie e Reel';
+  String get usoFormato916 => 'Storie';
 
   @override
   String get usoFormato34 => 'Griglia del profilo';
@@ -2641,4 +2639,53 @@ class TestiIt extends Testi {
 
   @override
   String get sagAnnullaSalvataggio => 'Annulla';
+
+  @override
+  String get tipoCarosello => 'Carosello o foto';
+
+  @override
+  String get tipoCaroselloDesc => 'Fino a 30 pagine, video fino a 60 s';
+
+  @override
+  String get tipoReel => 'Reel';
+
+  @override
+  String get tipoReelDesc => 'Una pagina, video fino a 5 minuti';
+
+  @override
+  String get usoFormatoConsigliato => 'Consigliato';
+
+  @override
+  String get formatoAiutoReel =>
+      'Il reel ha una pagina sola; si può convertire in carosello da Pagine → Formato.';
+
+  @override
+  String get convertiInReel => 'Converti in reel';
+
+  @override
+  String get convertiInCarosello => 'Converti in carosello';
+
+  @override
+  String get cambConvertitoReel => 'Convertito in reel';
+
+  @override
+  String get cambConvertitoCarosello => 'Convertito in carosello';
+
+  @override
+  String get noticeReelUnaPagina => 'Un reel ha una sola pagina';
+
+  @override
+  String get noticeReelTogliPagine =>
+      'Un reel ha una sola pagina: togli le altre pagine, poi converti il progetto';
+
+  @override
+  String get noticeVideoPrimoMinuto =>
+      'Convertito in carosello: i video più lunghi di 60 s usano il primo minuto. Scegli la parte con Inizio e Fine.';
+
+  @override
+  String get avvisoConvertitoReel =>
+      'Progetto convertito in reel: i video arrivano a 5 minuti';
+
+  @override
+  String get avvisoConvertitoCarosello => 'Progetto convertito in carosello';
 }

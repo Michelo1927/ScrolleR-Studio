@@ -1,4 +1,5 @@
-/// Nuovo progetto in due passi (piano §4.1): il formato, mostrato come sagome proporzionate, poi la scelta
+/// Nuovo progetto in due passi (piano §4.1): il formato, mostrato come sagome proporzionate e diviso tra
+/// carosello e reel (la tessera sceglie anche il tipo di progetto), poi la scelta
 /// delle foto dalla galleria (si può saltare: tela vuota). Alla fine torna alla Home con la cartella del
 /// progetto creato, che la Home apre nell'editor.
 library;
@@ -29,12 +30,19 @@ String nomeFormato(Testi t, int i) => switch (i) {
   _ => t.formato8,
 };
 
-/// Ordine in cui si mostrano i formati di `aspectRatios`: prima i [formatiInstagram] più usati (4:5, 9:16, 3:4),
-/// poi gli altri, «Personalizzato» per ultimo.
+/// Ordine in cui si mostrano i formati di `aspectRatios` (Pagine → Formato): prima i più usati su Instagram
+/// (4:5, 9:16, 3:4), poi gli altri, «Personalizzato» per ultimo.
 const List<int> ordineFormati = [2, 4, 0, 3, 1, 5, 6, 7, 8];
 
-/// Quanti formati, all'inizio di [ordineFormati], sono quelli di Instagram.
-const int formatiInstagram = 3;
+/// Formati del gruppo «Carosello o foto» di Nuovo progetto, a righe di tre: in cima i post (4:5, 3:4) e il quadrato.
+const List<List<int>> _righeCarosello = [
+  [2, 0, 3],
+  [4, 1, 5],
+  [6, 7, 8],
+];
+
+/// Formati del gruppo «Reel»: il 9:16 proposto, poi i due che Instagram accetta senza bande.
+const List<int> _formatiReel = [4, 2, 3];
 
 class NuovoProgettoPage extends ConsumerStatefulWidget {
   const NuovoProgettoPage({super.key});
@@ -46,6 +54,8 @@ class NuovoProgettoPage extends ConsumerStatefulWidget {
 class _NuovoProgettoPageState extends ConsumerState<NuovoProgettoPage> {
   int _passo = 0;
   int _formato = 0; // Di partenza 3:4, come il desktop
+  String _tipo =
+      'carousel'; // «carousel» o «reel»: lo sceglie la tessera del formato
   final _larghezza = TextEditingController(text: '1080');
   final _altezza = TextEditingController(text: '1440');
   Directory? _cartella;
@@ -89,6 +99,7 @@ class _NuovoProgettoPageState extends ConsumerState<NuovoProgettoPage> {
       nome: t.nomeProgettoNuovo(numero),
       formato: _formatoScelto,
       scelte: scelte,
+      tipo: _tipo,
     );
     _usata = true;
     if (!mounted) return;
@@ -140,19 +151,28 @@ class _NuovoProgettoPageState extends ConsumerState<NuovoProgettoPage> {
     );
   }
 
-  /// Formati in una sola schermata (scorre in giù solo se lo schermo è piccolo): in cima i più usati, quelli di
-  /// Instagram, poi gli altri; «Continua» resta sempre in fondo.
+  /// Formati divisi per tipo di progetto, in una sola schermata (scorre in giù solo se lo schermo è piccolo):
+  /// sopra quelli del carosello, sotto quelli del reel. Una tessera sceglie insieme tipo e formato.
+  /// «Continua» resta sempre in fondo.
   Widget _formati(Testi t) {
     final stili = Theme.of(context).textTheme;
-    Widget tessera(int i, {String? uso}) => _TesseraFormato(
-      key: ValueKey('nuovo-formato-$i'),
-      nome: nomeFormato(t, i),
-      uso: uso,
-      proporzione: _proporzione(i),
-      scelto: _formato == i,
-      onTap: () => setState(() => _formato = i),
-    );
-    final altri = ordineFormati.skip(formatiInstagram).toList();
+    Widget tessera(String tipo, int i, {String? uso}) {
+      final reel = tipo == 'reel';
+      return _TesseraFormato(
+        key: ValueKey(reel ? 'nuovo-reel-$i' : 'nuovo-formato-$i'),
+        // Nel gruppo Reel basta la proporzione («9:16»): il gruppo dice già a cosa serve
+        nome: reel ? nomeFormato(t, i).split(' ').first : nomeFormato(t, i),
+        uso: uso,
+        gruppo: reel ? t.tipoReel : t.tipoCarosello,
+        proporzione: _proporzione(i),
+        scelto: _tipo == tipo && _formato == i,
+        onTap: () => setState(() {
+          _tipo = tipo;
+          _formato = i;
+        }),
+      );
+    }
+
     return Column(
       children: [
         Expanded(
@@ -162,27 +182,29 @@ class _NuovoProgettoPageState extends ConsumerState<NuovoProgettoPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _TitoloSezione(
-                  icona: Icons.star_rounded,
-                  titolo: t.formatiPiuUsati,
-                  descrizione: t.formatiPiuUsatiDesc,
+                  icona: Icons.view_carousel_rounded,
+                  titolo: t.tipoCarosello,
+                  descrizione: t.tipoCaroselloDesc,
                 ),
                 const SizedBox(height: MisureScrl.spazio),
-                _RigaTessere([
-                  tessera(2, uso: t.usoFormato45),
-                  tessera(4, uso: t.usoFormato916),
-                  tessera(0, uso: t.usoFormato34),
-                ]),
-                const SizedBox(height: MisureScrl.spazio * 2),
-                _TitoloSezione(titolo: t.formatiAltri),
-                const SizedBox(height: MisureScrl.spazio),
-                for (var r = 0; r < altri.length; r += 3) ...[
+                for (final riga in _righeCarosello) ...[
                   _RigaTessere([
-                    for (final i in altri.skip(r).take(3)) tessera(i),
+                    for (final i in riga)
+                      tessera(
+                        'carousel',
+                        i,
+                        uso: switch (i) {
+                          2 => t.usoFormato45,
+                          0 => t.usoFormato34,
+                          4 => t.usoFormato916,
+                          _ => null,
+                        },
+                      ),
                   ]),
                   const SizedBox(height: MisureScrl.spazioPiccolo),
                 ],
                 if (_formato == ratioPersonalizzato) ...[
-                  const SizedBox(height: MisureScrl.spazio),
+                  const SizedBox(height: MisureScrl.spazioPiccolo),
                   Row(
                     children: [
                       Expanded(
@@ -203,6 +225,21 @@ class _NuovoProgettoPageState extends ConsumerState<NuovoProgettoPage> {
                     ],
                   ),
                 ],
+                const SizedBox(height: MisureScrl.spazio * 2),
+                _TitoloSezione(
+                  icona: Icons.movie_rounded,
+                  titolo: t.tipoReel,
+                  descrizione: t.tipoReelDesc,
+                ),
+                const SizedBox(height: MisureScrl.spazio),
+                _RigaTessere([
+                  for (final i in _formatiReel)
+                    tessera(
+                      'reel',
+                      i,
+                      uso: i == 4 ? t.usoFormatoConsigliato : null,
+                    ),
+                ]),
               ],
             ),
           ),
@@ -214,7 +251,12 @@ class _NuovoProgettoPageState extends ConsumerState<NuovoProgettoPage> {
           padding: const EdgeInsets.all(MisureScrl.spazio),
           child: Row(
             children: [
-              Expanded(child: Text(t.formatoAiuto, style: stili.bodySmall)),
+              Expanded(
+                child: Text(
+                  _tipo == 'reel' ? t.formatoAiutoReel : t.formatoAiuto,
+                  style: stili.bodySmall,
+                ),
+              ),
               const SizedBox(width: MisureScrl.spazio),
               FilledButton(
                 onPressed: () => setState(() => _passo = 1),
@@ -319,7 +361,7 @@ class _RigaTessere extends StatelessWidget {
   );
 }
 
-/// Sagoma proporzionata del formato, con il nome e (per i più usati) a cosa serve.
+/// Sagoma proporzionata del formato, con il nome e (per alcuni) a cosa serve.
 class _TesseraFormato extends StatelessWidget {
   const _TesseraFormato({
     super.key,
@@ -328,10 +370,14 @@ class _TesseraFormato extends StatelessWidget {
     required this.scelto,
     required this.onTap,
     this.uso,
+    this.gruppo,
   });
 
   final String nome;
   final String? uso;
+
+  /// Tipo di progetto del gruppo (letto dai lettori di schermo prima del formato).
+  final String? gruppo;
   final double proporzione;
   final bool scelto;
   final VoidCallback onTap;
@@ -346,7 +392,11 @@ class _TesseraFormato extends StatelessWidget {
     return Semantics(
       button: true,
       selected: scelto,
-      label: uso == null ? nome : '$nome, $uso',
+      label: [
+        if (gruppo != null) gruppo,
+        nome,
+        if (uso != null) uso,
+      ].join(', '),
       excludeSemantics: true,
       child: Material(
         color: scelto ? ColoriScrl.rilievo : ColoriScrl.pannello,

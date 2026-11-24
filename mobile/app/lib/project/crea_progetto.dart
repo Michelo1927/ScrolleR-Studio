@@ -16,8 +16,13 @@ typedef FotoScelta = ({LibraryEntry voce, String chiave, int w, int h});
 /// Formato della pagina: un indice di [aspectRatios] (8 = Personalizzato) e, per questo, le misure.
 typedef FormatoScelto = ({int indice, int larghezza, int altezza});
 
-/// Documento nuovo con il formato scelto, come lo crea il desktop: pagina singola, sfondo bianco.
-Snapshot documentoVuoto(FormatoScelto f, {int? seme}) {
+/// Documento nuovo con il formato scelto, come lo crea il desktop: pagina singola, sfondo bianco. [tipo] è
+/// «carousel» (carosello o foto) o «reel» (`_start_new_project`).
+Snapshot documentoVuoto(
+  FormatoScelto f, {
+  int? seme,
+  String tipo = 'carousel',
+}) {
   final misure = aspectRatios[f.indice] ?? (f.larghezza, f.altezza);
   final personalizzato = f.indice == ratioPersonalizzato;
   return Snapshot(
@@ -28,6 +33,7 @@ Snapshot documentoVuoto(FormatoScelto f, {int? seme}) {
       customW: personalizzato ? f.larghezza.clamp(200, 6000) : 1080,
       customH: personalizzato ? f.altezza.clamp(200, 6000) : 1440,
       layoutSeed: seme,
+      projectType: tipo,
     ),
   );
 }
@@ -41,6 +47,7 @@ Future<ProgettoCaricato> creaProgetto({
   required String nome,
   required FormatoScelto formato,
   required List<FotoScelta> scelte,
+  String tipo = 'carousel',
 }) async {
   final misure = <String, ({int w, int h})>{
     for (final s in scelte)
@@ -50,7 +57,7 @@ Future<ProgettoCaricato> creaProgetto({
     imageSize: (p) => misure[chiaveMedia(p)],
     textSize: misuraTesto,
   );
-  var s = documentoVuoto(formato);
+  var s = documentoVuoto(formato, tipo: tipo);
   if (scelte.isNotEmpty) {
     s = mettiFotoSullaTela(s, [
       for (final f in scelte)

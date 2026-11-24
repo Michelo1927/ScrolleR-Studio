@@ -83,18 +83,29 @@ void main() {
       // Passo 1: formato 4:5
       await tester.tap(find.text('Nuovo'));
       await tester.pumpAndSettle();
-      // Tutti i formati in una schermata: in cima i più usati (Instagram: 4:5, 9:16, 3:4), poi gli altri
-      expect(find.text('I più usati'), findsOneWidget);
-      expect(find.text('Altri formati'), findsOneWidget);
-      Offset pos(int i) =>
-          tester.getTopLeft(find.byKey(ValueKey('nuovo-formato-$i')));
-      expect(pos(2).dy, pos(4).dy);
-      expect(pos(4).dy, pos(0).dy);
-      expect(pos(2).dx < pos(4).dx && pos(4).dx < pos(0).dx, isTrue);
-      for (final i in [1, 3, 5, 6, 7, 8]) {
-        expect(pos(i).dy, greaterThan(pos(2).dy), reason: '$i');
+      // Tutti i formati in una schermata, divisi per tipo: sopra il carosello (in cima 4:5, 3:4, 1:1), sotto il reel
+      expect(find.text('Carosello o foto'), findsOneWidget);
+      expect(find.text('Reel'), findsOneWidget);
+      Offset pos(String k) => tester.getTopLeft(find.byKey(ValueKey(k)));
+      expect(pos('nuovo-formato-2').dy, pos('nuovo-formato-0').dy);
+      expect(pos('nuovo-formato-0').dy, pos('nuovo-formato-3').dy);
+      expect(
+        pos('nuovo-formato-2').dx < pos('nuovo-formato-0').dx &&
+            pos('nuovo-formato-0').dx < pos('nuovo-formato-3').dx,
+        isTrue,
+      );
+      for (final i in [1, 4, 5, 6, 7, 8]) {
         expect(
-          tester.getBottomLeft(find.byKey(ValueKey('nuovo-formato-$i'))).dy,
+          pos('nuovo-formato-$i').dy,
+          greaterThan(pos('nuovo-formato-2').dy),
+          reason: '$i',
+        );
+      }
+      for (final i in [4, 2, 3]) {
+        final k = 'nuovo-reel-$i';
+        expect(pos(k).dy, greaterThan(pos('nuovo-formato-8').dy), reason: k);
+        expect(
+          tester.getBottomLeft(find.byKey(ValueKey(k))).dy,
           lessThan(1600),
           reason: 'si vede senza scorrere',
         );
@@ -138,6 +149,7 @@ void main() {
       ).read(editorProvider);
       final s = stato.snapshot;
       expect((s.canvas.frameW, s.canvas.frameH), (1080, 1350));
+      expect(s.canvas.projectType, 'carousel');
       expect(s.canvas.layoutMode, LayoutModes.grid);
       // Le foto della galleria sono collegate, mai copiate
       expect(s.items.length, 3);
@@ -189,6 +201,66 @@ void main() {
       (1080, 1440),
     );
     expect(find.text('Tocca ＋ per aggiungere le foto'), findsOneWidget);
+  });
+
+  testWidgets('Nuovo progetto: un formato del gruppo Reel crea un reel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final radice = Directory.systemTemp.createTempSync('scrl_nuovo_test');
+    addTearDown(() => radice.deleteSync(recursive: true));
+    final archivio = ArchivioProgetti(Directory('${radice.path}/progetti'));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          archivioProvider.overrideWithValue(archivio),
+          galleriaProvider.overrideWithValue(_GalleriaFinta()),
+        ],
+        child: const ScrollerStudioApp(lingua: Locale('it')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nuovo'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Il formato vale per ogni pagina del carosello.'),
+      findsOneWidget,
+    );
+    // Lo stesso 9:16 è nei due gruppi: è scelto solo quello toccato
+    await tester.tap(find.byKey(const ValueKey('nuovo-reel-4')));
+    await tester.pump();
+    expect(find.textContaining('Il reel ha una pagina sola'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('nuovo-reel-4'))),
+      matchesSemantics(
+        label: 'Reel, 9:16, Consigliato',
+        isButton: true,
+        hasSelectedState: true,
+        isSelected: true,
+      ),
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('nuovo-formato-4'))),
+      matchesSemantics(
+        label: 'Carosello o foto, 9:16 storia, Storie',
+        isButton: true,
+        hasSelectedState: true,
+      ),
+    );
+    await tester.tap(find.text('Continua'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Salta'));
+    await _finoA(tester, find.byType(TelaEditor));
+    await tester.pumpAndSettle();
+    final c = ProviderScope.containerOf(tester.element(find.byType(TelaEditor)))
+        .read(editorProvider)
+        .snapshot
+        .canvas;
+    expect(c.projectType, 'reel');
+    expect((c.frameW, c.frameH), (1080, 1920));
+    expect(c.numFrames, 1);
   });
 
   testWidgets('Nuovo progetto: tornando indietro non resta niente su disco', (

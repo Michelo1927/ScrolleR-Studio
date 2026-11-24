@@ -35,7 +35,8 @@
   "swipe_hint": false,
   "swipe_text": "Scorri →",
   "swipe_pos": "br",
-  "export_name": ""
+  "export_name": "",
+  "project_type": "carousel"
  },
  "library": [
   {

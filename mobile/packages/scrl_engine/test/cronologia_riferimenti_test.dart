@@ -72,6 +72,8 @@ String italiano(ChangeLabel l) {
     ChangeKind.pageNumbers => 'Numeri di pagina',
     ChangeKind.swipeHint => 'Indicatore «scorri»',
     ChangeKind.exportName => 'Nome dei file',
+    ChangeKind.convertedToReel => 'Convertito in reel',
+    ChangeKind.convertedToCarousel => 'Convertito in carosello',
     ChangeKind.modified => 'Modifica',
     ChangeKind.grouped => 'Elementi raggruppati',
     ChangeKind.ungrouped => 'Gruppo separato',

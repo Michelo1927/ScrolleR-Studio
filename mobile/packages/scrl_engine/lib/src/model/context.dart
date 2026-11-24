@@ -39,6 +39,15 @@ enum NoticeKind {
   /// Massimo di pagine raggiunto (args: pagine).
   maxPages,
 
+  /// Un reel ha una sola pagina: niente pagine in più.
+  reelSinglePage,
+
+  /// Un reel ha una sola pagina: la conversione da carosello chiede di togliere le altre.
+  reelNeedsOnePage,
+
+  /// Conversione in carosello: i video oltre 60 s usano il primo minuto.
+  videosTrimmedToCarousel,
+
   /// Una sola pagina: non si elimina.
   singlePage,
 

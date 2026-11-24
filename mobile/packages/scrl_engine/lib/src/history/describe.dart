@@ -43,6 +43,8 @@ enum ChangeKind {
   pageNumbers,
   swipeHint,
   exportName,
+  convertedToReel,
+  convertedToCarousel,
   modified,
   grouped,
   ungrouped,
@@ -192,6 +194,12 @@ ChangeLabel describeChange(Snapshot sa, Snapshot sb) {
   if (fb != fa) return ChangeLabel(ChangeKind.pagesCount, from: fa, to: fb);
   final canvasDiff = _diff(ca, cb);
   final canvasNames = <(Set<String>, ChangeKind)>[
+    (
+      {'project_type'},
+      cb['project_type'] == 'reel'
+          ? ChangeKind.convertedToReel
+          : ChangeKind.convertedToCarousel,
+    ),
     (
       {'ratio_index', 'frame_w', 'frame_h', 'custom_w', 'custom_h'},
       ChangeKind.pageFormat,
