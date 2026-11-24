@@ -1,3 +1,3 @@
 """ScrolleR Studio: collage e caroselli di foto per i social."""
 
-__version__ = "1.9.2"
+__version__ = "1.10.0"
