@@ -242,13 +242,13 @@ class ExportMixin:
     def _export_photo_count(self) -> int:
         return len({p.image_path for p in self.get_canvas_photos() if not p.is_missing and not isinstance(p, VideoItem)})
 
-    def _prefetch_originals(self, scale: float, progress: QProgressDialog) -> bool:
+    def _prefetch_originals(self, scale: float, progress: QProgressDialog, photos: Optional[list] = None) -> bool:
         """
-        Legge in parallelo gli originali delle foto sulla tela, ognuno solo grande quanto serve
-        all'uscita (un passo della barra per foto). False se l'utente annulla.
+        Legge in parallelo gli originali delle foto sulla tela (o solo di `photos`), ognuno solo grande
+        quanto serve all'uscita (un passo della barra per foto). False se l'utente annulla.
         """
         sides = {}
-        for p in self.get_canvas_photos():
+        for p in (self.get_canvas_photos() if photos is None else photos):
             if isinstance(p, VideoItem):
                 continue  # Il fotogramma si legge al momento del disegno
             side = p.export_side(scale * 1.001)  # Un filo più grande: il disegno lo trova già pronto

@@ -79,6 +79,7 @@ class ProjectMixin:
         self._missing_library = []
         self._update_library_ui()
         self._reset_history("Nuovo progetto")
+        self._forget_preview_pages()
         self.project_path = None
         self._saved_snapshot = self._history[-1]
         self._remove_autosave()
@@ -141,6 +142,7 @@ class ProjectMixin:
 
         self._restore_snapshot({"canvas": canvas, "items": items, "texts": texts, "shapes": shapes})
         self._reset_history("Lavoro recuperato" if recovered else "Progetto aperto")
+        self._forget_preview_pages()
         if recovered:
             # Lavoro recuperato: resta "da salvare", con il nome del progetto originale se c'era
             original = data.get("original_path")

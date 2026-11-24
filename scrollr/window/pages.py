@@ -1,13 +1,17 @@
 """Pagine del carosello e anteprima."""
+import hashlib
 import math
-from typing import List, Optional, Tuple
+import os
+from typing import Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPixmap, QImage, QPainter
 from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox
 
+from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
+from scrollr.canvas.video_item import VideoItem
 from scrollr.dialogs import CarouselPreview, PageOrderDialog
 from scrollr.icons import make_icon
 from scrollr.imaging import IMAGE_CACHE
@@ -542,10 +546,53 @@ class PagesMixin:
         scale = max(fit, min(self.PREVIEW_ZOOM_SCALE, self.PREVIEW_MAX_SIDE / max(fw, fh), budget))
         return max(1, round(fw * scale)), max(1, round(fh * scale))
 
+    @staticmethod
+    def _painted_rect(it) -> QRectF:
+        """
+        Dove l'elemento disegna in esportazione (ombra e contorni inclusi, maniglie escluse): il
+        boundingRect di Qt comprende le maniglie, che da lontano sconfinano nelle pagine vicine.
+        """
+        if isinstance(it, TextItem):
+            m = it.font_size * 0.12
+            local = it.text_rect().adjusted(-m, -m, m, m)
+        elif isinstance(it, ShapeItem):
+            m = it.stroke_width + 1.0
+            local = it.frame_rect().adjusted(-m, -m, m, m)
+        else:
+            m = (it._shadow_extent() * 1.4 if it.effective_shadow() > 0 else 0.0) + 1.0
+            local = QRectF(-m, -m, it.cell_w + 2 * m, it.cell_h + 2 * m)
+        return it.mapRectToScene(local)
+
+    def _preview_page_elements(self, k: int) -> list:
+        """Elementi visibili che toccano la pagina k (anche con l'ombra, o a cavallo di due pagine)."""
+        fw, fh = self.scene.frame_w, self.scene.frame_h
+        page = QRectF(k * fw, 0, fw, fh)
+        return [it for it in self._all_elements() if it.isVisible() and self._painted_rect(it).intersects(page)]
+
+    def _preview_page_key(self, k: int, common: str) -> str:
+        """
+        Impronta della pagina k: cambia se cambia qualcosa che si vede nella pagina (elementi che la
+        toccano, impostazioni della tela, misura) o se una foto è stata modificata fuori dall'app.
+        """
+        parts = [common, str(k)]
+        for it in self._preview_page_elements(k):
+            parts.append(repr(it.get_state()))
+            path = getattr(it, "image_path", None)
+            if path:
+                try:
+                    parts.append(str(os.path.getmtime(path)))
+                except OSError:
+                    parts.append("mancante")
+        return hashlib.sha1("\n".join(parts).encode("utf-8", "replace")).hexdigest()
+
+    def _forget_preview_pages(self):
+        """Libera le pagine dell'anteprima tenute in memoria (progetto nuovo o aperto)."""
+        self._preview_pages = {}
+
     def show_carousel_preview(self):
         """
-        Le pagine si preparano tutte all'apertura, nitide e già grandi per lo zoom: scorrere e zoomare
-        sono immediati. Solo oltre quella misura l'anteprima ridisegna nitida la parte che si vede.
+        Le pagine si preparano all'apertura, nitide e già grandi per lo zoom: scorrere e zoomare sono
+        immediati. Restano in memoria: riaprendo si ridisegnano solo le pagine cambiate.
         """
         self._flush_pending_commit()
         self._stop_all_videos()
@@ -553,29 +600,46 @@ class PagesMixin:
         n = self.scene.num_frames
         out_w, out_h = self._carousel_preview_size(n)
         scale = out_w / fw
-        n_photos = self._export_photo_count()
-        progress = self._export_progress(n_photos + n)
-        progress.setWindowTitle("Anteprima carosello")
-        pages: List[QPixmap] = []
-        ready = False
-        try:
-            # Originali letti in parallelo, ognuno grande quanto serve
-            if self._prefetch_originals(scale, progress):
-                ready = True
-                for k in range(n):
-                    progress.setValue(n_photos + k)
-                    progress.setLabelText(f"Preparazione delle pagine…  ({k + 1} di {n})")
+        canvas = dict(self._snapshot()["canvas"])
+        canvas.pop("export_name", None)
+        blur = self.scene.bg_blur_path
+        blur_mtime = os.path.getmtime(blur) if blur and os.path.isfile(blur) else None  # Sfondo sfocato modificato fuori
+        common = repr((canvas, out_w, out_h, blur_mtime))
+        keys = [self._preview_page_key(k, common) for k in range(n)]
+        cache: Dict[str, QPixmap] = getattr(self, "_preview_pages", {})
+        todo = [k for k in range(n) if keys[k] not in cache]
+        pages: Dict[str, QPixmap] = {key: cache[key] for key in keys if key in cache}
+        ready = True
+        if todo:
+            # Solo le foto delle pagine da ridisegnare, lette in parallelo e grandi quanto serve
+            photos = list({id(it): it for k in todo for it in self._preview_page_elements(k)
+                           if isinstance(it, PhotoItem) and not isinstance(it, VideoItem)}.values())
+            n_photos = len({p.image_path for p in photos if not p.is_missing})
+            progress = self._export_progress(n_photos + len(todo))
+            progress.setWindowTitle("Anteprima carosello")
+            try:
+                ready = self._prefetch_originals(scale, progress, photos)
+                for i, k in enumerate(todo if ready else []):
+                    progress.setValue(n_photos + i)
+                    progress.setLabelText(f"Preparazione delle pagine…  ({i + 1} di {len(todo)})")
                     QApplication.processEvents()
                     if progress.wasCanceled():
                         ready = False
                         break
-                    pages.append(self._render_preview_region(k, QRectF(0, 0, 1, 1), out_w, out_h))
-        finally:
-            progress.setValue(progress.maximum())
-            progress.close()
+                    pages[keys[k]] = self._render_preview_region(k, QRectF(0, 0, 1, 1), out_w, out_h)
+            finally:
+                progress.setValue(progress.maximum())
+                progress.close()
+        # Si tengono solo le pagine com'erano ora (anche se annullato: quelle pronte servono la prossima volta)
+        self._preview_pages = pages
         try:
             if ready:
-                CarouselPreview(pages, self._render_preview_region, (fw, fh), self).exec()
+                dlg = CarouselPreview([pages[key] for key in keys], self._render_preview_region, (fw, fh), self)
+                try:
+                    dlg.exec()
+                finally:
+                    # Figlia della finestra principale: senza questo resterebbe viva con tutte le sue pagine
+                    dlg.deleteLater()
         finally:
             IMAGE_CACHE.release_full()
             self.scene.update()
