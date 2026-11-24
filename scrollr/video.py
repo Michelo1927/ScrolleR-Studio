@@ -15,9 +15,16 @@ try:
 except ImportError:  # Senza PyAV i video non compaiono tra i formati accettati (vedi config)
     av = None
 
-# Uscita pensata per i caroselli social (Instagram: slide video fino a 60 s, 30 fps, H.264 + AAC)
+# Uscita pensata per i social (30 fps, H.264 + AAC). La durata massima dipende dal tipo di progetto:
+# 5 minuti nei reel, 60 s nei caroselli (il massimo di una slide video su Instagram)
 VIDEO_FPS = 30
-VIDEO_MAX_SECONDS = 60.0
+VIDEO_MAX_SECONDS = 300.0
+CAROUSEL_SLIDE_SECONDS = 60.0
+
+
+def max_video_seconds(project_type: str) -> float:
+    """Durata massima della parte usata di un video: 5 minuti nei reel, 60 s nei caroselli."""
+    return VIDEO_MAX_SECONDS if project_type == "reel" else CAROUSEL_SLIDE_SECONDS
 VIDEO_MAX_SIDE = 1920        # Lato lungo massimo dell'MP4: oltre, i social ricomprimono comunque
 AUDIO_RATE = 44100
 _BYTES_PER_SAMPLE = 4        # s16 stereo: 2 canali × 2 byte

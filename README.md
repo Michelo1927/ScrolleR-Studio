@@ -3,9 +3,14 @@
 Desktop editor for building photo collages and carousels for social media (side-by-side pages that scroll).
 
 Videos can go on the canvas too: a page that contains a video is exported as an MP4
-(H.264 + AAC, 30 fps, up to 60 s), with the rest of the page around it. Each video can be trimmed,
+(H.264 + AAC, 30 fps), with the rest of the page around it. Each video can be trimmed,
 muted and given a cover frame; shorter videos on the same page loop until the longest one ends.
 A video always stays inside one page (it cannot straddle two).
+
+A new project is either a **carousel** (one or more pages; videos up to 60 s, the limit of an Instagram carousel
+slide) or a **reel** (a single page, 9:16 suggested; videos up to 5 minutes): in **File → New project** the page
+formats are grouped by type, so one click picks both. In a reel, the Guides switch also
+shows the safe zone that Instagram's interface does not cover. A project can be converted later from the File menu.
 
 Photos can be cut out by hand: in the crop window, **Shape** mode lets you click points around the subject
 (or drag to draw freehand) and everything outside becomes transparent, with a soft edge. The cut-out keeps the

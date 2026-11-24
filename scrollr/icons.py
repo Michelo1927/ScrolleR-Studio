@@ -349,6 +349,42 @@ def make_icon(name: str, color: str = THEME["muted"], size: int = 18, on_color: 
     return icon
 
 
+def ratio_pixmap(ratio: Optional[tuple], color: str, size: int) -> QPixmap:
+    """Sagoma proporzionata di un formato di pagina (None = personalizzato: due frecce in diagonale)."""
+    pm = QPixmap(size * 2, size * 2)
+    pm.setDevicePixelRatio(2.0)
+    pm.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    col = QColor(color)
+    p.setPen(QPen(col, 1.6))
+    tint = QColor(col)
+    tint.setAlphaF(0.18)
+    box = size - 4.0
+    if ratio is None:
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        r = QRectF(2 + box * 0.12, 2 + box * 0.12, box * 0.76, box * 0.76)
+        pen = QPen(col, 1.6)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        p.setPen(pen)
+        p.drawRoundedRect(r, 2, 2)
+    else:
+        w, h = ratio
+        rw, rh = (box, box * h / w) if w >= h else (box * w / h, box)
+        p.setBrush(tint)
+        p.drawRoundedRect(QRectF((size - rw) / 2, (size - rh) / 2, rw, rh), 2, 2)
+    p.end()
+    return pm
+
+
+def ratio_icon(ratio: Optional[tuple], size: int = 40) -> QIcon:
+    """Icona di una tessera di formato: grigia, blu quando è scelta."""
+    icon = QIcon()
+    icon.addPixmap(ratio_pixmap(ratio, THEME["muted"], size), QIcon.Mode.Normal, QIcon.State.Off)
+    icon.addPixmap(ratio_pixmap(ratio, THEME["accent"], size), QIcon.Mode.Normal, QIcon.State.On)
+    return icon
+
+
 def swatch_icon(color: QColor, size: int = 16) -> QIcon:
     pm = QPixmap(size * 2, size * 2)
     pm.setDevicePixelRatio(2.0)

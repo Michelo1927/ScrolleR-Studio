@@ -56,6 +56,7 @@ class HistoryMixin:
                 "swipe_text": self.scene.swipe_text,
                 "swipe_pos": self.scene.swipe_pos,
                 "export_name": self.export_name,
+                "project_type": self.project_type,
             },
             "items": [p.get_state() for p in self.get_canvas_photos()],
             "texts": [t.get_state() for t in self.get_canvas_texts()],
@@ -109,6 +110,8 @@ class HistoryMixin:
             self.scene.swipe_text = c.get("swipe_text", "Scorri →")
             self.scene.swipe_pos = c.get("swipe_pos", "br")
             self.export_name = c.get("export_name", "")
+            self.project_type = "reel" if c.get("project_type") == "reel" else "carousel"
+            self._apply_project_type_ui()
             self._sync_overlay_widgets()
             self._refresh_bg_swatches()
             self.scene.update_canvas_rect()
@@ -173,6 +176,7 @@ class HistoryMixin:
     def _commit_history(self):
         self._commit_timer.stop()
         self._keep_videos_in_pages()
+        self._keep_videos_in_limit()
         snap = self._snapshot()
         if self._history and self._history[self._history_index] == snap:
             return
@@ -272,6 +276,7 @@ class HistoryMixin:
             return f"Pagine: {fa} → {fb}"
         canvas_diff = {k for k in set(ca) | set(cb) if ca.get(k) != cb.get(k)}
         canvas_names = [
+            ({"project_type"}, "Convertito in reel" if cb.get("project_type") == "reel" else "Convertito in carosello"),
             ({"ratio_index", "frame_w", "frame_h", "custom_w", "custom_h"}, "Formato della pagina"),
             ({"layout_mode"}, f"Disposizione: {self.scene.layout_names.get(cb['layout_mode'], cb['layout_mode'])}"),
             ({"mosaic_style"}, "Stile mosaico"),
@@ -403,5 +408,6 @@ class HistoryMixin:
     def _update_title(self):
         name = os.path.basename(self.project_path) if self.project_path else "Senza titolo"
         star = " •" if self._is_dirty() else ""
-        self.setWindowTitle(f"{name}{star} — ScrolleR Studio")
+        kind = " · Reel" if self.project_type == "reel" else ""
+        self.setWindowTitle(f"{name}{star}{kind} — ScrolleR Studio")
         self._update_doc_tab()

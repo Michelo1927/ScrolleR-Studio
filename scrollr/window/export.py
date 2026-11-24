@@ -14,7 +14,7 @@ from scrollr.crashlog import log_handled
 from scrollr.dialogs import PageExportDialog
 from scrollr.imaging import IMAGE_CACHE, ImageCache
 from scrollr.video import (
-    VIDEO_FPS, VIDEO_MAX_SECONDS, FrameReader, Mp4Writer, loop_audio, mix_audio, output_size, read_audio
+    VIDEO_FPS, FrameReader, Mp4Writer, loop_audio, max_video_seconds, mix_audio, output_size, read_audio
 )
 
 
@@ -77,9 +77,12 @@ class ExportMixin:
             self.scene.skip_background = self.scene.skip_overlays = False
 
     def _video_page_frames(self, k: int) -> int:
-        """Fotogrammi dell'MP4 della pagina k: dura quanto il video più lungo (al massimo 60 s)."""
+        """
+        Fotogrammi dell'MP4 della pagina k: dura quanto il video più lungo, al massimo 5 minuti in un reel
+        e 60 s in un carosello.
+        """
         longest = max((v.clip_length() for v in self._page_videos(k)), default=0.0)
-        return max(1, round(min(longest, VIDEO_MAX_SECONDS) * VIDEO_FPS))
+        return max(1, round(min(longest, max_video_seconds(self.project_type)) * VIDEO_FPS))
 
     def _export_video_page(self, k: int, path: str, progress: QProgressDialog, step: int) -> Optional[bool]:
         """

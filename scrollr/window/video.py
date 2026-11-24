@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QVBoxLayout, QWidget
 from scrollr.canvas.video_item import VideoItem, format_time
 from scrollr.icons import make_icon
 from scrollr.theme import THEME
-from scrollr.video import VIDEO_MAX_SECONDS
+from scrollr.video import CAROUSEL_SLIDE_SECONDS, VIDEO_MAX_SECONDS, max_video_seconds
 from scrollr.widgets import ToggleSwitch
 
 
@@ -87,21 +87,46 @@ class VideoMixin:
         text = f"Durata {format_time(item.duration)}  ·  usati {format_time(item.clip_length())}"
         if not item.has_audio:
             text += "  ·  senza audio"
-        if item.clip_length() > VIDEO_MAX_SECONDS + 0.05:
-            text += (f"\nInstagram accetta slide fino a {int(VIDEO_MAX_SECONDS)} s: "
-                     f"la pagina esportata si ferma lì.")
+        if item.duration > self._video_max_seconds() + 0.05:
+            if self.project_type == "reel":
+                text += f"\nNei reel si usano al massimo {int(VIDEO_MAX_SECONDS // 60)} minuti: scegli la parte con Inizio e Fine."
+            else:
+                text += (f"\nNei caroselli si usano al massimo {int(CAROUSEL_SLIDE_SECONDS)} s: scegli la parte "
+                         f"con Inizio e Fine, o converti il progetto in reel.")
         self.lbl_video_info.setText(text)
+
+    # ---------- Durata massima: 60 s nei caroselli, 5 minuti nei reel ----------
+    def _video_max_seconds(self) -> float:
+        return max_video_seconds(self.project_type)
+
+    def _keep_videos_in_limit(self) -> bool:
+        """Accorcia i video che usano più della durata massima, tenendo l'inizio. True se ne ha accorciato uno."""
+        limit = self._video_max_seconds()
+        fixed = [v for v in self.get_canvas_videos() if not v.is_missing and v.limit_clip(limit)]
+        if fixed:
+            primary = self._get_primary_selected()
+            if primary in fixed:
+                self._updating_inspector = True
+                try:
+                    self._sync_video_inspector(primary)
+                finally:
+                    self._updating_inspector = False
+        return bool(fixed)
 
     def _on_video_slider(self, which: str, value: int):
         if self._updating_inspector:
             return
         seconds = value / 10.0
         videos = self._selected_videos()
+        limit = self._video_max_seconds()
         for v in videos:
+            # Oltre la durata massima l'altro estremo segue: si sceglie la parte da mostrare
             if which == "start":
                 v.set_trim(seconds, v.trim_end)
+                v.limit_clip(limit)
             elif which == "end":
                 v.set_trim(v.trim_start, seconds)
+                v.limit_clip(limit, keep_end=True)
             else:
                 v.poster = max(0.0, min(seconds, v.duration))
                 v.update()
@@ -110,10 +135,8 @@ class VideoMixin:
             # Inizio e fine non si incrociano: l'altro cursore segue
             self._updating_inspector = True
             try:
-                if which == "start":
-                    self.slider_video_end.setValue(round(primary.clip_end() * 10))
-                elif which == "end":
-                    self.slider_video_start.setValue(round(primary.trim_start * 10))
+                self.slider_video_start.setValue(round(primary.trim_start * 10))
+                self.slider_video_end.setValue(round(primary.clip_end() * 10))
             finally:
                 self._updating_inspector = False
             self._update_video_info(primary)

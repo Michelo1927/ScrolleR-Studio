@@ -359,7 +359,7 @@ class UiMixin:
         # Numero di pagine (1 = collage singolo, 2+ = carosello)
         bar.addWidget(self._label("Pagine"))
         self.spin_frames = QSpinBox()
-        self.spin_frames.setRange(1, 30)
+        self.spin_frames.setRange(1, self.MAX_PAGES)
         self.spin_frames.setValue(1)
         self.spin_frames.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin_frames.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -368,9 +368,11 @@ class UiMixin:
         self.spin_frames.valueChanged.connect(self._on_frames_changed)
         stepper = QHBoxLayout()
         stepper.setSpacing(2)
-        stepper.addWidget(self._icon_button("minus", "Una pagina in meno", lambda: self.spin_frames.stepBy(-1)))
+        self.btn_frames_less = self._icon_button("minus", "Una pagina in meno", lambda: self.spin_frames.stepBy(-1))
+        self.btn_frames_more = self._icon_button("plus", "Una pagina in più", lambda: self.spin_frames.stepBy(1))
+        stepper.addWidget(self.btn_frames_less)
         stepper.addWidget(self.spin_frames)
-        stepper.addWidget(self._icon_button("plus", "Una pagina in più", lambda: self.spin_frames.stepBy(1)))
+        stepper.addWidget(self.btn_frames_more)
         bar.addLayout(stepper)
 
         bar.addSpacing(6)
@@ -388,7 +390,7 @@ class UiMixin:
         bar.addSpacing(4)
 
         # Guide e Snap come interruttori con icona
-        self.chk_guides = self._icon_button("guides", "Mostra le linee di centro delle pagine", self._toggle_guides, "Guide", "ToggleButton")
+        self.chk_guides = self._icon_button("guides", "Mostra le linee di centro delle pagine e, sulle pagine 9:16, la zona sicura dei reel", self._toggle_guides, "Guide", "ToggleButton")
         self.chk_snap = self._icon_button("magnet", "Aggancia le foto a bordi e centri mentre le trascini", self._toggle_snap, "Aggancio", "ToggleButton")
         for btn, icon in ((self.chk_guides, "guides"), (self.chk_snap, "magnet")):
             btn.setCheckable(True)
@@ -531,6 +533,7 @@ class UiMixin:
 
         m_file = menubar.addMenu("&File")
         make("Nuovo progetto", self.new_project, QKeySequence.StandardKey.New, m_file)
+        self.act_convert_type = make("Converti in reel", self.toggle_project_type, None, m_file)
         make("Aggiungi foto e video…" if VIDEO_SUPPORTED else "Aggiungi foto…", self.open_file_dialog, QKeySequence.StandardKey.Open, m_file)
         m_file.addSeparator()
         make("Apri progetto…", self.open_project, QKeySequence("Ctrl+Shift+O"), m_file)

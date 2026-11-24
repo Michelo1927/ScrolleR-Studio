@@ -1,4 +1,4 @@
-"""Finestre di dialogo: anteprima carosello, ordine delle pagine, pagine da esportare, scorciatoie e sfondo."""
+"""Finestre di dialogo: nuovo progetto, anteprima carosello, ordine delle pagine, pagine da esportare, scorciatoie e sfondo."""
 from typing import TYPE_CHECKING
 import os
 from typing import Callable, Dict, List, Optional, Tuple
@@ -8,10 +8,10 @@ from PyQt6.QtGui import QPixmap, QColor, QIcon, QPainter, QKeySequence, QShortcu
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QColorDialog,
     QButtonGroup, QDialog, QRadioButton, QListWidget, QListWidgetItem, QListView, QAbstractItemView, QLineEdit,
-    QSizePolicy, QScrollArea, QGridLayout, QFrame
+    QSizePolicy, QScrollArea, QGridLayout, QFrame, QToolButton, QSpinBox, QAbstractSpinBox
 )
 
-from scrollr.icons import make_icon, rounded_thumb, swatch_icon
+from scrollr.icons import make_icon, ratio_icon, rounded_thumb, swatch_icon
 from scrollr.keys import SHORTCUTS, kb
 from scrollr.imaging import IMAGE_CACHE
 from scrollr.theme import THEME
@@ -777,3 +777,193 @@ class BackgroundDialog(QDialog):
             blur_amount=self.slider_blur.value(), dim=self.slider_dim.value(),
         )
         self.adjustSize()
+
+
+class NewProjectDialog(QDialog):
+    """
+    File → Nuovo progetto: i formati divisi tra «Carosello o foto» (a sinistra) e «Reel» (a destra).
+    Una tessera sceglie insieme il tipo di progetto e il formato; le pagine valgono solo per il carosello.
+    """
+
+    # Formati del carosello a righe di tre (in cima i post: 4:5, 3:4, e il quadrato) e del reel (9:16 proposto)
+    CAROUSEL_ROWS = [[(1080, 1350), (1080, 1440), (1080, 1080)],
+                     [(1080, 1920), (1440, 1080), (1920, 1080)],
+                     [(1080, 1620), (1620, 1080), None]]
+    REEL_SIZES = [(1080, 1920), (1080, 1350), (1080, 1080)]
+    NOTES = {(1080, 1350): "post", (1080, 1440): "profilo", (1080, 1920): "storie"}
+
+    def __init__(self, ratios: Dict[str, Optional[Tuple[int, int]]], size: Tuple[int, int], custom: Tuple[int, int],
+                 pages: int, max_pages: int, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Nuovo progetto")
+        self._ratios = list(ratios.items())
+        self._choice: Dict[QToolButton, Tuple[str, Optional[Tuple[int, int]]]] = {}
+        self.group = QButtonGroup(self)
+        self.group.setExclusive(True)
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 16, 16, 12)
+        lay.setSpacing(12)
+        cols = QHBoxLayout()
+        cols.setSpacing(16)
+        lay.addLayout(cols)
+
+        # ---- Carosello o foto ----
+        left = QVBoxLayout()
+        left.setSpacing(6)
+        self._section(left, "Carosello o foto", f"Fino a {max_pages} pagine, video fino a 60 s")
+        grid = QGridLayout()
+        grid.setSpacing(6)
+        for r, row in enumerate(self.CAROUSEL_ROWS):
+            for c, wh in enumerate(row):
+                grid.addWidget(self._tile("carousel", wh), r, c)
+        left.addLayout(grid)
+        self.custom_box = QWidget()
+        custom_l = QHBoxLayout(self.custom_box)
+        custom_l.setContentsMargins(0, 2, 0, 0)
+        custom_l.setSpacing(6)
+        self.spin_w, self.spin_h = QSpinBox(), QSpinBox()
+        for spin, val, tip in ((self.spin_w, custom[0], "Larghezza della pagina"),
+                               (self.spin_h, custom[1], "Altezza della pagina")):
+            spin.setRange(200, 6000)
+            spin.setValue(val)
+            spin.setSuffix(" px")
+            spin.setToolTip(tip)
+            spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+            spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            spin.setFixedWidth(78)
+        custom_l.addWidget(self.spin_w)
+        custom_l.addWidget(QLabel("×"))
+        custom_l.addWidget(self.spin_h)
+        custom_l.addStretch()
+        left.addWidget(self.custom_box)
+        pages_row = QHBoxLayout()
+        pages_row.setSpacing(8)
+        self.lbl_pages = QLabel("Pagine")
+        self.lbl_pages.setObjectName("FieldLabel")
+        # Come il campo Pagine della barra in alto: numero al centro tra − e +
+        self.spin_pages = QSpinBox()
+        self.spin_pages.setRange(1, max_pages)
+        self.spin_pages.setValue(max(1, min(max_pages, pages)))
+        self.spin_pages.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.spin_pages.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.spin_pages.setFixedWidth(44)
+        self.spin_pages.setToolTip("1 = un solo collage nel formato scelto.\n"
+                                   "2 o più = carosello continuo da pubblicare a pagine.")
+        self.btn_pages_less = self._step_button("minus", "Una pagina in meno", -1)
+        self.btn_pages_more = self._step_button("plus", "Una pagina in più", 1)
+        pages_row.addWidget(self.lbl_pages)
+        pages_row.addSpacing(4)
+        pages_row.addWidget(self.btn_pages_less)
+        pages_row.addWidget(self.spin_pages)
+        pages_row.addWidget(self.btn_pages_more)
+        pages_row.addStretch()
+        left.addLayout(pages_row)
+        left.addStretch()
+        cols.addLayout(left, 3)
+
+        sep = QFrame()
+        sep.setObjectName("VSep")
+        sep.setFixedWidth(1)
+        cols.addWidget(sep)
+
+        # ---- Reel ----
+        right = QVBoxLayout()
+        right.setSpacing(6)
+        self._section(right, "Reel", "Una pagina, video fino a 5 minuti")
+        reel = QGridLayout()
+        reel.setSpacing(6)
+        reel.addWidget(self._tile("reel", self.REEL_SIZES[0], note="consigliato", icon=56), 0, 0, 2, 1)
+        reel.addWidget(self._tile("reel", self.REEL_SIZES[1]), 0, 1)
+        reel.addWidget(self._tile("reel", self.REEL_SIZES[2]), 1, 1)
+        right.addLayout(reel)
+        right.addStretch()
+        cols.addLayout(right, 2)
+
+        self.lbl_hint = QLabel()
+        self.lbl_hint.setObjectName("Hint")
+        self.lbl_hint.setWordWrap(True)
+        lay.addWidget(self.lbl_hint)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch()
+        cancel = QPushButton("Annulla")
+        cancel.clicked.connect(self.reject)
+        self.btn_create = QPushButton("Crea")
+        self.btn_create.setObjectName("Primary")
+        self.btn_create.setDefault(True)
+        self.btn_create.clicked.connect(self.accept)
+        buttons.addWidget(cancel)
+        buttons.addWidget(self.btn_create)
+        lay.addLayout(buttons)
+
+        # Di partenza il formato del carosello indicato (il personalizzato se non è tra le tessere)
+        carousel = {wh: b for b, (k, wh) in self._choice.items() if k == "carousel"}
+        carousel.get(size, carousel[None]).setChecked(True)
+        self.group.buttonToggled.connect(lambda _b, _on: self._refresh())
+        self._refresh()
+
+    def _section(self, lay: QVBoxLayout, title: str, hint: str):
+        t = QLabel(title)
+        t.setObjectName("SectionTitle")
+        h = QLabel(hint)
+        h.setObjectName("Hint")
+        lay.addWidget(t)
+        lay.addWidget(h)
+        lay.addSpacing(2)
+
+    def _step_button(self, icon: str, tooltip: str, step: int) -> QToolButton:
+        b = QToolButton()
+        b.setObjectName("IconButton")
+        b.setIcon(make_icon(icon, THEME["text"]))
+        b.setIconSize(QSize(18, 18))
+        b.setToolTip(tooltip)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.clicked.connect(lambda: self.spin_pages.stepBy(step))
+        return b
+
+    def _tile(self, kind: str, wh: Optional[Tuple[int, int]], note: str = "", icon: int = 36) -> QToolButton:
+        b = QToolButton()
+        b.setObjectName("FormatTile")
+        b.setCheckable(True)
+        b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+        b.setIcon(ratio_icon(wh, icon))
+        b.setIconSize(QSize(icon, icon))
+        b.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        b.setMinimumSize(76, 88)  # Due righe di testo sotto la sagoma
+        label = next((name for name, v in self._ratios if v == wh), "Personalizzato")
+        short = label.split(" ")[0] if wh is not None else "Altro"
+        note = note or (self.NOTES.get(wh, "") if kind == "carousel" else "")
+        b.setText(f"{short}\n{note}" if note else short)
+        where = "Reel" if kind == "reel" else "Carosello o foto"
+        b.setToolTip(f"{where}: {label}")
+        b.setAccessibleName(f"{where}, {label}")
+        self.group.addButton(b)
+        self._choice[b] = (kind, wh)
+        return b
+
+    def _refresh(self):
+        kind, wh = self._choice.get(self.group.checkedButton(), ("carousel", None))
+        self.custom_box.setVisible(kind == "carousel" and wh is None)
+        # Il reel ha una pagina sola: il campo Pagine resta visibile ma spento
+        for widget in (self.lbl_pages, self.spin_pages, self.btn_pages_less, self.btn_pages_more):
+            widget.setEnabled(kind == "carousel")
+        self.lbl_hint.setText(
+            "Il reel ha una pagina sola; si può convertire in carosello da File → Converti in carosello."
+            if kind == "reel" else
+            "Il formato vale per ogni pagina del carosello. Il tipo si può cambiare da File → Converti in reel.")
+
+    def kind(self) -> str:
+        return self._choice[self.group.checkedButton()][0]
+
+    def ratio_index(self) -> int:
+        """Posizione del formato scelto nell'elenco dei formati (il personalizzato è l'ultimo)."""
+        wh = self._choice[self.group.checkedButton()][1]
+        return next(i for i, (_n, v) in enumerate(self._ratios) if v == wh)
+
+    def frame_size(self) -> Tuple[int, int]:
+        wh = self._choice[self.group.checkedButton()][1]
+        return wh if wh is not None else (self.spin_w.value(), self.spin_h.value())
+
+    def pages(self) -> int:
+        return self.spin_pages.value() if self.kind() == "carousel" else 1

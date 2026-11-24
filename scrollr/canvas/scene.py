@@ -16,6 +16,18 @@ from scrollr.imaging import IMAGE_CACHE, pil_to_qimage, qimage_to_pil
 from scrollr.keys import kb
 from scrollr.theme import THEME, font_family, is_light, ui_font
 
+# Zona sicura dei reel: nelle pagine 9:16 Instagram copre con la sua interfaccia il 14% in alto (titolo,
+# fotocamera), il 35% in basso (nome, didascalia, audio, pulsanti) e il 6% ai lati. Misure diffuse, non ufficiali.
+REEL_SAFE_MARGINS = (0.06, 0.14, 0.06, 0.35)  # Sinistra, alto, destra, basso, in frazioni della pagina
+
+
+def reel_safe_rect(w: float, h: float) -> Optional[QRectF]:
+    """Zona sicura di una pagina w × h nelle sue coordinate, solo se la pagina è 9:16; altrimenti None."""
+    if h <= 0 or abs(w / h - 9.0 / 16.0) > 0.01:
+        return None
+    left, top, right, bottom = REEL_SAFE_MARGINS
+    return QRectF(w * left, h * top, w * (1.0 - left - right), h * (1.0 - top - bottom))
+
 
 class CollageScene(QGraphicsScene):
     """
@@ -64,6 +76,7 @@ class CollageScene(QGraphicsScene):
         self.polaroid_depth = 0
         self._blur_cache: Optional[Tuple[tuple, QPixmap]] = None
         self.show_guides = True
+        self.is_reel = False             # Progetto reel: sulle pagine 9:16 la guida mostra la zona sicura
         self.is_exporting = False
         # Esportazione a strati (pagine video): sfondo e numeri di pagina si disegnano solo dove servono
         self.skip_background = False
@@ -293,6 +306,43 @@ class CollageScene(QGraphicsScene):
                 self._overlay_badge(painter, page, self.page_number_text(i), self.page_number_pos, font, lift)
         painter.restore()
 
+    def _paint_reel_safe(self, painter: QPainter, rect: QRectF, safe: QRectF):
+        """
+        Pagine 9:16: fasce coperte dall'interfaccia dei reel appena velate e bordo tratteggiato della zona sicura,
+        con la scritta «Zona sicura reel» se c'è posto sullo schermo. Solo sulla tela, mai nell'esportazione.
+        """
+        veil = QColor(THEME["guide"])
+        veil.setAlpha(40)
+        line = QColor(THEME["guide"])
+        line.setAlpha(170)
+        pen = QPen(line, 1.0, Qt.PenStyle.DashLine)
+        pen.setCosmetic(True)
+        t = painter.worldTransform()
+        for i in range(self.num_frames):
+            page = QRectF(i * self.frame_w, 0, self.frame_w, self.frame_h)
+            if not page.intersects(rect):
+                continue
+            inner = safe.translated(i * self.frame_w, 0)
+            band = QPainterPath()
+            band.addRect(page)
+            hole = QPainterPath()
+            hole.addRect(inner)
+            painter.fillPath(band.subtracted(hole), veil)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(inner)
+            # Scritta in pixel dello schermo, appena sopra il bordo alto della zona
+            dev = t.mapRect(inner)
+            if dev.width() > 160 and dev.top() - t.mapRect(page).top() > 22:
+                painter.save()
+                painter.resetTransform()
+                painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+                painter.setFont(ui_font(10))
+                painter.setPen(line)
+                painter.drawText(QRectF(dev.left(), dev.top() - 18, dev.width(), 16),
+                                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, "Zona sicura reel")
+                painter.restore()
+
     def drawForeground(self, painter: QPainter, rect: QRectF):
         if not (self.is_exporting and self.skip_overlays):
             self.paint_page_overlays(painter, None if self.is_exporting else rect)
@@ -329,6 +379,10 @@ class CollageScene(QGraphicsScene):
                 cx = i * self.frame_w + self.frame_w / 2.0
                 if rect.left() - pad <= cx <= rect.right() + pad:
                     painter.drawLine(QPointF(cx, 0), QPointF(cx, self.frame_h))
+
+        safe = reel_safe_rect(self.frame_w, self.frame_h) if self.show_guides and self.is_reel else None
+        if safe is not None:
+            self._paint_reel_safe(painter, rect, safe)
 
         # Giunzioni tra le pagine del carosello: sempre visibili, come guide piene
         # (non a scacchiera: lì le pagine sono già separate e la linea resterebbe a metà sul bordo)

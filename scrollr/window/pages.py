@@ -36,7 +36,7 @@ class PagesMixin:
         """Inserisce una pagina vuota in posizione i (0 = all'inizio): le pagine da i in poi scorrono a destra."""
         n = self.scene.num_frames
         if n >= self.spin_frames.maximum():
-            self.statusBar().showMessage(f"Massimo {n} pagine", 4000)
+            self.statusBar().showMessage(self._page_limit_message(), 4000)
             return
         inside = self.scene.joined(i - 1)  # Pagina nuova in mezzo a un gruppo «a cavallo»: ne fa parte
         if inside and self.scene.page_locked(i - 1):
@@ -82,7 +82,7 @@ class PagesMixin:
         if not (0 <= k < n):
             return
         if n >= self.spin_frames.maximum():
-            self.statusBar().showMessage(f"Massimo {n} pagine", 4000)
+            self.statusBar().showMessage(self._page_limit_message(), 4000)
             return
         if self.scene.page_locked(k) and self.scene.joined(k):
             self.statusBar().showMessage(f"La pagina {k + 1} è «a cavallo» e bloccata: sbloccala prima", 5000)

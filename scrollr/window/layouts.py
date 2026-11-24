@@ -96,8 +96,9 @@ class LayoutMixin:
                 p.update()
 
         if mode == "scrl_seam":
-            if self.scene.num_frames < 2:
+            if self.scene.num_frames < 2 and self.project_type != "reel":
                 # "A cavallo" richiede almeno 2 pagine: le aggiunge e ricorda quante ce n'erano prima
+                # (non in un reel, che ha una pagina sola)
                 frames = max(2, math.ceil(len(photos) / 4))
                 self._seam_added_frames = (self.scene.num_frames, frames)
                 self._set_frames_silently(frames)
@@ -259,7 +260,8 @@ class LayoutMixin:
         self._schedule_commit()
 
     def _set_frames_silently(self, frames: int):
-        """Cambia il numero di pagine senza far scattare un secondo relayout."""
+        """Cambia il numero di pagine senza far scattare un secondo relayout (mai oltre il massimo: un reel ne ha una)."""
+        frames = max(1, min(frames, self.spin_frames.maximum()))
         self.spin_frames.blockSignals(True)
         self.spin_frames.setValue(frames)
         self.spin_frames.blockSignals(False)

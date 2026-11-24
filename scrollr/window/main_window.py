@@ -98,6 +98,7 @@ class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin
         self._canvas_paths: set = set()                # Foto già sulla tela (segno nella libreria)
         self._missing_library: List[str] = []          # Foto della libreria non trovate all'apertura
         self.export_name = ""                          # Nome dei file esportati (vuoto = nomi di sempre)
+        self.project_type = "carousel"                 # "carousel" (carosello o foto) o "reel" (una pagina, video fino a 5 min)
 
         # Cronologia Annulla/Ripeti (snapshot dello stato completo)
         self._history: List[dict] = []

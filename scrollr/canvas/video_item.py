@@ -96,6 +96,20 @@ class VideoItem(PhotoItem):
             self._clock.restart()
         self.update()
 
+    def limit_clip(self, max_len: float, keep_end: bool = False) -> bool:
+        """
+        Parte usata lunga al massimo max_len secondi: si accorcia la fine (o, con keep_end, l'inizio).
+        True se il taglio è cambiato.
+        """
+        if self.clip_length() <= max_len + 0.05:
+            return False
+        if keep_end:
+            end = self.clip_end()
+            self.set_trim(max(0.0, end - max_len), end)
+        else:
+            self.set_trim(self.trim_start, self.trim_start + max_len)
+        return True
+
     # ---------- Stato ----------
     def get_state(self) -> dict:
         s = super().get_state()

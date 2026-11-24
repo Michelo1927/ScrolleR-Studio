@@ -302,6 +302,23 @@ def build_stylesheet() -> str:
             border: none;
             background: transparent;
         }
+        QToolButton#FormatTile {
+            border: 1px solid @edge;
+            border-radius: 4px;
+            background-color: @field;
+            color: @muted;
+            font-size: 11px;
+            padding: 6px 4px 5px 4px;
+        }
+        QToolButton#FormatTile:hover {
+            border-color: @muted;
+            color: @text;
+        }
+        QToolButton#FormatTile:checked {
+            border: 2px solid @accent;
+            color: @text;
+            padding: 5px 3px 4px 3px;
+        }
         QToolButton#IconButton {
             border: 1px solid transparent;
             border-radius: 2px;
@@ -474,6 +491,9 @@ def build_stylesheet() -> str:
         }
         QComboBox:focus, QSpinBox:focus {
             border-color: @accent;
+        }
+        QSpinBox:disabled, #FieldLabel:disabled {
+            color: @faint;
         }
         QComboBox::drop-down {
             border: none;
