@@ -44,6 +44,7 @@ INI temporaneo, il salvataggio automatico è spento e alla fine si controlla che
 import argparse
 import itertools
 import json
+import math
 import os
 import random
 import shutil
@@ -57,6 +58,7 @@ sys.path.insert(0, ROOT)
 
 from PIL import Image  # noqa: E402
 from PyQt6.QtCore import QRectF, QSettings  # noqa: E402
+from PyQt6.QtGui import QColor  # noqa: E402
 from PyQt6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 from scrollr import __version__ as APP_VERSION  # noqa: E402
@@ -257,10 +259,16 @@ def esegui_caso(win, foto: list, nome: str, c: dict, n: int, extra: dict) -> dic
         items[i].crop = list(crop)
     for i, s in extra.get("stirate", {}).items():
         items[i].stretch = s
+    for i, (punti, morbidezza) in extra.get("sagome", {}).items():
+        items[i].apply_cutout(punti, morbidezza)
     nomi = {p.uid: os.path.basename(p.image_path) for p in items}
     prima = {"canvas": win._snapshot()["canvas"], "items": [stato_foto(p, nomi[p.uid]) for p in items]}
     prima["canvas"].pop("export_name", None)
     win.apply_auto_layout(c["layout_mode"])
+    for i, (bordo, colore, ombra) in extra.get("adesivi", {}).items():
+        items[i].border_width = bordo
+        items[i].border_color = QColor(colore)
+        items[i].shadow = ombra
     dopo = {"canvas": stato_tela(win),
             "items": [{k: v for k, v in stato_foto(p, nomi[p.uid]).items()
                        if k in ("uid", "x", "y", "w", "h", "rotation", "border_width", "auto_border", "frame")}
@@ -452,6 +460,120 @@ def strumenti_foto() -> list:
     return out
 
 
+def _stella(cx, cy, r1, r2, n=7):
+    return [(cx + (r1 if k % 2 == 0 else r2) * math.cos(k * math.pi / n - math.pi / 2),
+             cy + (r1 if k % 2 == 0 else r2) * math.sin(k * math.pi / n - math.pi / 2)) for k in range(2 * n)]
+
+
+STELLA = _stella(0.5, 0.52, 0.42, 0.2)
+GOCCIA = [(0.5 + 0.38 * math.sin(a) * (1 - 0.3 * math.cos(a)), 0.5 - 0.42 * math.cos(a))
+          for a in (k * 2 * math.pi / 24 for k in range(24))]
+
+
+def sagoma() -> dict:
+    """Sagoma (`scrollr/cutout.py`, `apply_cutout`, la parte «Sagoma» di `CropCanvas` e `CropDialog`)."""
+    from PyQt6.QtCore import QPointF
+    from PyQt6.QtGui import QPixmap
+    from scrollr import cutout as cu
+    from scrollr.canvas.photo_item import PhotoItem
+    from scrollr.crop_dialog import MODE_CUT, CropCanvas, CropDialog
+    from scrollr.imaging import IMAGE_CACHE
+    rnd = random.Random(2026)
+
+    def nuvola(n, cx=0.5, cy=0.5, r=0.4):
+        return [(cx + r * rnd.uniform(0.3, 1.0) * math.cos(a), cy + r * rnd.uniform(0.3, 1.0) * math.sin(a))
+                for a in sorted(rnd.uniform(0, 2 * math.pi) for _ in range(n))]
+
+    # Pulizia: punti e morbidezza come arrivano dal file (anche sbagliati)
+    pulizia = []
+    for v in [None, [], [[0.1, 0.1], [0.9, 0.1]], [[0.1, 0.1], [0.9, 0.1], [0.5, 0.9]],
+              [[-0.2, 0.5], [1.4, 0.5], [0.5, 2.0], [0.5, -1]], [[0.1, 0.1], [0.5, 0.5], [0.9, 0.9]],
+              [[0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4]], [[0.1, "0.2"], [0.9, 0.1], [0.5, True]],
+              [[0.1, 0.1], [0.9, None], [0.5, 0.9]], [[0.1, 0.1, 0.3], [0.9, 0.1], [0.5, 0.9]],
+              [[0.1, 0.1], [0.9, "x"], [0.5, 0.9]], [[0, 0], [1, 0], [1, 1], [0, 1]],
+              [[0.5, 0.5], [0.5004, 0.5], [0.5, 0.5004]]]:
+        pulizia.append({"punti": v, "pulita": cu.clean_cutout(v)})
+    morbidezze = []
+    for v in [None, 0, 15, 15.5, 16.5, -3, 250, "40", "x", True, 99.5, 100.4, 7.49]:
+        morbidezze.append({"valore": v, "pulita": cu.clean_soft(v)})
+
+    # Funzioni: raggio, ritaglio stretto, semplificazione
+    funzioni = []
+    for (w, h) in ((600, 800), (1600, 1200), (300, 3000)):
+        for soft in (0, 15, 60, 100):
+            pts = nuvola(rnd.randint(3, 30))
+            funzioni.append({"img": [w, h], "soft": soft, "punti": pts, "raggio": cu.soft_radius(soft, w, h),
+                             "ritaglio": list(cu.bounding_crop(pts, soft, w, h))})
+    semplifica = []
+    for n in (2, 3, 10, 60, 200):
+        tratto = [(200 + 150 * math.cos(t) + rnd.uniform(-2, 2), 300 + 90 * math.sin(2 * t) + rnd.uniform(-2, 2))
+                  for t in (k * 2 * math.pi / n for k in range(n))]
+        for tol in (0.0, 0.5, 1.7, 6.0):
+            semplifica.append({"punti": tratto, "tolleranza": tol, "risultato": cu.simplify(tratto, tol)})
+
+    # apply_cutout su foto con la misura dell'anteprima (e togliere la sagoma)
+    applica = []
+    base = [dict(w=400.0, h=500.0), dict(w=300.0, h=300.0, rotation=25.0, free=True),
+            dict(w=520.0, h=260.0, inner_zoom=1.7, pan_x=0.4, crop=(0.1, 0.2, 0.7, 0.9), stretch=1.3),
+            dict(w=350.0, h=420.0, fit_mode="contain")]
+    for i, c in enumerate(base):
+        for img_w, img_h in ((1600, 1200), (900, 1600)):
+            path = f"sagoma_{i}_{img_w}.jpg"
+            IMAGE_CACHE._previews[path] = QPixmap(img_w, img_h)
+            for punti, soft in ((STELLA, 15), (GOCCIA, 0), (nuvola(9, 0.3, 0.7, 0.25), 100), ([[0.1, 0.1]], 15)):
+                q = PhotoItem(path, c["w"], c["h"])
+                q.setPos(100.0, 50.0)
+                q.setRotation(c.get("rotation", 0.0))
+                q.free = c.get("free", False)
+                for k in ("inner_zoom", "pan_x", "stretch", "fit_mode"):
+                    if k in c:
+                        setattr(q, k, c[k])
+                if "crop" in c:
+                    q.crop = c["crop"]
+                prima = q.get_state()
+                q.apply_cutout(punti, soft)
+                dopo = q.get_state()
+                q.apply_cutout(None)
+                q.apply_crop((0.0, 0.0, 1.0, 1.0), fit_cell=True)
+                applica.append({"img": [img_w, img_h], "prima": prima, "punti": punti, "soft": soft,
+                                "dopo": dopo, "tolta": q.get_state()})
+
+    # Tratti a mano libera nella finestra Ritaglia (fine del tratto: semplificato, unito, chiuso)
+    tratti = []
+    for (iw, ih) in ((1200, 800), (500, 900)):
+        c = CropCanvas(QPixmap(iw, ih))
+        c.resize(800, 600)
+        c.set_mode(MODE_CUT)
+        for zoom in (1.0, 2.5):
+            c._zoom = zoom
+            scala = c._scale()
+            for prima in ([], [(100.0, 100.0), (300.0, 120.0)], [(50.0, 60.0), (400.0, 80.0), (420.0, 500.0)]):
+                for chiude in (False, True):
+                    n = rnd.randint(8, 80)
+                    a0 = rnd.uniform(0, 1)
+                    tratto = [(iw / 2 + iw * 0.3 * math.cos(a0 + t), ih / 2 + ih * 0.3 * math.sin(a0 + t))
+                              for t in (k * (2 * math.pi if chiude else 3.5) / n for k in range(n + 1))]
+                    if prima and chiude:
+                        tratto = tratto + [prima[0]]
+                    c.set_shape([QPointF(*q) for q in prima], False)
+                    c._stroke = [QPointF(*q) for q in tratto]
+                    c._finish_stroke()
+                    tratti.append({"img": [iw, ih], "scala": scala, "presa": c.GRAB, "prima": prima,
+                                   "tratto": tratto, "punti": [(q.x(), q.y()) for q in c.pts], "chiusa": c.closed})
+
+    # Finestra Ritaglia con una sagoma e lo specchio: punti mostrati e sagoma restituita
+    specchi = []
+    for fh in (False, True):
+        for fv in (False, True):
+            dlg = CropDialog(QPixmap(900, 600), (0.0, 0.0, 1.0, 1.0), fh, fv, 1.0, "", cutout=STELLA, cutout_soft=33)
+            specchi.append({"flip_h": fh, "flip_v": fv, "mostrati": [(q.x(), q.y()) for q in dlg.canvas.pts],
+                            "chiusa": dlg.canvas.closed, "sagoma": dlg.cutout(), "soft": dlg.cutout_soft()})
+            dlg.deleteLater()
+    return {"stella": STELLA, "goccia": GOCCIA, "pulizia": pulizia, "morbidezze": morbidezze,
+            "funzioni": funzioni, "semplifica": semplifica, "applica": applica, "tratti": tratti,
+            "specchi": specchi}
+
+
 def geometria() -> list:
     """Geometria del disegno di `PhotoItem` (cover/contain, ritaglio, rotazione, ombra, lato da leggere)."""
     from scrollr.canvas.photo_item import PhotoItem
@@ -497,7 +619,11 @@ def esporta_immagini(win, foto: list, cartella: str) -> list:
                 ("immagine-pellicola", tela(0, None, 2, "film"), 7, {}),
                 ("immagine-polaroid-rilievo", dict(tela(0, None, 1, "scatter", seed=4242), bg_color="#FFE9E4DC",
                                                    polaroid_shadow=60, polaroid_depth=85), 5, {}),
-                ("immagine-pellicola-verticale", dict(tela(2, None, 1, "film"), film_style="vertical"), 5, {})]
+                ("immagine-pellicola-verticale", dict(tela(2, None, 1, "film"), film_style="vertical"), 5, {}),
+                ("immagine-sagoma", tela(0, None, 1, "grid"), 4,
+                 {"sagome": {0: (STELLA, 15), 1: (GOCCIA, 0), 2: (STELLA, 60), 3: (GOCCIA, 100)},
+                  "adesivi": {0: (8.0, "#FFFFFFFF", 0), 1: (0.0, "#FFFFFFFF", 60),
+                              2: (6.0, "#FF202020", 45), 3: (0.0, "#FFFFFFFF", 0)}})]
     fatti = []
     for nome, c, n, extra in campioni:
         caso = esegui_caso(win, foto, nome, c, n, extra)
@@ -916,6 +1042,8 @@ def progetti_desktop(win, foto: list) -> dict:
     p[4].border_radius, p[4].border_width = 12.0, 5.0
     p[4].inner_zoom, p[4].pan_x, p[4].inner_rotation = 1.8, 0.3, 7.5
     p[6].reset_aspect_to_original()
+    p[7].apply_cutout(STELLA, 22)
+    p[7].border_width, p[7].shadow = 4.0, 25
     p[0].group = p[1].group = 1
     t = win.get_canvas_texts()[0]
     t.set_text("Due righe\ncon accenti: è à ò")
@@ -1202,6 +1330,8 @@ def main():
             json.dump(ritaglio(), f)
         with open(os.path.join(args.uscita, "strumenti_foto.json"), "w", encoding="utf-8", newline="\n") as f:
             json.dump(strumenti_foto(), f)
+        with open(os.path.join(args.uscita, "sagoma.json"), "w", encoding="utf-8", newline="\n") as f:
+            json.dump(sagoma(), f)
         immagini = []
         if not args.senza_immagini:
             immagini = esporta_immagini(win, foto, os.path.join(args.uscita, "immagini"))

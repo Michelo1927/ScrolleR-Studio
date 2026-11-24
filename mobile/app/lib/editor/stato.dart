@@ -126,6 +126,10 @@ enum MessaggioEditor {
   stileIncollato,
   ritaglioApplicato,
   ritaglioTolto,
+  sagomaApplicata,
+  sagomaTolta,
+  sagomaSalvata,
+  sagomaNonSalvata,
   modificaScartata,
   formaAggiunta,
   paginaDuplicata,
@@ -699,16 +703,50 @@ class ControlloEditor extends Notifier<StatoEditor> {
   void applicaRitaglio(List<double> ritaglio, {required bool adattaRiquadro}) {
     final p = fotoSelezionate;
     if (p.isEmpty) return;
-    final dopo = modificaFoto(state.snapshot, [
-      for (final f in p) f.uid,
-    ], (f) => conRitaglio(f, ritaglio, adattaRiquadro, _s.misuraDi(f)));
+    final aveva = haSagoma(p.first);
+    // Il ritaglio rettangolare toglie la sagoma (`_crop_photo`: `apply_cutout(None)` e poi `apply_crop`)
+    final dopo = modificaFoto(state.snapshot, [for (final f in p) f.uid], (f) {
+      final misura = _s.misuraDi(f);
+      final senza = haSagoma(f)
+          ? conSagoma(f, null, sagomaMorbidezza, misura)
+          : f;
+      return conRitaglio(senza, ritaglio, adattaRiquadro, misura);
+    });
     final primo = dopo.items.firstWhere((f) => f.uid == p.first.uid);
     _commit(
       dopo,
-      messaggio: haRitaglio(primo)
+      messaggio: aveva
+          ? MessaggioEditor.sagomaTolta
+          : haRitaglio(primo)
           ? MessaggioEditor.ritaglioApplicato
           : MessaggioEditor.ritaglioTolto,
     );
+  }
+
+  /// Sagoma disegnata nella pagina Ritaglia (`apply_cutout`): vale per la foto che si è ritagliata, [uid].
+  void applicaSagoma(int uid, List<PuntoSagoma> punti, int morbidezza) {
+    final f = state.snapshot.items.where((p) => p.uid == uid).firstOrNull;
+    if (f == null || f.isVideo) return;
+    final dopo = modificaFoto(state.snapshot, [
+      uid,
+    ], (p) => conSagoma(p, punti, morbidezza, _s.misuraDi(p)));
+    _commit(dopo, messaggio: MessaggioEditor.sagomaApplicata);
+  }
+
+  /// «Togli sagoma» (`_remove_cutout_selected`): le foto selezionate tornano intere, con il riquadro nella forma
+  /// della foto. Le pagine bloccate restano come sono.
+  void togliSagoma() {
+    final uids = [
+      for (final p in fotoSelezionate)
+        if (haSagoma(p) && !p.pageLocked) p.uid,
+    ];
+    if (uids.isEmpty) return;
+    final dopo = modificaFoto(
+      state.snapshot,
+      uids,
+      (p) => senzaSagoma(p, _s.misuraDi(p)),
+    );
+    _commit(dopo, messaggio: MessaggioEditor.sagomaTolta);
   }
 
   /// «Copia stile»: cornice, opacità, ombra e colori della foto principale.

@@ -14,8 +14,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
+import '../export/consegna.dart';
+import '../export/sagoma_png.dart';
 import '../l10n/app_localizations.dart';
 import '../media/cache_media.dart' show chiaveMedia;
+import '../settings/registro_errori.dart';
 import '../theme/tokens.dart';
 import 'indietro.dart';
 import 'mancanti_ui.dart';
@@ -385,6 +388,20 @@ class BarraSelezione extends ConsumerWidget {
               () => apri(Strumento.ruota),
               chiave: 'voce-ruota',
             ),
+            if (foto.length == 1 && haSagoma(foto.first))
+              voce(
+                Icons.download_rounded,
+                t.strSalvaSagoma,
+                () => unawaited(_salvaSagoma(context, ref, foto.first)),
+                chiave: 'voce-salva-sagoma',
+              ),
+            if (foto.any(haSagoma))
+              voce(
+                Icons.hide_image_outlined,
+                t.strTogliSagoma,
+                ctrl.togliSagoma,
+                chiave: 'voce-togli-sagoma',
+              ),
           ],
         ),
         if (conColori)
@@ -570,9 +587,97 @@ class BarraSelezione extends ConsumerWidget {
         builder: (_) => PaginaRitaglio(sessione: s, foto: foto.first),
       ),
     );
-    if (r != null) {
+    if (r == null) return;
+    final sagoma = r.sagoma;
+    if (sagoma != null) {
+      // La sagoma vale per la foto mostrata nella pagina Ritaglia (come il desktop, una foto alla volta)
+      ctrl.applicaSagoma(foto.first.uid, sagoma, r.morbidezza);
+    } else {
       ctrl.applicaRitaglio(r.ritaglio, adattaRiquadro: r.adattaRiquadro);
     }
+  }
+
+  /// «Salva PNG»: il soggetto scontornato va in Galleria (album «ScrolleR Studio»). Mentre si prepara c'è
+  /// un'attesa con «Annulla»; annullando il risultato non si salva.
+  Future<void> _salvaSagoma(
+    BuildContext context,
+    WidgetRef ref,
+    PhotoItem foto,
+  ) async {
+    final ctrl = ref.read(editorProvider.notifier);
+    final s = ref.read(sessioneProvider);
+    final consegna = ref.read(consegnaProvider);
+    final registro = ref.read(registroErroriProvider);
+    final navigator = Navigator.of(context);
+    var annullato = false;
+    var aperta = true;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => _AttesaSagoma(
+          onAnnulla: () {
+            annullato = true;
+            Navigator.of(context).pop();
+          },
+        ),
+      ).whenComplete(() => aperta = false),
+    );
+    try {
+      final dati = await pngSagoma(foto, s.cache, s.cartella.path);
+      if (annullato) return;
+      if (dati == null) {
+        ctrl.messaggio(MessaggioEditor.sagomaNonSalvata);
+        return;
+      }
+      await consegna.salvaInGalleria(dati, nomePngSagoma(foto), DateTime.now());
+      if (!annullato) ctrl.messaggio(MessaggioEditor.sagomaSalvata);
+    } catch (e, traccia) {
+      registro.registra(e, traccia, contesto: 'Salva sagoma');
+      if (!annullato) ctrl.messaggio(MessaggioEditor.sagomaNonSalvata);
+    } finally {
+      if (aperta && !annullato) navigator.pop();
+    }
+  }
+}
+
+/// Attesa mentre si prepara il PNG della sagoma, con «Annulla».
+class _AttesaSagoma extends StatelessWidget {
+  const _AttesaSagoma({required this.onAnnulla});
+
+  final VoidCallback onAnnulla;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Testi.of(context);
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        backgroundColor: ColoriScrl.pannello,
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            const SizedBox(width: MisureScrl.spazio),
+            Expanded(
+              child: Text(
+                t.sagSalvataggio,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: onAnnulla,
+            child: Text(t.sagAnnullaSalvataggio),
+          ),
+        ],
+      ),
+    );
   }
 }
 

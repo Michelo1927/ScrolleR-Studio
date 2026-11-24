@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -12,6 +13,7 @@ import 'package:scrollr_studio/editor/sessione.dart';
 import 'package:scrollr_studio/editor/stato.dart';
 import 'package:scrollr_studio/editor/tela.dart';
 import 'package:scrollr_studio/editor/widget_comuni.dart';
+import 'package:scrollr_studio/export/sagoma_png.dart';
 import 'package:scrollr_studio/l10n/app_localizations.dart';
 import 'package:scrollr_studio/media/cache_media.dart';
 import 'package:scrollr_studio/media/galleria.dart';
@@ -851,6 +853,195 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Non riesco a leggere questa foto'), findsOneWidget);
+    });
+  });
+
+  group('Sagoma', () {
+    /// Apre Ritaglia nel modo Sagoma; restituisce la funzione che porta un punto della foto (frazioni 0..1 della
+    /// foto 60 × 80 come appare) sullo schermo.
+    Future<Offset Function(double, double)> apriSagoma(
+      WidgetTester tester,
+      _Banco b,
+    ) async {
+      await b.seleziona(1);
+      await toccaVoceBarra(tester, 'Ritaglia', settle: false);
+      await b.attendiRitaglio();
+      await tester.tap(find.byKey(const ValueKey('modo-sagoma')));
+      await tester.pump();
+      final area = find.byWidgetPredicate(
+        (w) =>
+            w is CustomPaint &&
+            w.painter.runtimeType.toString() == '_PittoreSagoma',
+      );
+      expect(area, findsOneWidget);
+      final r = tester.getRect(area);
+      // Come `_AreaSagoma`: foto centrata con 24 dp di margine
+      final s = math.min((r.width - 48) / 60, (r.height - 48) / 80);
+      final o = Offset(r.center.dx - 30 * s, r.center.dy - 40 * s);
+      return (double u, double v) => o + Offset(u * 60 * s, v * 80 * s);
+    }
+
+    Future<void> tocco(WidgetTester tester, Offset p) async {
+      await tester.tapAt(p);
+      // Fuori dal tempo del doppio tocco
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    testWidgets(
+      'a mano libera: il tratto che torna all\'inizio chiude la sagoma; ✓ la applica, «Togli sagoma» la toglie',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri(conFile: true);
+        final schermo = await apriSagoma(tester, b);
+        expect(
+          find.text(
+            'Disegna col dito attorno al soggetto, oppure tocca per mettere i punti. Due dita per ingrandire.',
+          ),
+          findsOneWidget,
+        );
+        // ✓ spento finché la sagoma non è chiusa
+        final applica = find.byKey(const ValueKey('ritaglio-applica'));
+        expect(tester.widget<PulsanteIcona>(applica).onTap, isNull);
+        final g = await tester.startGesture(schermo(0.5, 0.15));
+        for (var k = 1; k <= 48; k++) {
+          final a = k * 2 * math.pi / 48;
+          await g.moveTo(
+            schermo(0.5 + 0.3 * math.sin(a), 0.5 - 0.35 * math.cos(a)),
+          );
+          await tester.pump(const Duration(milliseconds: 8));
+        }
+        await g.up();
+        await tester.pump();
+        expect(tester.widget<PulsanteIcona>(applica).onTap, isNotNull);
+        expect(find.textContaining('Doppio tocco su un lato'), findsOneWidget);
+        // Risultato e morbidezza
+        await tester.tap(find.byKey(const ValueKey('sagoma-risultato')));
+        await tester.pump();
+        expect(find.textContaining('fuori dalla sagoma'), findsOneWidget);
+        await b.cursore(0.6);
+        await tester.tap(applica);
+        await tester.pumpAndSettle();
+        final f = b.foto(1);
+        expect(f.cutout, isNotNull);
+        expect(f.cutout!.length, greaterThanOrEqualTo(8));
+        expect(f.cutoutSoft, inInclusiveRange(55, 65));
+        expect(f.fitMode, 'contain');
+        // Ritaglio stretto attorno al soggetto
+        expect(f.crop[0], closeTo(0.2, 0.05));
+        expect(f.crop[2], closeTo(0.8, 0.05));
+        expect(b.passi, 2);
+        expect(
+          find.text('Sagoma applicata: bordo e ombra ora seguono il soggetto'),
+          findsOneWidget,
+        );
+        // La sagoma si salva nel progetto e si rilegge uguale
+        final riletta = PhotoItem.fromJson(f.toJson());
+        expect(riletta.toJson()['cutout'], f.toJson()['cutout']);
+        expect(riletta.cutoutSoft, f.cutoutSoft);
+        // «Togli sagoma» dalla barra: la foto torna intera e piena
+        await toccaVoceBarra(tester, 'Togli sagoma');
+        final g2 = b.foto(1);
+        expect(g2.cutout, isNull);
+        expect(g2.fitMode, 'cover');
+        expect(haRitaglio(g2), isFalse);
+        expect(b.passi, 3);
+        b.controllo.annulla();
+        await tester.pump();
+        expect(b.foto(1).cutout, isNotNull);
+      },
+    );
+
+    testWidgets(
+      'a punti: Indietro, chiusura sul primo punto, Riapri e Avanti; il rettangolo toglie la sagoma',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri(conFile: true);
+        final schermo = await apriSagoma(tester, b);
+        for (final (u, v) in [
+          (0.2, 0.2),
+          (0.8, 0.25),
+          (0.75, 0.8),
+          (0.3, 0.7),
+        ]) {
+          await tocco(tester, schermo(u, v));
+        }
+        final indietro = find.byKey(const ValueKey('sagoma-indietro'));
+        await tester.tap(indietro);
+        await tester.pump();
+        // Tre punti: il primo, toccato, chiude
+        await tocco(tester, schermo(0.2, 0.2));
+        expect(find.byKey(const ValueKey('sagoma-riapri')), findsOneWidget);
+        // Chiusa per sbaglio: Indietro la riapre, Avanti la richiude
+        await tester.tap(indietro);
+        await tester.pump();
+        expect(find.byKey(const ValueKey('sagoma-chiudi')), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('sagoma-avanti')));
+        await tester.pump();
+        expect(find.byKey(const ValueKey('sagoma-riapri')), findsOneWidget);
+        // Riapri, un punto in più, Chiudi
+        await tester.tap(find.byKey(const ValueKey('sagoma-riapri')));
+        await tester.pump();
+        await tocco(tester, schermo(0.25, 0.85));
+        await tester.tap(find.byKey(const ValueKey('sagoma-chiudi')));
+        await tester.pump();
+        await tester.tap(find.byKey(const ValueKey('ritaglio-applica')));
+        await tester.pumpAndSettle();
+        expect(b.foto(1).cutout, hasLength(4));
+        // Riaperta, la pagina parte dalla sagoma; col rettangolo la sagoma si toglie
+        await toccaVoceBarra(tester, 'Ritaglia', settle: false);
+        await b.attendiRitaglio();
+        expect(find.byKey(const ValueKey('sagoma-riapri')), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('modo-rettangolo')));
+        await tester.pump();
+        expect(
+          find.text('Applicando il rettangolo la sagoma viene tolta.'),
+          findsOneWidget,
+        );
+        await tester.tap(find.bySemanticsLabel('Applica il ritaglio'));
+        await tester.pumpAndSettle();
+        expect(b.foto(1).cutout, isNull);
+        expect(find.text('Sagoma tolta: la foto torna intera'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'PNG della sagoma: trasparente fuori, piena dentro, specchiata',
+      (tester) async {
+        final b = _Banco(tester);
+        await b.apri(conFile: true);
+        final f = conSagoma(
+          b.foto(1).copyWith(flipH: true),
+          [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0)],
+          0,
+          (w: 60, h: 80),
+        );
+        final dati = await tester.runAsync(
+          () => pngSagoma(f, b.sessione.cache, b.cartella.path),
+        );
+        expect(dati, isNotNull);
+        final img = await tester.runAsync(() async {
+          final codec = await ui.instantiateImageCodec(dati!);
+          return (await codec.getNextFrame()).image;
+        });
+        expect(img!.width, 60);
+        expect(img.height, 80);
+        final px = (await tester.runAsync(
+          () => img.toByteData(format: ui.ImageByteFormat.rawStraightRgba),
+        ))!;
+        int alfa(int x, int y) => px.getUint8((y * 60 + x) * 4 + 3);
+        // Triangolo in alto a sinistra, specchiato: pieno in alto a destra, vuoto in basso a sinistra
+        expect(alfa(55, 3), 255);
+        expect(alfa(3, 76), 0);
+        expect(nomePngSagoma(f), 'foto1_sagoma.png');
+      },
+    );
+
+    testWidgets('i video non hanno il modo Sagoma', (tester) async {
+      final v = PhotoItem(uid: 1, path: 'v.mp4', isVideo: true);
+      expect(
+        conSagoma(v, [(0.1, 0.1), (0.9, 0.1), (0.5, 0.9)], 15, null).cutout,
+        isNull,
+      );
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -98,7 +99,14 @@ void main() {
         _Risorse(mappa),
         const OpzioniDisegno(testi: testi, esportazione: true),
       );
-      final mia = await _pixel(await rec.endRecording().toImage(fw, fh));
+      final disegnata = await rec.endRecording().toImage(fw, fh);
+      final mia = await _pixel(disegnata);
+      // SCRL_DISEGNO_USCITA=CARTELLA: scrive anche le pagine disegnate qui, da guardare accanto a quelle del desktop
+      final uscita = Platform.environment['SCRL_DISEGNO_USCITA'];
+      if (uscita != null) {
+        final png = await disegnata.toByteData(format: ui.ImageByteFormat.png);
+        File('$uscita/$file').writeAsBytesSync(png!.buffer.asUint8List());
+      }
 
       final codec = await ui.instantiateImageCodec(
         File('$_cartella/immagini/$file').readAsBytesSync(),
@@ -127,4 +135,58 @@ void main() {
       expect(quota, lessThan(0.005), reason: file);
     });
   }
+
+  // Sulla tela la pagina si disegna ingrandita o ridotta: sfumatura della sagoma e ombra devono seguire la scala
+  test('sagoma a metà misura come quella del desktop ridotta', () async {
+    final dati = jsonDecode(
+      File('$_cartella/immagini/immagine-sagoma.json').readAsStringSync(),
+    ) as Map<String, Object?>;
+    final s = ProjectFile.parse(jsonEncode(dati['progetto'])).snapshot;
+    final mappa = <String, ui.Image>{};
+    for (var i = 0; i < foto.length; i++) {
+      mappa[foto[i][0]! as String] = await _fotoSintetica(
+        i,
+        foto[i][1]! as int,
+        foto[i][2]! as int,
+      );
+    }
+    final fw = s.canvas.frameW, fh = s.canvas.frameH;
+    final rec = ui.PictureRecorder();
+    disegnaPagina(
+      ui.Canvas(rec),
+      s,
+      0,
+      _Risorse(mappa),
+      const OpzioniDisegno(testi: testi, esportazione: true),
+      scala: 0.5,
+    );
+    final mia = await _pixel(
+      await rec.endRecording().toImage(fw ~/ 2, fh ~/ 2),
+    );
+    final codec = await ui.instantiateImageCodec(
+      File('$_cartella/immagini/immagine-sagoma_01.png').readAsBytesSync(),
+    );
+    final rif = await _pixel((await codec.getNextFrame()).image);
+    // Media di ogni quadrato 2 × 2 del desktop
+    var somma = 0.0;
+    var diversi = 0;
+    for (var y = 0; y < fh ~/ 2; y++) {
+      for (var x = 0; x < fw ~/ 2; x++) {
+        var d = 0.0;
+        for (var c = 0; c < 3; c++) {
+          var v = 0;
+          for (final (dx, dy) in const [(0, 0), (1, 0), (0, 1), (1, 1)]) {
+            v += rif[((2 * y + dy) * fw + 2 * x + dx) * 4 + c];
+          }
+          final x0 = (v / 4 - mia[(y * (fw ~/ 2) + x) * 4 + c]).abs();
+          somma += x0;
+          d = math.max(d, x0);
+        }
+        if (d > 24) diversi++;
+      }
+    }
+    final n = (fw ~/ 2) * (fh ~/ 2);
+    expect(somma / (n * 3), lessThan(1.5));
+    expect(diversi / n, lessThan(0.005));
+  });
 }

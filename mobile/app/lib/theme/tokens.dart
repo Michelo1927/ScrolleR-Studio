@@ -71,6 +71,13 @@ abstract final class ColoriScrl {
 
   /// Fondo scuro semitrasparente delle etichette sopra le foto (durata dei video).
   static const Color veloEtichetta = Color(0xA6000000);
+
+  /// Scacchiera della trasparenza (risultato della sagoma), come `checker_light` / `checker_dark` del desktop.
+  static const Color scacchiChiari = Color(0xFFCACACA);
+  static const Color scacchiScuri = Color(0xFF9C9C9C);
+
+  /// Velo sulla parte della foto esclusa dal ritaglio o dalla sagoma.
+  static const Color veloEscluso = Color(0x96000000);
 }
 
 /// Tipografia: font di sistema (Roboto / San Francisco), 3 misure e 2 pesi.

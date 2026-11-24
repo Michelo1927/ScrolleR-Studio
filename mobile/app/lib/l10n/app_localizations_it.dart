@@ -2566,4 +2566,79 @@ class TestiIt extends Testi {
   @override
   String get pesoNota =>
       'Le foto della galleria non sono contate: restano nella galleria, il progetto le collega.';
+
+  @override
+  String get ritModoRettangolo => 'Rettangolo';
+
+  @override
+  String get ritModoSagoma => 'Sagoma';
+
+  @override
+  String get ritApplicaSagoma => 'Applica la sagoma';
+
+  @override
+  String get ritTogliSagomaNota =>
+      'Applicando il rettangolo la sagoma viene tolta.';
+
+  @override
+  String get sagIndietro => 'Indietro';
+
+  @override
+  String get sagAvanti => 'Avanti';
+
+  @override
+  String get sagRiapri => 'Riapri';
+
+  @override
+  String get sagChiudi => 'Chiudi';
+
+  @override
+  String get sagTogli => 'Togli sagoma';
+
+  @override
+  String get sagRisultato => 'Risultato';
+
+  @override
+  String get sagMorbidezza => 'Morbidezza';
+
+  @override
+  String get sagAiutoVuota =>
+      'Disegna col dito attorno al soggetto, oppure tocca per mettere i punti. Due dita per ingrandire.';
+
+  @override
+  String get sagAiutoAperta =>
+      'Continua il contorno e torna al primo punto per chiuderlo, oppure tocca «Chiudi».';
+
+  @override
+  String get sagAiutoChiusa =>
+      'Trascina i punti o la sagoma. Doppio tocco su un lato aggiunge un punto, tocco lungo su un punto lo toglie.';
+
+  @override
+  String get sagAiutoRisultato =>
+      'Così si vedrà la foto: fuori dalla sagoma è trasparente.';
+
+  @override
+  String get avvisoSagomaApplicata =>
+      'Sagoma applicata: bordo e ombra ora seguono il soggetto';
+
+  @override
+  String get avvisoSagomaTolta => 'Sagoma tolta: la foto torna intera';
+
+  @override
+  String get avvisoSagomaSalvata => 'Sagoma salvata in Galleria come PNG';
+
+  @override
+  String get avvisoSagomaNonSalvata => 'Non riesco a salvare la sagoma';
+
+  @override
+  String get strTogliSagoma => 'Togli sagoma';
+
+  @override
+  String get strSalvaSagoma => 'Salva PNG';
+
+  @override
+  String get sagSalvataggio => 'Preparo il PNG della sagoma…';
+
+  @override
+  String get sagAnnullaSalvataggio => 'Annulla';
 }

@@ -1,5 +1,5 @@
 {
- "desktop": "1.8.1",
+ "desktop": "1.9.2",
  "casi_disposizioni": 1334,
  "immagini": [
   "immagine-griglia_01.png",
@@ -11,7 +11,8 @@
   "immagine-pellicola_01.png",
   "immagine-pellicola_02.png",
   "immagine-polaroid-rilievo_01.png",
-  "immagine-pellicola-verticale_01.png"
+  "immagine-pellicola-verticale_01.png",
+  "immagine-sagoma_01.png"
  ],
  "casi_pagine": 447,
  "casi_cronologia": 44,

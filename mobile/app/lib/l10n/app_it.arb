@@ -3538,5 +3538,97 @@
   "pesoNota": "Le foto della galleria non sono contate: restano nella galleria, il progetto le collega.",
   "@pesoNota": {
     "description": "Foglio delle azioni di un progetto: sotto lo spazio occupato"
+  },
+  "ritModoRettangolo": "Rettangolo",
+  "@ritModoRettangolo": {
+    "description": "Ritaglio: modo con il riquadro rettangolare"
+  },
+  "ritModoSagoma": "Sagoma",
+  "@ritModoSagoma": {
+    "description": "Ritaglio: modo con la sagoma disegnata a mano (scontorno)"
+  },
+  "ritApplicaSagoma": "Applica la sagoma",
+  "@ritApplicaSagoma": {
+    "description": "Ritaglio: ✓ nel modo Sagoma"
+  },
+  "ritTogliSagomaNota": "Applicando il rettangolo la sagoma viene tolta.",
+  "@ritTogliSagomaNota": {
+    "description": "Ritaglio: nota se la foto ha una sagoma"
+  },
+  "sagIndietro": "Indietro",
+  "@sagIndietro": {
+    "description": "Sagoma: annulla l'ultima modifica della sagoma"
+  },
+  "sagAvanti": "Avanti",
+  "@sagAvanti": {
+    "description": "Sagoma: rifà la modifica annullata"
+  },
+  "sagRiapri": "Riapri",
+  "@sagRiapri": {
+    "description": "Sagoma: riapre la sagoma chiusa per continuare ad aggiungere punti"
+  },
+  "sagChiudi": "Chiudi",
+  "@sagChiudi": {
+    "description": "Sagoma: chiude il contorno"
+  },
+  "sagTogli": "Togli sagoma",
+  "@sagTogli": {
+    "description": "Sagoma: cancella il contorno disegnato"
+  },
+  "sagRisultato": "Risultato",
+  "@sagRisultato": {
+    "description": "Sagoma: mostra la foto scontornata su sfondo a scacchi"
+  },
+  "sagMorbidezza": "Morbidezza",
+  "@sagMorbidezza": {
+    "description": "Sagoma: cursore della morbidezza del bordo"
+  },
+  "sagAiutoVuota": "Disegna col dito attorno al soggetto, oppure tocca per mettere i punti. Due dita per ingrandire.",
+  "@sagAiutoVuota": {
+    "description": "Sagoma: aiuto senza punti"
+  },
+  "sagAiutoAperta": "Continua il contorno e torna al primo punto per chiuderlo, oppure tocca «Chiudi».",
+  "@sagAiutoAperta": {
+    "description": "Sagoma: aiuto con il contorno aperto"
+  },
+  "sagAiutoChiusa": "Trascina i punti o la sagoma. Doppio tocco su un lato aggiunge un punto, tocco lungo su un punto lo toglie.",
+  "@sagAiutoChiusa": {
+    "description": "Sagoma: aiuto con il contorno chiuso"
+  },
+  "sagAiutoRisultato": "Così si vedrà la foto: fuori dalla sagoma è trasparente.",
+  "@sagAiutoRisultato": {
+    "description": "Sagoma: aiuto mentre si guarda il risultato"
+  },
+  "avvisoSagomaApplicata": "Sagoma applicata: bordo e ombra ora seguono il soggetto",
+  "@avvisoSagomaApplicata": {
+    "description": "Messaggio breve"
+  },
+  "avvisoSagomaTolta": "Sagoma tolta: la foto torna intera",
+  "@avvisoSagomaTolta": {
+    "description": "Messaggio breve"
+  },
+  "avvisoSagomaSalvata": "Sagoma salvata in Galleria come PNG",
+  "@avvisoSagomaSalvata": {
+    "description": "Messaggio breve"
+  },
+  "avvisoSagomaNonSalvata": "Non riesco a salvare la sagoma",
+  "@avvisoSagomaNonSalvata": {
+    "description": "Messaggio breve"
+  },
+  "strTogliSagoma": "Togli sagoma",
+  "@strTogliSagoma": {
+    "description": "Voce della barra: toglie la sagoma dalla foto"
+  },
+  "strSalvaSagoma": "Salva PNG",
+  "@strSalvaSagoma": {
+    "description": "Voce della barra: salva il soggetto scontornato in galleria"
+  },
+  "sagSalvataggio": "Preparo il PNG della sagoma…",
+  "@sagSalvataggio": {
+    "description": "Attesa mentre si salva la sagoma come PNG"
+  },
+  "sagAnnullaSalvataggio": "Annulla",
+  "@sagAnnullaSalvataggio": {
+    "description": "Attesa del PNG della sagoma: pulsante"
   }
 }

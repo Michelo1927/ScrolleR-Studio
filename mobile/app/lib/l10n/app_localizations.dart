@@ -4122,6 +4122,144 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Le foto della galleria non sono contate: restano nella galleria, il progetto le collega.'**
   String get pesoNota;
+
+  /// Ritaglio: modo con il riquadro rettangolare
+  ///
+  /// In it, this message translates to:
+  /// **'Rettangolo'**
+  String get ritModoRettangolo;
+
+  /// Ritaglio: modo con la sagoma disegnata a mano (scontorno)
+  ///
+  /// In it, this message translates to:
+  /// **'Sagoma'**
+  String get ritModoSagoma;
+
+  /// Ritaglio: ✓ nel modo Sagoma
+  ///
+  /// In it, this message translates to:
+  /// **'Applica la sagoma'**
+  String get ritApplicaSagoma;
+
+  /// Ritaglio: nota se la foto ha una sagoma
+  ///
+  /// In it, this message translates to:
+  /// **'Applicando il rettangolo la sagoma viene tolta.'**
+  String get ritTogliSagomaNota;
+
+  /// Sagoma: annulla l'ultima modifica della sagoma
+  ///
+  /// In it, this message translates to:
+  /// **'Indietro'**
+  String get sagIndietro;
+
+  /// Sagoma: rifà la modifica annullata
+  ///
+  /// In it, this message translates to:
+  /// **'Avanti'**
+  String get sagAvanti;
+
+  /// Sagoma: riapre la sagoma chiusa per continuare ad aggiungere punti
+  ///
+  /// In it, this message translates to:
+  /// **'Riapri'**
+  String get sagRiapri;
+
+  /// Sagoma: chiude il contorno
+  ///
+  /// In it, this message translates to:
+  /// **'Chiudi'**
+  String get sagChiudi;
+
+  /// Sagoma: cancella il contorno disegnato
+  ///
+  /// In it, this message translates to:
+  /// **'Togli sagoma'**
+  String get sagTogli;
+
+  /// Sagoma: mostra la foto scontornata su sfondo a scacchi
+  ///
+  /// In it, this message translates to:
+  /// **'Risultato'**
+  String get sagRisultato;
+
+  /// Sagoma: cursore della morbidezza del bordo
+  ///
+  /// In it, this message translates to:
+  /// **'Morbidezza'**
+  String get sagMorbidezza;
+
+  /// Sagoma: aiuto senza punti
+  ///
+  /// In it, this message translates to:
+  /// **'Disegna col dito attorno al soggetto, oppure tocca per mettere i punti. Due dita per ingrandire.'**
+  String get sagAiutoVuota;
+
+  /// Sagoma: aiuto con il contorno aperto
+  ///
+  /// In it, this message translates to:
+  /// **'Continua il contorno e torna al primo punto per chiuderlo, oppure tocca «Chiudi».'**
+  String get sagAiutoAperta;
+
+  /// Sagoma: aiuto con il contorno chiuso
+  ///
+  /// In it, this message translates to:
+  /// **'Trascina i punti o la sagoma. Doppio tocco su un lato aggiunge un punto, tocco lungo su un punto lo toglie.'**
+  String get sagAiutoChiusa;
+
+  /// Sagoma: aiuto mentre si guarda il risultato
+  ///
+  /// In it, this message translates to:
+  /// **'Così si vedrà la foto: fuori dalla sagoma è trasparente.'**
+  String get sagAiutoRisultato;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Sagoma applicata: bordo e ombra ora seguono il soggetto'**
+  String get avvisoSagomaApplicata;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Sagoma tolta: la foto torna intera'**
+  String get avvisoSagomaTolta;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Sagoma salvata in Galleria come PNG'**
+  String get avvisoSagomaSalvata;
+
+  /// Messaggio breve
+  ///
+  /// In it, this message translates to:
+  /// **'Non riesco a salvare la sagoma'**
+  String get avvisoSagomaNonSalvata;
+
+  /// Voce della barra: toglie la sagoma dalla foto
+  ///
+  /// In it, this message translates to:
+  /// **'Togli sagoma'**
+  String get strTogliSagoma;
+
+  /// Voce della barra: salva il soggetto scontornato in galleria
+  ///
+  /// In it, this message translates to:
+  /// **'Salva PNG'**
+  String get strSalvaSagoma;
+
+  /// Attesa mentre si salva la sagoma come PNG
+  ///
+  /// In it, this message translates to:
+  /// **'Preparo il PNG della sagoma…'**
+  String get sagSalvataggio;
+
+  /// Attesa del PNG della sagoma: pulsante
+  ///
+  /// In it, this message translates to:
+  /// **'Annulla'**
+  String get sagAnnullaSalvataggio;
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

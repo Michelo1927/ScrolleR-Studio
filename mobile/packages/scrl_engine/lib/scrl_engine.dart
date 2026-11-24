@@ -10,6 +10,7 @@ export 'src/edit/elementi.dart';
 export 'src/edit/forme.dart';
 export 'src/edit/geometria_foto.dart';
 export 'src/edit/ritaglio.dart';
+export 'src/edit/sagoma.dart';
 export 'src/edit/selezione.dart';
 export 'src/edit/strumenti_foto.dart';
 export 'src/edit/testo.dart';

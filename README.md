@@ -7,6 +7,11 @@ Videos can go on the canvas too: a page that contains a video is exported as an 
 muted and given a cover frame; shorter videos on the same page loop until the longest one ends.
 A video always stays inside one page (it cannot straddle two).
 
+Photos can be cut out by hand: in the crop window, **Shape** mode lets you click points around the subject
+(or drag to draw freehand) and everything outside becomes transparent, with a soft edge. The cut-out keeps the
+original photo untouched, can be edited again at any time, and makes the photo's border and shadow follow the
+subject like a sticker. **Save shape as PNG** writes the subject alone, at full resolution, with a transparent background.
+
 ## Download
 
 Open the [latest release](https://github.com/Michelo1927/ScrolleR-Studio/releases/latest) and, under **Assets**, download:
@@ -26,6 +31,9 @@ ScrolleR Studio Mobile is the phone version, built with Flutter in [`mobile/`](m
 - One page at a time, tools that rise from the bottom; photos from the gallery are linked, never copied or deleted.
 - Layouts, photo tools, texts and shapes, videos, page and carousel actions, export to PNG / JPG / MP4: the same
   results as the desktop app.
+- Shape cut-out on the phone too: in **Crop → Shape** you draw around the subject with your finger (a magnifier shows
+  what your finger covers, two fingers zoom in); **Save PNG** puts the subject alone in the gallery, with a transparent
+  background (read from the original at up to 4096 px on the long side).
 - Accessible: labels for screen readers (TalkBack) on every command, AA contrast, text that follows the system size up to 1.3×,
   and it respects "remove animations". **Settings → Gestures** explains the gestures.
 - No ads, no tracking, no accounts. The network is only used to look for a new version once a day (it can be turned off in
@@ -109,9 +117,10 @@ scrollr/
   video.py              videos with PyAV: info, frames, audio, MP4 writing
   widgets.py            ToggleSwitch, DropZone, library delegate
   dialogs.py            carousel preview, page order, pages to export, background dialog
-  crop_dialog.py        "Crop photo" window: crop area with handles and ready-made aspect ratios
+  crop_dialog.py        "Crop photo" window: crop area with handles and aspect ratios, or a hand-drawn cut-out shape
+  cutout.py             cut-out shapes: masks with a soft edge, tight crop, point simplification
   canvas/
-    photo_item.py       photos on the canvas (crop, inner zoom, borders, snapping)
+    photo_item.py       photos on the canvas (crop, cut-out, inner zoom, borders, sticker outline, snapping)
     video_item.py       videos on the canvas: a photo item with trim, cover frame, mute and playback
     text_item.py        text boxes
     shape_item.py       shapes, lines and arrows (resize handles, rotate handle, endpoints)

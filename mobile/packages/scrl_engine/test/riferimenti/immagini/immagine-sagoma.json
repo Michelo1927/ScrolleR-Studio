@@ -1,0 +1,788 @@
+{
+ "caso": {
+  "id": "immagine-sagoma",
+  "prima": {
+   "canvas": {
+    "ratio_index": 0,
+    "custom_w": 1080,
+    "custom_h": 1440,
+    "frame_w": 1080,
+    "frame_h": 1440,
+    "num_frames": 1,
+    "bg_color": "#ffffffff",
+    "gap": 16,
+    "margin": 24,
+    "per_frame": true,
+    "per_page": 0,
+    "page_counts": [],
+    "page_layouts": [],
+    "page_seams": [],
+    "page_locks": [],
+    "layout_mode": "grid",
+    "mosaic_style": "auto",
+    "film_style": "auto",
+    "polaroid_shadow": 0,
+    "polaroid_depth": 0,
+    "layout_seed": 12345,
+    "bg_mode": "solid",
+    "bg_color2": "#ff2680eb",
+    "bg_direction": "vertical",
+    "bg_blur_path": "",
+    "bg_blur_amount": 50,
+    "bg_dim": 15,
+    "page_numbers": false,
+    "page_number_format": "slash",
+    "page_number_pos": "bc",
+    "overlay_style": "dark",
+    "swipe_hint": false,
+    "swipe_text": "Scorri →",
+    "swipe_pos": "br"
+   },
+   "items": [
+    {
+     "uid": 10732,
+     "rel": "foto_01.png",
+     "x": 7.290605,
+     "y": 0.0,
+     "w": 385.41879,
+     "h": 500.0,
+     "rotation": 0.0,
+     "z": 1.0,
+     "layout_index": 1,
+     "crop": [
+      0.08693,
+      0.0973,
+      0.91307,
+      0.901107
+     ],
+     "stretch": 1.0,
+     "free": false,
+     "page_locked": false,
+     "border_width": 0.0,
+     "auto_border": false,
+     "frame": "",
+     "image": [
+      600,
+      800
+     ],
+     "ratio": 0.770838
+    },
+    {
+     "uid": 10733,
+     "rel": "foto_02.png",
+     "x": 0.0,
+     "y": 90.728831,
+     "w": 400.0,
+     "h": 318.542339,
+     "rotation": 0.0,
+     "z": 2.0,
+     "layout_index": 2,
+     "crop": [
+      0.104448,
+      0.08,
+      0.895552,
+      0.92
+     ],
+     "stretch": 1.0,
+     "free": false,
+     "page_locked": false,
+     "border_width": 0.0,
+     "auto_border": false,
+     "frame": "",
+     "image": [
+      800,
+      600
+     ],
+     "ratio": 1.25572
+    },
+    {
+     "uid": 10734,
+     "rel": "foto_03.png",
+     "x": 0.0,
+     "y": 54.885558,
+     "w": 400.0,
+     "h": 390.228884,
+     "rotation": 0.0,
+     "z": 3.0,
+     "layout_index": 3,
+     "crop": [
+      0.07973,
+      0.0892,
+      0.92027,
+      0.909207
+     ],
+     "stretch": 1.0,
+     "free": false,
+     "page_locked": false,
+     "border_width": 0.0,
+     "auto_border": false,
+     "frame": "",
+     "image": [
+      600,
+      600
+     ],
+     "ratio": 1.025039
+    },
+    {
+     "uid": 10735,
+     "rel": "foto_04.png",
+     "x": 0.0,
+     "y": 127.0408,
+     "w": 400.0,
+     "h": 245.918399,
+     "rotation": 0.0,
+     "z": 4.0,
+     "layout_index": 4,
+     "crop": [
+      0.086448,
+      0.048,
+      0.913552,
+      0.952
+     ],
+     "stretch": 1.0,
+     "free": false,
+     "page_locked": false,
+     "border_width": 0.0,
+     "auto_border": false,
+     "frame": "",
+     "image": [
+      960,
+      540
+     ],
+     "ratio": 1.626556
+    }
+   ]
+  },
+  "dopo": {
+   "canvas": {
+    "frame_w": 1080,
+    "frame_h": 1440,
+    "num_frames": 1,
+    "page_counts": [],
+    "page_layouts": [],
+    "page_seams": [],
+    "page_locks": [],
+    "layout_mode": "grid"
+   },
+   "items": [
+    {
+     "uid": 10732,
+     "x": 24.0,
+     "y": 24.0,
+     "w": 508.0,
+     "h": 688.0,
+     "rotation": 0.0,
+     "border_width": 8.0,
+     "auto_border": false,
+     "frame": ""
+    },
+    {
+     "uid": 10733,
+     "x": 548.0,
+     "y": 24.0,
+     "w": 508.0,
+     "h": 688.0,
+     "rotation": 0.0,
+     "border_width": 0.0,
+     "auto_border": false,
+     "frame": ""
+    },
+    {
+     "uid": 10734,
+     "x": 24.0,
+     "y": 728.0,
+     "w": 508.0,
+     "h": 688.0,
+     "rotation": 0.0,
+     "border_width": 6.0,
+     "auto_border": false,
+     "frame": ""
+    },
+    {
+     "uid": 10735,
+     "x": 548.0,
+     "y": 728.0,
+     "w": 508.0,
+     "h": 688.0,
+     "rotation": 0.0,
+     "border_width": 0.0,
+     "auto_border": false,
+     "frame": ""
+    }
+   ]
+  }
+ },
+ "progetto": {
+  "canvas": {
+   "ratio_index": 0,
+   "custom_w": 1080,
+   "custom_h": 1440,
+   "frame_w": 1080,
+   "frame_h": 1440,
+   "num_frames": 1,
+   "bg_color": "#ffffffff",
+   "gap": 16,
+   "margin": 24,
+   "per_frame": true,
+   "per_page": 0,
+   "page_counts": [],
+   "page_layouts": [],
+   "page_seams": [],
+   "page_locks": [],
+   "layout_mode": "grid",
+   "mosaic_style": "auto",
+   "film_style": "auto",
+   "polaroid_shadow": 0,
+   "polaroid_depth": 0,
+   "layout_seed": 12345,
+   "bg_mode": "solid",
+   "bg_color2": "#ff2680eb",
+   "bg_direction": "vertical",
+   "bg_blur_path": "",
+   "bg_blur_amount": 50,
+   "bg_dim": 15,
+   "page_numbers": false,
+   "page_number_format": "slash",
+   "page_number_pos": "bc",
+   "overlay_style": "dark",
+   "swipe_hint": false,
+   "swipe_text": "Scorri →",
+   "swipe_pos": "br",
+   "export_name": ""
+  },
+  "items": [
+   {
+    "uid": 10732,
+    "path": "foto_01.png",
+    "x": 24.0,
+    "y": 24.0,
+    "w": 508.0,
+    "h": 688.0,
+    "rotation": 0.0,
+    "z": 1.0,
+    "layout_index": 1,
+    "inner_zoom": 1.0,
+    "pan_x": 0.0,
+    "pan_y": 0.0,
+    "inner_rotation": 0.0,
+    "crop": [
+     0.08693,
+     0.0973,
+     0.91307,
+     0.90111
+    ],
+    "stretch": 1.0,
+    "border_radius": 0.0,
+    "border_width": 8.0,
+    "border_color": "#ffffffff",
+    "auto_border": false,
+    "frame": "",
+    "cutout": [
+     [
+      0.5,
+      0.1
+     ],
+     [
+      0.58678,
+      0.33981
+     ],
+     [
+      0.82837,
+      0.25813
+     ],
+     [
+      0.69499,
+      0.4755
+     ],
+     [
+      0.90947,
+      0.61346
+     ],
+     [
+      0.65637,
+      0.6447
+     ],
+     [
+      0.68223,
+      0.89841
+     ],
+     [
+      0.5,
+      0.72
+     ],
+     [
+      0.31777,
+      0.89841
+     ],
+     [
+      0.34363,
+      0.6447
+     ],
+     [
+      0.09053,
+      0.61346
+     ],
+     [
+      0.30501,
+      0.4755
+     ],
+     [
+      0.17163,
+      0.25813
+     ],
+     [
+      0.41322,
+      0.33981
+     ]
+    ],
+    "cutout_soft": 15,
+    "adjust": {
+     "brightness": 0,
+     "contrast": 0,
+     "shadows": 0,
+     "highlights": 0,
+     "saturation": 0,
+     "warmth": 0,
+     "tint": 0,
+     "sharpness": 0,
+     "vignette": 0,
+     "fade": 0,
+     "grain": 0,
+     "bw": false,
+     "auto": false
+    },
+    "flip_h": false,
+    "flip_v": false,
+    "fit_mode": "contain",
+    "opacity": 100,
+    "shadow": 0,
+    "locked": false,
+    "page_locked": false,
+    "free": false,
+    "saved_cell": null,
+    "group": 0,
+    "rel": "foto_01.png"
+   },
+   {
+    "uid": 10733,
+    "path": "foto_02.png",
+    "x": 548.0,
+    "y": 24.0,
+    "w": 508.0,
+    "h": 688.0,
+    "rotation": 0.0,
+    "z": 2.0,
+    "layout_index": 2,
+    "inner_zoom": 1.0,
+    "pan_x": 0.0,
+    "pan_y": 0.0,
+    "inner_rotation": 0.0,
+    "crop": [
+     0.10445,
+     0.08,
+     0.89555,
+     0.92
+    ],
+    "stretch": 1.0,
+    "border_radius": 0.0,
+    "border_width": 0.0,
+    "border_color": "#ffffffff",
+    "auto_border": false,
+    "frame": "",
+    "cutout": [
+     [
+      0.5,
+      0.08
+     ],
+     [
+      0.56985,
+      0.09431
+     ],
+     [
+      0.64064,
+      0.13627
+     ],
+     [
+      0.7117,
+      0.20302
+     ],
+     [
+      0.77973,
+      0.29
+     ],
+     [
+      0.83855,
+      0.3913
+     ],
+     [
+      0.88,
+      0.5
+     ],
+     [
+      0.89555,
+      0.6087
+     ],
+     [
+      0.87845,
+      0.71
+     ],
+     [
+      0.8257,
+      0.79698
+     ],
+     [
+      0.73936,
+      0.86373
+     ],
+     [
+      0.62685,
+      0.90569
+     ],
+     [
+      0.5,
+      0.92
+     ],
+     [
+      0.37315,
+      0.90569
+     ],
+     [
+      0.26064,
+      0.86373
+     ],
+     [
+      0.1743,
+      0.79698
+     ],
+     [
+      0.12155,
+      0.71
+     ],
+     [
+      0.10445,
+      0.6087
+     ],
+     [
+      0.12,
+      0.5
+     ],
+     [
+      0.16145,
+      0.3913
+     ],
+     [
+      0.22027,
+      0.29
+     ],
+     [
+      0.2883,
+      0.20302
+     ],
+     [
+      0.35936,
+      0.13627
+     ],
+     [
+      0.43015,
+      0.09431
+     ]
+    ],
+    "cutout_soft": 0,
+    "adjust": {
+     "brightness": 0,
+     "contrast": 0,
+     "shadows": 0,
+     "highlights": 0,
+     "saturation": 0,
+     "warmth": 0,
+     "tint": 0,
+     "sharpness": 0,
+     "vignette": 0,
+     "fade": 0,
+     "grain": 0,
+     "bw": false,
+     "auto": false
+    },
+    "flip_h": false,
+    "flip_v": false,
+    "fit_mode": "contain",
+    "opacity": 100,
+    "shadow": 60,
+    "locked": false,
+    "page_locked": false,
+    "free": false,
+    "saved_cell": null,
+    "group": 0,
+    "rel": "foto_02.png"
+   },
+   {
+    "uid": 10734,
+    "path": "foto_03.png",
+    "x": 24.0,
+    "y": 728.0,
+    "w": 508.0,
+    "h": 688.0,
+    "rotation": 0.0,
+    "z": 3.0,
+    "layout_index": 3,
+    "inner_zoom": 1.0,
+    "pan_x": 0.0,
+    "pan_y": 0.0,
+    "inner_rotation": 0.0,
+    "crop": [
+     0.07973,
+     0.0892,
+     0.92027,
+     0.90921
+    ],
+    "stretch": 1.0,
+    "border_radius": 0.0,
+    "border_width": 6.0,
+    "border_color": "#ff202020",
+    "auto_border": false,
+    "frame": "",
+    "cutout": [
+     [
+      0.5,
+      0.1
+     ],
+     [
+      0.58678,
+      0.33981
+     ],
+     [
+      0.82837,
+      0.25813
+     ],
+     [
+      0.69499,
+      0.4755
+     ],
+     [
+      0.90947,
+      0.61346
+     ],
+     [
+      0.65637,
+      0.6447
+     ],
+     [
+      0.68223,
+      0.89841
+     ],
+     [
+      0.5,
+      0.72
+     ],
+     [
+      0.31777,
+      0.89841
+     ],
+     [
+      0.34363,
+      0.6447
+     ],
+     [
+      0.09053,
+      0.61346
+     ],
+     [
+      0.30501,
+      0.4755
+     ],
+     [
+      0.17163,
+      0.25813
+     ],
+     [
+      0.41322,
+      0.33981
+     ]
+    ],
+    "cutout_soft": 60,
+    "adjust": {
+     "brightness": 0,
+     "contrast": 0,
+     "shadows": 0,
+     "highlights": 0,
+     "saturation": 0,
+     "warmth": 0,
+     "tint": 0,
+     "sharpness": 0,
+     "vignette": 0,
+     "fade": 0,
+     "grain": 0,
+     "bw": false,
+     "auto": false
+    },
+    "flip_h": false,
+    "flip_v": false,
+    "fit_mode": "contain",
+    "opacity": 100,
+    "shadow": 45,
+    "locked": false,
+    "page_locked": false,
+    "free": false,
+    "saved_cell": null,
+    "group": 0,
+    "rel": "foto_03.png"
+   },
+   {
+    "uid": 10735,
+    "path": "foto_04.png",
+    "x": 548.0,
+    "y": 728.0,
+    "w": 508.0,
+    "h": 688.0,
+    "rotation": 0.0,
+    "z": 4.0,
+    "layout_index": 4,
+    "inner_zoom": 1.0,
+    "pan_x": 0.0,
+    "pan_y": 0.0,
+    "inner_rotation": 0.0,
+    "crop": [
+     0.08645,
+     0.048,
+     0.91355,
+     0.952
+    ],
+    "stretch": 1.0,
+    "border_radius": 0.0,
+    "border_width": 0.0,
+    "border_color": "#ffffffff",
+    "auto_border": false,
+    "frame": "",
+    "cutout": [
+     [
+      0.5,
+      0.08
+     ],
+     [
+      0.56985,
+      0.09431
+     ],
+     [
+      0.64064,
+      0.13627
+     ],
+     [
+      0.7117,
+      0.20302
+     ],
+     [
+      0.77973,
+      0.29
+     ],
+     [
+      0.83855,
+      0.3913
+     ],
+     [
+      0.88,
+      0.5
+     ],
+     [
+      0.89555,
+      0.6087
+     ],
+     [
+      0.87845,
+      0.71
+     ],
+     [
+      0.8257,
+      0.79698
+     ],
+     [
+      0.73936,
+      0.86373
+     ],
+     [
+      0.62685,
+      0.90569
+     ],
+     [
+      0.5,
+      0.92
+     ],
+     [
+      0.37315,
+      0.90569
+     ],
+     [
+      0.26064,
+      0.86373
+     ],
+     [
+      0.1743,
+      0.79698
+     ],
+     [
+      0.12155,
+      0.71
+     ],
+     [
+      0.10445,
+      0.6087
+     ],
+     [
+      0.12,
+      0.5
+     ],
+     [
+      0.16145,
+      0.3913
+     ],
+     [
+      0.22027,
+      0.29
+     ],
+     [
+      0.2883,
+      0.20302
+     ],
+     [
+      0.35936,
+      0.13627
+     ],
+     [
+      0.43015,
+      0.09431
+     ]
+    ],
+    "cutout_soft": 100,
+    "adjust": {
+     "brightness": 0,
+     "contrast": 0,
+     "shadows": 0,
+     "highlights": 0,
+     "saturation": 0,
+     "warmth": 0,
+     "tint": 0,
+     "sharpness": 0,
+     "vignette": 0,
+     "fade": 0,
+     "grain": 0,
+     "bw": false,
+     "auto": false
+    },
+    "flip_h": false,
+    "flip_v": false,
+    "fit_mode": "contain",
+    "opacity": 100,
+    "shadow": 0,
+    "locked": false,
+    "page_locked": false,
+    "free": false,
+    "saved_cell": null,
+    "group": 0,
+    "rel": "foto_04.png"
+   }
+  ],
+  "texts": [],
+  "shapes": [],
+  "version": 1,
+  "library": []
+ }
+}

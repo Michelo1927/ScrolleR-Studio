@@ -2560,4 +2560,78 @@ class TestiEn extends Testi {
   @override
   String get pesoNota =>
       'Gallery photos are not counted: they stay in the gallery, the project links to them.';
+
+  @override
+  String get ritModoRettangolo => 'Rectangle';
+
+  @override
+  String get ritModoSagoma => 'Shape';
+
+  @override
+  String get ritApplicaSagoma => 'Apply the shape';
+
+  @override
+  String get ritTogliSagomaNota => 'Applying the rectangle removes the shape.';
+
+  @override
+  String get sagIndietro => 'Back';
+
+  @override
+  String get sagAvanti => 'Forward';
+
+  @override
+  String get sagRiapri => 'Reopen';
+
+  @override
+  String get sagChiudi => 'Close';
+
+  @override
+  String get sagTogli => 'Remove shape';
+
+  @override
+  String get sagRisultato => 'Result';
+
+  @override
+  String get sagMorbidezza => 'Softness';
+
+  @override
+  String get sagAiutoVuota =>
+      'Draw around the subject with your finger, or tap to place points. Two fingers to zoom.';
+
+  @override
+  String get sagAiutoAperta =>
+      'Keep drawing and go back to the first point to close it, or tap «Close».';
+
+  @override
+  String get sagAiutoChiusa =>
+      'Drag the points or the shape. Double-tap an edge to add a point, long-press a point to remove it.';
+
+  @override
+  String get sagAiutoRisultato =>
+      'This is how the photo will look: outside the shape it is transparent.';
+
+  @override
+  String get avvisoSagomaApplicata =>
+      'Shape applied: border and shadow now follow the subject';
+
+  @override
+  String get avvisoSagomaTolta => 'Shape removed: whole photo again';
+
+  @override
+  String get avvisoSagomaSalvata => 'Shape saved to the Gallery as PNG';
+
+  @override
+  String get avvisoSagomaNonSalvata => 'I can\'t save the shape';
+
+  @override
+  String get strTogliSagoma => 'Remove shape';
+
+  @override
+  String get strSalvaSagoma => 'Save PNG';
+
+  @override
+  String get sagSalvataggio => 'Preparing the shape PNG…';
+
+  @override
+  String get sagAnnullaSalvataggio => 'Cancel';
 }

@@ -101,6 +101,60 @@ List<double> cleanCrop(Object? c) {
   return List.unmodifiable(v);
 }
 
+/// Punto della sagoma: frazioni 0..1 della foto originale (non specchiata), come il ritaglio.
+typedef PuntoSagoma = (double, double);
+
+/// Sagoma (`scrollr/cutout.py`): morbidezza predefinita e massima, punti minimi.
+const int sagomaMorbidezza = 15,
+    sagomaMorbidezzaMax = 100,
+    sagomaPuntiMinimi = 3;
+
+/// `float(x)` di Python per i valori del file: numeri, booleani e testi con un numero; altrimenti null.
+double? _pyFloat(Object? x) {
+  if (x is num) return x.toDouble();
+  if (x is bool) return x ? 1.0 : 0.0;
+  if (x is String) return double.tryParse(x.trim());
+  return null;
+}
+
+/// `min(1.0, max(0.0, v))` di Python (un NaN diventa 0, come lì).
+double _tra01(double v) => v.isNaN ? 0.0 : math.min(1.0, math.max(0.0, v));
+
+/// `clean_cutout`: sagoma valida (almeno 3 punti dentro la foto, area non nulla); altrimenti null.
+/// Accetta i punti del file (`[[x, y], …]`) o già come [PuntoSagoma].
+List<PuntoSagoma>? cleanCutout(Object? points) {
+  if (points is! List || points.isEmpty) return null;
+  final pts = <PuntoSagoma>[];
+  for (final p in points) {
+    double? x, y;
+    if (p is PuntoSagoma) {
+      (x, y) = p;
+    } else if (p is List && p.length == 2) {
+      x = _pyFloat(p[0]);
+      y = _pyFloat(p[1]);
+    }
+    if (x == null || y == null) return null;
+    pts.add((_tra01(x), _tra01(y)));
+  }
+  if (pts.length < sagomaPuntiMinimi) return null;
+  // Area col metodo dell'allacciamento delle scarpe: una sagoma piatta non serve
+  var area = 0.0;
+  for (var i = 0; i < pts.length; i++) {
+    final (x0, y0) = pts[i];
+    final (x1, y1) = pts[(i + 1) % pts.length];
+    area += x0 * y1 - x1 * y0;
+  }
+  if (area.abs() < 1e-6) return null;
+  return List.unmodifiable(pts);
+}
+
+/// `clean_soft`: morbidezza 0..100 (un valore non valido diventa quella predefinita).
+int cleanSoft(Object? value) {
+  final v = _pyFloat(value);
+  if (v == null || v.isNaN || v.isInfinite) return sagomaMorbidezza;
+  return math.max(0, math.min(sagomaMorbidezzaMax, pyRound(v)));
+}
+
 /// Riferimento alla galleria del telefono (campo solo mobile `asset`, ignorato dal desktop).
 class MediaAsset {
   final String platform;
@@ -196,6 +250,13 @@ class PhotoItem extends CanvasElement {
 
   /// Cornice delle disposizioni Polaroid e Pellicola (`frame`): '', 'polaroid', 'film', 'film_v'.
   final String frame;
+
+  /// Sagoma (`cutout`): contorno del soggetto da tenere, fuori la foto è trasparente; null = nessuna.
+  /// Sempre null per i video.
+  final List<PuntoSagoma>? cutout;
+
+  /// Morbidezza del bordo della sagoma (`cutout_soft`, 0..100).
+  final int cutoutSoft;
   final Map<String, Object?> adjust;
   final bool flipH;
   final bool flipV;
@@ -245,6 +306,8 @@ class PhotoItem extends CanvasElement {
     this.borderColor = 0xFFFFFFFF,
     this.autoBorder = false,
     String frame = '',
+    List<PuntoSagoma>? cutout,
+    int cutoutSoft = sagomaMorbidezza,
     Map<String, Object?> adjust = neutralAdjust,
     this.flipH = false,
     this.flipV = false,
@@ -267,6 +330,8 @@ class PhotoItem extends CanvasElement {
        crop = List.unmodifiable(crop),
        stretch = math.min(20.0, math.max(0.05, stretch)),
        frame = frameStyles.contains(frame) ? frame : '',
+       cutout = isVideo ? null : cleanCutout(cutout),
+       cutoutSoft = cleanSoft(cutoutSoft),
        adjust =
            jsonFreeze(
                  isVideo
@@ -302,6 +367,8 @@ class PhotoItem extends CanvasElement {
     'border_color',
     'auto_border',
     'frame',
+    'cutout',
+    'cutout_soft',
     'adjust',
     'flip_h',
     'flip_v',
@@ -350,6 +417,10 @@ class PhotoItem extends CanvasElement {
       borderColor: parseArgb(s['border_color'], 0xFFFFFFFF),
       autoBorder: readBool(s, 'auto_border', false),
       frame: readString(s, 'frame', ''),
+      cutout: isVideo ? null : cleanCutout(s['cutout']),
+      cutoutSoft: cleanSoft(
+        s.containsKey('cutout_soft') ? s['cutout_soft'] : sagomaMorbidezza,
+      ),
       adjust: adjust is Map ? asMap(adjust) : neutralAdjust,
       flipH: readBool(s, 'flip_h', false),
       flipV: readBool(s, 'flip_v', false),
@@ -394,6 +465,12 @@ class PhotoItem extends CanvasElement {
     'border_color': formatArgb(borderColor),
     'auto_border': autoBorder,
     'frame': frame,
+    'cutout': cutout == null
+        ? null
+        : [
+            for (final (x, y) in cutout!) [pyRoundTo(x, 5), pyRoundTo(y, 5)],
+          ],
+    'cutout_soft': cutoutSoft,
     'adjust': jsonCopy(adjust),
     'flip_h': flipH,
     'flip_v': flipV,
@@ -460,6 +537,8 @@ class PhotoItem extends CanvasElement {
     int? borderColor,
     bool? autoBorder,
     String? frame,
+    List<PuntoSagoma>? Function()? cutout,
+    int? cutoutSoft,
     Map<String, Object?>? adjust,
     bool? flipH,
     bool? flipV,
@@ -500,6 +579,8 @@ class PhotoItem extends CanvasElement {
     borderColor: borderColor ?? this.borderColor,
     autoBorder: autoBorder ?? this.autoBorder,
     frame: frame ?? this.frame,
+    cutout: cutout != null ? cutout() : this.cutout,
+    cutoutSoft: cutoutSoft ?? this.cutoutSoft,
     adjust: adjust ?? this.adjust,
     flipH: flipH ?? this.flipH,
     flipV: flipV ?? this.flipV,

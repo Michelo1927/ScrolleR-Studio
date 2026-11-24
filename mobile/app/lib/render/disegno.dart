@@ -3,7 +3,8 @@
 /// `is_exporting` e `clean_render` del desktop.
 ///
 /// Ordine: sfondo → elementi per `z` → numeri di pagina e «scorri». Portato da `scrollr/canvas/scene.py`
-/// (`paint_canvas_background`, `paint_page_overlays`) e da `photo_item.py` (ombra, foto, effetti, bordo interno).
+/// (`paint_canvas_background`, `paint_page_overlays`) e da `photo_item.py` (ombra, foto, effetti, bordo interno,
+/// sagoma con contorno «adesivo»).
 /// Il disegno è sincrono: le immagini (già colorate) arrivano pronte da [RisorseDisegno].
 library;
 
@@ -250,7 +251,24 @@ void _foto(
   _inPosizione(canvas, p.x, p.y, p.w, p.h, p.rotation, () {
     final cell = ui.Rect.fromLTWH(0, 0, p.w, p.h);
     final radius = p.cornerRadius;
-    if (p.shadow > 0) _ombra(canvas, p, radius, op);
+    final pronta = r.foto(p);
+    final img = pronta?.immagine;
+    // Sagoma su una foto senza cornice: bordo e ombra seguono il soggetto invece del riquadro (`_sticker`)
+    final sagoma = img != null && img.width > 0 && img.height > 0
+        ? _Sagoma.di(p, img.width, img.height)
+        : null;
+    final adesivo = sagoma != null && p.frame.isEmpty && !r.mancante(p);
+    if (p.shadow > 0) {
+      if (adesivo) {
+        _ombraSagoma(canvas, p, sagoma, op);
+      } else {
+        _ombra(canvas, p, radius, op);
+      }
+    }
+    if (adesivo && p.borderWidth > 0) {
+      // Contorno adesivo, sotto la foto: la sagoma allargata quanto il bordo
+      _formaAdesivo(canvas, p, sagoma, _alfa(ui.Color(p.borderColor), op));
+    }
 
     canvas.save();
     if (radius > 0) {
@@ -270,11 +288,12 @@ void _foto(
         ui.Paint()..color = _alfa(ui.Color(frameColors[p.frame]!), op),
       );
     }
-    final pronta = r.foto(p);
-    final img = pronta?.immagine;
     if (img != null && img.width > 0 && img.height > 0) {
       final src = p.cropRect(img.width.toDouble(), img.height.toDouble());
       final g = p.coverGeometry(src.w, src.h);
+      // Con la sagoma foto ed effetti vanno su un livello a parte, che la sagoma (sfumata) poi ritaglia
+      // (`_paint_cut_layer`): fuori dal contorno non resta niente, nemmeno della vignettatura e della grana
+      if (sagoma != null) canvas.saveLayer(cell, ui.Paint());
       canvas.save();
       canvas.transform(Float64List.fromList(p.imageTransform().toMatrix4()));
       canvas.drawImageRect(
@@ -289,6 +308,19 @@ void _foto(
       );
       canvas.restore();
       if (!r.mostraOriginale) _effetti(canvas, p, img, r, op);
+      if (sagoma != null) {
+        canvas.saveLayer(cell, ui.Paint()..blendMode = ui.BlendMode.dstIn);
+        canvas.drawPath(
+          sagoma.contorno,
+          ui.Paint()
+            ..color = const ui.Color(0xFFFFFFFF)
+            ..maskFilter = sagoma.sfumatura > 0.05
+                ? ui.MaskFilter.blur(ui.BlurStyle.normal, sagoma.sfumatura)
+                : null,
+        );
+        canvas.restore();
+        canvas.restore();
+      }
     } else if (!o.senzaIndicazioni && r.mancante(p)) {
       _segnapostoMancante(canvas, p, o.testi.fotoMancante);
     }
@@ -300,7 +332,8 @@ void _foto(
     }
 
     // Bordo interno: non sborda nel gap e non viene tagliato ai margini della tela
-    if (p.borderWidth > 0) {
+    // (con la sagoma il bordo è il contorno adesivo, disegnato sotto la foto)
+    if (p.borderWidth > 0 && !adesivo) {
       final bw = math.min(p.borderWidth, math.min(p.w / 2.0, p.h / 2.0));
       final inner = cell.deflate(bw / 2.0);
       final ir = math.max(0.0, radius - bw / 2.0);
@@ -494,6 +527,93 @@ void _etichettaVideo(
     );
   }
   tp.paint(canvas, ui.Offset(20.0, (h - tp.height) / 2.0));
+  canvas.restore();
+}
+
+/// Sagoma di una foto pronta da disegnare, in coordinate della cella.
+class _Sagoma {
+  _Sagoma._(this.contorno, this.visibile, this.sfumatura);
+
+  /// Contorno intero (regola «nonzero», come la maschera del desktop): serve a ritagliare la foto.
+  final ui.Path contorno;
+
+  /// Contorno tagliato dal riquadro con i suoi angoli arrotondati (`silhouette_path`): contorno adesivo e ombra.
+  final ui.Path visibile;
+
+  /// Deviazione standard della sfumatura del bordo, in unità della cella.
+  final double sfumatura;
+
+  static _Sagoma? di(PhotoItem p, int imgW, int imgH) {
+    final punti = sagomaNellaCella(p, imgW, imgH);
+    if (punti == null) return null;
+    final contorno = ui.Path()
+      ..addPolygon([for (final (x, y) in punti) ui.Offset(x, y)], true);
+    final fin = p.windowRect();
+    final raggio = p.cornerRadius;
+    final riquadro = ui.Path()
+      ..addRRect(
+        ui.RRect.fromRectXY(
+          ui.Rect.fromLTWH(fin.x, fin.y, fin.w, fin.h),
+          raggio,
+          raggio,
+        ),
+      );
+    return _Sagoma._(
+      contorno,
+      ui.Path.combine(ui.PathOperation.intersect, contorno, riquadro),
+      sfumaturaSagoma(p, imgW, imgH),
+    );
+  }
+}
+
+/// Sagoma più il contorno «adesivo» largo quanto il bordo (`sticker_shape`), riempita di [colore]. Il riempimento
+/// e il tratto si disegnano pieni su un livello con l'opacità del colore: insieme fanno una sola forma, come
+/// l'unione dei percorsi del desktop (dove si sovrappongono non si scuriscono).
+void _formaAdesivo(
+  ui.Canvas canvas,
+  PhotoItem p,
+  _Sagoma sagoma,
+  ui.Color colore,
+) {
+  final b = sagoma.visibile.getBounds().inflate(p.borderWidth + 1);
+  canvas.saveLayer(b, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, colore.a));
+  final pieno = colore.withValues(alpha: 1.0);
+  canvas.drawPath(sagoma.visibile, ui.Paint()..color = pieno);
+  if (p.borderWidth > 0) {
+    canvas.drawPath(
+      sagoma.visibile,
+      ui.Paint()
+        ..color = pieno
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = p.borderWidth * 2.0
+        ..strokeJoin = ui.StrokeJoin.round
+        ..strokeCap = ui.StrokeCap.round,
+    );
+  }
+  canvas.restore();
+}
+
+/// `_paint_sticker_shadow`: ombra che segue la sagoma (e il contorno adesivo), sfumata e spostata in basso.
+void _ombraSagoma(ui.Canvas canvas, PhotoItem p, _Sagoma sagoma, double op) {
+  final o = ombraSagoma(p);
+  final b = sagoma.visibile
+      .getBounds()
+      .inflate(p.borderWidth + o.sfocatura * 3 + 1)
+      .translate(0, o.spostamento);
+  canvas.save();
+  canvas.saveLayer(
+    b,
+    ui.Paint()
+      ..color = ui.Color.fromRGBO(0, 0, 0, o.opacita * op)
+      ..imageFilter = ui.ImageFilter.blur(
+        sigmaX: o.sfocatura,
+        sigmaY: o.sfocatura,
+        tileMode: ui.TileMode.decal,
+      ),
+  );
+  canvas.translate(0, o.spostamento);
+  _formaAdesivo(canvas, p, sagoma, const ui.Color(0xFF000000));
+  canvas.restore();
   canvas.restore();
 }
 
