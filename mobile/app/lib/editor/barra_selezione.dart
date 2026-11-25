@@ -24,6 +24,7 @@ import 'indietro.dart';
 import 'mancanti_ui.dart';
 import 'menu_pressione_lunga.dart';
 import 'pagina_ritaglio.dart';
+import 'pagina_sottotitoli.dart';
 import 'stato.dart';
 import 'widget_comuni.dart';
 
@@ -54,6 +55,7 @@ String tipoSelezione(StatoEditor s) {
     if (foto.any((p) => p.isVideo)) 'v',
     if (sel.any((e) => e is TextItem)) 't',
     if (sel.any((e) => e is ShapeItem)) 's',
+    if (sel.any((e) => e is CaptionItem)) 'c',
     if (sel.length > 1) 'm',
   ].join();
 }
@@ -165,11 +167,24 @@ class BarraSelezione extends ConsumerWidget {
         foto.any((p) => p.isVideo && stato.videoInRiproduzione.contains(p.uid));
     final testi = sel.whereType<TextItem>().toList();
     final forme = sel.whereType<ShapeItem>().toList();
+    final sottotitoli = sel.whereType<CaptionItem>().toList();
     // Gli strumenti di foto, testi e forme valgono quando la selezione è fatta di un solo tipo; con tipi diversi restano
     // i comandi per più elementi (Allinea, Distribuisci, Raggruppa, Blocca…)
-    final soloFoto = testi.isEmpty && forme.isEmpty && foto.isNotEmpty;
-    final soloTesti = foto.isEmpty && forme.isEmpty && testi.isNotEmpty;
-    final soloForme = foto.isEmpty && testi.isEmpty && forme.isNotEmpty;
+    final senzaSottotitoli = sottotitoli.isEmpty;
+    final soloFoto =
+        testi.isEmpty && forme.isEmpty && senzaSottotitoli && foto.isNotEmpty;
+    final soloTesti =
+        foto.isEmpty && forme.isEmpty && senzaSottotitoli && testi.isNotEmpty;
+    final soloForme =
+        foto.isEmpty && testi.isEmpty && senzaSottotitoli && forme.isNotEmpty;
+    final soloSottotitoli =
+        foto.isEmpty && testi.isEmpty && forme.isEmpty && !senzaSottotitoli;
+    // Lo stile su cui lavorano gli strumenti del testo (un testo, o lo stile del blocco di sottotitoli)
+    final stileTesto = soloTesti
+        ? testi.first
+        : (soloSottotitoli ? sottotitoli.first.stile : null);
+    // Sottotitoli solo per un video alla volta, e solo dove il telefono sa leggerne l'audio (Android)
+    final unVideo = soloFoto && foto.length == 1 && foto.first.isVideo;
     final multi = sel.length > 1;
     // Una foto selezionata che non si trova più: «Ricollega» sta in testa alla barra
     final mancanteSel = ref
@@ -312,12 +327,14 @@ class BarraSelezione extends ConsumerWidget {
             ctrl.separaSelezione,
             chiave: 'voce-separa',
           ),
-        voce(
-          Icons.copy_rounded,
-          t.duplica,
-          ctrl.duplicaSelezione,
-          chiave: 'voce-duplica',
-        ),
+        // I sottotitoli non si duplicano: ogni video ne ha un blocco solo
+        if (!soloSottotitoli)
+          voce(
+            Icons.copy_rounded,
+            t.duplica,
+            ctrl.duplicaSelezione,
+            chiave: 'voce-duplica',
+          ),
         voce(
           Icons.delete_outline_rounded,
           t.elimina,
@@ -362,6 +379,13 @@ class BarraSelezione extends ConsumerWidget {
               chiave: 'voce-copertina',
             ),
             const _VoceAudio(key: ValueKey('voce-audio')),
+            if (unVideo && sottotitoliDisponibili)
+              voce(
+                Icons.subtitles_outlined,
+                t.strSottotitoli,
+                () => unawaited(apriSottotitoli(context, ref, foto.first.uid)),
+                chiave: 'voce-sottotitoli',
+              ),
           ],
         ),
       if (soloFoto) ...[
@@ -450,18 +474,75 @@ class BarraSelezione extends ConsumerWidget {
           ],
         ),
       ],
-      if (soloTesti) ...[
+      if (soloSottotitoli) ...[
+        if (sottotitoliDisponibili)
+          _Categoria(
+            'sottotitoli',
+            Icons.subtitles_outlined,
+            t.strSottotitoli,
+            onTap: () => unawaited(
+              apriSottotitoli(context, ref, sottotitoli.first.videoUid),
+            ),
+          ),
+        _Categoria(
+          'traduzione',
+          Icons.translate_rounded,
+          t.sotTraduzione,
+          voci: [
+            voce(
+              Icons.subtitles_outlined,
+              t.sotMostraTraduzione,
+              () => ctrl.comandoSottotitoli(
+                (c, ctx) =>
+                    conTraduzioneVisibile(c, !sottotitoli.first.trShow, ctx),
+              ),
+              attiva: sottotitoli.first.trShow,
+              chiave: 'voce-mostra-traduzione',
+            ),
+            voce(
+              Icons.format_color_text_rounded,
+              t.parColore,
+              () => apri(Strumento.sottotitoliColoreTraduzione),
+              chiave: 'voce-colore-traduzione',
+            ),
+            voce(
+              Icons.format_size_rounded,
+              t.strDimensione,
+              () => apri(Strumento.sottotitoliDimensioneTraduzione),
+              chiave: 'voce-dimensione-traduzione',
+            ),
+            voce(
+              Icons.format_italic_rounded,
+              t.azCorsivo,
+              () => ctrl.comandoSottotitoli(
+                (c, _) => conCorsivoTraduzione(c, !sottotitoli.first.trItalic),
+              ),
+              attiva: sottotitoli.first.trItalic,
+              chiave: 'voce-corsivo-traduzione',
+            ),
+          ],
+        ),
+      ],
+      if (soloTesti)
         _Categoria(
           'modifica',
           Icons.edit_outlined,
           t.strModifica,
           onTap: () => apri(Strumento.testoModifica),
         ),
+      if (stileTesto != null) ...[
         _Categoria(
           'carattere',
           Icons.font_download_outlined,
           t.strCarattere,
           voci: [
+            if (soloSottotitoli)
+              voce(
+                Icons.width_normal_outlined,
+                t.strLarghezza,
+                () => apri(Strumento.sottotitoliLarghezza),
+                chiave: 'voce-larghezza',
+              ),
             voce(
               Icons.font_download_outlined,
               t.strCarattere,
@@ -509,14 +590,14 @@ class BarraSelezione extends ConsumerWidget {
               Icons.label_outline_rounded,
               t.strEtichetta,
               () => apri(Strumento.testoEtichetta),
-              attiva: testi.first.box,
+              attiva: stileTesto.box,
               chiave: 'voce-etichetta',
             ),
             voce(
               Icons.blur_on_rounded,
               t.strOmbra,
               ctrl.alternaOmbraTesto,
-              attiva: testi.first.shadow,
+              attiva: stileTesto.shadow,
               chiave: 'voce-ombra-testo',
             ),
             voce(

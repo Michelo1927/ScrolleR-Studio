@@ -18,6 +18,7 @@ import '../media/galleria.dart';
 import '../media/importa.dart';
 import '../render/forme.dart';
 import '../render/risorse_pagina.dart';
+import '../render/sottotitoli.dart' show misuraSottotitoli;
 import '../render/testo.dart';
 import '../theme/tokens.dart';
 
@@ -51,6 +52,7 @@ Snapshot paginaDiProva(List<ElementoPagina> scelti) {
   final ctx = EngineContext(
     imageSize: (p) => misure[p.uid],
     textSize: misuraTesto,
+    captionSize: misuraSottotitoli,
   );
   final sc = Scene(Snapshot.blank(layoutSeed: 1), ctx);
   for (final e in scelti) {

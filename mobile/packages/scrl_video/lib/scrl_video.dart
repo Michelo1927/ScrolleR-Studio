@@ -135,6 +135,55 @@ abstract final class ScrlVideo {
   });
 }
 
+/// Audio della schermata Sottotitoli (`read_audio_mono` e la riproduzione del desktop): tutto l'audio del video in
+/// PCM s16 mono a [frequenza] Hz, allineato al secondo 0 del video. Suona col telefono a velocità 1, 0,75 o 0,5
+/// senza cambiare il tono; l'orologio è l'audio stesso ([tempo]). I comandi rispondono subito, anche mentre
+/// il plugin decodifica fotogrammi.
+class Ascolto {
+  static const int frequenza = 24000;
+
+  final int _id;
+
+  /// Il PCM letto, per l'inviluppo e le pause del motore.
+  final Uint8List pcm;
+
+  Ascolto._(this._id, this.pcm);
+
+  /// Durata dell'audio in secondi.
+  double get durata => pcm.length / 2 / frequenza;
+
+  /// Legge l'audio del video (può volerci qualche secondo); null se il video non ha audio.
+  static Future<Ascolto?> apri(String sorgente) async {
+    final m = await _chiama<Map<Object?, Object?>>('apriAscolto', {
+      'sorgente': sorgente,
+    });
+    if (m == null) return null;
+    return Ascolto._(m['id']! as int, m['pcm']! as Uint8List);
+  }
+
+  /// Suona dal secondo [t] alla [velocita] scelta.
+  Future<void> suona(double t, {double velocita = 1.0}) =>
+      _chiama<void>('suona', {'id': _id, 't': t, 'velocita': velocita});
+
+  /// Ferma e dice il secondo a cui si è arrivati.
+  Future<double> ferma() async =>
+      (await _chiama<num>('ferma', {'id': _id}))!.toDouble();
+
+  /// Il secondo che si sta sentendo e se l'audio sta ancora suonando (falso a fine audio).
+  Future<({double t, bool suona})> tempo() async {
+    final m = (await _chiama<Map<Object?, Object?>>('tempoAscolto', {
+      'id': _id,
+    }))!;
+    return (t: (m['t']! as num).toDouble(), suona: m['suona']! as bool);
+  }
+
+  /// Cambia la velocità senza fermarsi.
+  Future<void> velocita(double v) =>
+      _chiama<void>('velocitaAscolto', {'id': _id, 'velocita': v});
+
+  Future<void> chiudi() => _chiama<void>('chiudiAscolto', {'id': _id});
+}
+
 /// Lettura in sequenza (`FrameReader` del desktop): [a] va avanti decodificando e torna indietro (o salta
 /// lontano) con una ricerca. Restituisce l'ultimo fotogramma con tempo ≤ t.
 class LettoreFotogrammi {

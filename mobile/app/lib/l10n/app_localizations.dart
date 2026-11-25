@@ -2668,25 +2668,25 @@ abstract class Testi {
   /// Nome di un passaggio
   ///
   /// In it, this message translates to:
-  /// **'{tipo, select, photo{Foto spostata} text{Testo spostato} shape{Forma spostata} other{Elemento spostato}}'**
+  /// **'{tipo, select, photo{Foto spostata} text{Testo spostato} shape{Forma spostata} caption{Sottotitoli spostati} other{Elemento spostato}}'**
   String cambSpostato(String tipo);
 
   /// Nome di un passaggio
   ///
   /// In it, this message translates to:
-  /// **'{tipo, select, photo{Foto ridimensionata} text{Testo ridimensionato} shape{Forma ridimensionata} other{Elemento ridimensionato}}'**
+  /// **'{tipo, select, photo{Foto ridimensionata} text{Testo ridimensionato} shape{Forma ridimensionata} caption{Sottotitoli ridimensionati} other{Elemento ridimensionato}}'**
   String cambRidimensionato(String tipo);
 
   /// Nome di un passaggio
   ///
   /// In it, this message translates to:
-  /// **'{tipo, select, photo{Foto ruotata} text{Testo ruotato} shape{Forma ruotata} other{Elemento ruotato}}'**
+  /// **'{tipo, select, photo{Foto ruotata} text{Testo ruotato} shape{Forma ruotata} caption{Sottotitoli ruotati} other{Elemento ruotato}}'**
   String cambRuotato(String tipo);
 
   /// Nome di un passaggio
   ///
   /// In it, this message translates to:
-  /// **'{tipo, select, photo{Stile della foto} text{Stile del testo} shape{Stile della forma} other{Stile}}'**
+  /// **'{tipo, select, photo{Stile della foto} text{Stile del testo} shape{Stile della forma} caption{Stile dei sottotitoli} other{Stile}}'**
   String cambStile(String tipo);
 
   /// Nome di un passaggio
@@ -4344,6 +4344,276 @@ abstract class Testi {
   /// In it, this message translates to:
   /// **'Progetto convertito in carosello'**
   String get avvisoConvertitoCarosello;
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Sottotitoli aggiunti} other{{n} sottotitoli aggiunti}}'**
+  String cambSottotitoliAggiunti(int n);
+
+  /// Nome di un passaggio
+  ///
+  /// In it, this message translates to:
+  /// **'{n, plural, =1{Sottotitoli eliminati} other{{n} sottotitoli eliminati}}'**
+  String cambSottotitoliEliminati(int n);
+
+  /// Nome di un passaggio: frasi dei sottotitoli cambiate
+  ///
+  /// In it, this message translates to:
+  /// **'Sottotitoli modificati'**
+  String get cambSottotitoliModificati;
+
+  /// Blocco di sottotitoli della tela, per i lettori di schermo
+  ///
+  /// In it, this message translates to:
+  /// **'Sottotitoli: {testo}'**
+  String telaSottotitoli(String testo);
+
+  /// Si vede in trasparenza in un blocco di sottotitoli ancora senza frasi
+  ///
+  /// In it, this message translates to:
+  /// **'Sottotitoli'**
+  String get disegnoSottotitoli;
+
+  /// Voce della barra: sottotitoli del video selezionato (apre la schermata Sottotitoli)
+  ///
+  /// In it, this message translates to:
+  /// **'Sottotitoli'**
+  String get strSottotitoli;
+
+  /// Strumento del blocco di sottotitoli: larghezza massima delle righe in % della pagina
+  ///
+  /// In it, this message translates to:
+  /// **'Larghezza'**
+  String get strLarghezza;
+
+  /// Sottotitoli: la traduzione delle frasi (categoria della barra, modo della schermata, campo)
+  ///
+  /// In it, this message translates to:
+  /// **'Traduzione'**
+  String get sotTraduzione;
+
+  /// Sottotitoli, categoria Traduzione: mostra la traduzione sotto la frase (interruttore)
+  ///
+  /// In it, this message translates to:
+  /// **'Mostra'**
+  String get sotMostraTraduzione;
+
+  /// Titolo del pannello del colore della traduzione
+  ///
+  /// In it, this message translates to:
+  /// **'Colore della traduzione'**
+  String get sotColoreTraduzione;
+
+  /// Titolo del pannello della dimensione della traduzione rispetto alla frase
+  ///
+  /// In it, this message translates to:
+  /// **'Dimensione della traduzione'**
+  String get sotDimensioneTraduzione;
+
+  /// Schermata Sottotitoli: pulsante ✕
+  ///
+  /// In it, this message translates to:
+  /// **'Chiudi senza salvare'**
+  String get sotChiudi;
+
+  /// Schermata Sottotitoli: pulsante ✓, tiene le modifiche
+  ///
+  /// In it, this message translates to:
+  /// **'Fatto'**
+  String get sotFatto;
+
+  /// Schermata Sottotitoli: modo in cui si scrive il testo, una frase per riga
+  ///
+  /// In it, this message translates to:
+  /// **'Testo'**
+  String get sotTesto;
+
+  /// Schermata Sottotitoli: pulsante SRT (importa o condividi un file di sottotitoli)
+  ///
+  /// In it, this message translates to:
+  /// **'File .srt'**
+  String get sotFileSrt;
+
+  /// Legge le frasi da un file di sottotitoli .srt
+  ///
+  /// In it, this message translates to:
+  /// **'Importa .srt'**
+  String get sotImportaSrt;
+
+  /// Condivide le frasi come file .srt (e la traduzione in un secondo file)
+  ///
+  /// In it, this message translates to:
+  /// **'Condividi .srt'**
+  String get sotCondividiSrt;
+
+  /// Avviso: il file scelto non contiene sottotitoli .srt
+  ///
+  /// In it, this message translates to:
+  /// **'Nel file non ho trovato sottotitoli in formato .srt.'**
+  String get sotSrtVuoto;
+
+  /// Avviso: niente da condividere come .srt
+  ///
+  /// In it, this message translates to:
+  /// **'Non ci sono ancora frasi con i tempi.'**
+  String get sotSrtNiente;
+
+  /// Importazione di un .srt sopra frasi già scritte
+  ///
+  /// In it, this message translates to:
+  /// **'Il file ha {n} frasi. Cosa ne faccio?'**
+  String sotImportaDomanda(int n);
+
+  /// Importazione .srt: le frasi del file prendono il posto di quelle scritte
+  ///
+  /// In it, this message translates to:
+  /// **'Sostituisci le frasi'**
+  String get sotSostituisci;
+
+  /// Importazione .srt: le frasi del file diventano la traduzione di quelle scritte
+  ///
+  /// In it, this message translates to:
+  /// **'Usale come traduzione'**
+  String get sotComeTraduzione;
+
+  /// Conferma alla chiusura con ✕ o indietro
+  ///
+  /// In it, this message translates to:
+  /// **'Chiudere senza tenere le modifiche ai sottotitoli?'**
+  String get sotScartaDomanda;
+
+  /// Conferma di chiusura: resta nella schermata
+  ///
+  /// In it, this message translates to:
+  /// **'Continua'**
+  String get sotContinua;
+
+  /// Conferma di chiusura: chiude senza tenere le modifiche
+  ///
+  /// In it, this message translates to:
+  /// **'Scarta'**
+  String get sotScarta;
+
+  /// Schermata Sottotitoli: l'audio del video si sta leggendo (si può già scrivere)
+  ///
+  /// In it, this message translates to:
+  /// **'Lettura dell\'audio…'**
+  String get sotLetturaAudio;
+
+  /// Schermata Sottotitoli: video senza audio
+  ///
+  /// In it, this message translates to:
+  /// **'Il video non ha audio: i tempi si distribuiscono su tutto il video.'**
+  String get sotSenzaAudio;
+
+  /// Schermata Sottotitoli: l'audio del video non si legge
+  ///
+  /// In it, this message translates to:
+  /// **'Audio non leggibile: i tempi si distribuiscono su tutto il video.'**
+  String get sotAudioIlleggibile;
+
+  /// Lettore di schermo: la striscia con la forma d'onda e le frasi
+  ///
+  /// In it, this message translates to:
+  /// **'Striscia del tempo'**
+  String get sotStrisciaTempo;
+
+  /// Schermata Sottotitoli: salta indietro
+  ///
+  /// In it, this message translates to:
+  /// **'Indietro di 3 secondi'**
+  String get sotIndietro3;
+
+  /// Schermata Sottotitoli: salta avanti
+  ///
+  /// In it, this message translates to:
+  /// **'Avanti di 3 secondi'**
+  String get sotAvanti3;
+
+  /// Velocità di riproduzione (un tocco passa alla successiva: 1×, 0,75×, 0,5×)
+  ///
+  /// In it, this message translates to:
+  /// **'{v}×'**
+  String sotVelocita(String v);
+
+  /// Schermata Sottotitoli: suggerimento quando nessuna frase è scelta
+  ///
+  /// In it, this message translates to:
+  /// **'Tocca una frase sulla striscia per ritoccarla'**
+  String get sotScegliFrase;
+
+  /// Tutte le frasi tornano automatiche e si ridistribuiscono sulla voce
+  ///
+  /// In it, this message translates to:
+  /// **'Tempi dall\'audio'**
+  String get sotTempiAudio;
+
+  /// La frase scelta comincia al punto della linea di lettura
+  ///
+  /// In it, this message translates to:
+  /// **'Inizia qui'**
+  String get sotIniziaQui;
+
+  /// La frase scelta finisce al punto della linea di lettura
+  ///
+  /// In it, this message translates to:
+  /// **'Finisci qui'**
+  String get sotFinisciQui;
+
+  /// Divide la frase scelta in due, al punto della linea di lettura
+  ///
+  /// In it, this message translates to:
+  /// **'Dividi qui'**
+  String get sotDividiQui;
+
+  /// Unisce la frase scelta a quella dopo
+  ///
+  /// In it, this message translates to:
+  /// **'Unisci alla successiva'**
+  String get sotUnisci;
+
+  /// Tempo di inizio della frase
+  ///
+  /// In it, this message translates to:
+  /// **'Inizio'**
+  String get sotInizio;
+
+  /// Tempo di fine della frase
+  ///
+  /// In it, this message translates to:
+  /// **'Fine'**
+  String get sotFine;
+
+  /// Sposta il bordo della frase di un decimo di secondo indietro
+  ///
+  /// In it, this message translates to:
+  /// **'−0,1 s'**
+  String get sotMeno01;
+
+  /// Sposta il bordo della frase di un decimo di secondo avanti
+  ///
+  /// In it, this message translates to:
+  /// **'+0,1 s'**
+  String get sotPiu01;
+
+  /// Schermata Sottotitoli: casella del testo vuota
+  ///
+  /// In it, this message translates to:
+  /// **'Scrivi o incolla il testo, una frase per riga'**
+  String get sotVuoto;
+
+  /// Incolla il testo copiato, diviso in frasi corte
+  ///
+  /// In it, this message translates to:
+  /// **'Incolla'**
+  String get sotIncolla;
+
+  /// Sigla della lingua (en, es, fr…): serve al nome del file .srt della traduzione
+  ///
+  /// In it, this message translates to:
+  /// **'Lingua della traduzione'**
+  String get sotLinguaTraduzione;
 }
 
 class _TestiDelegate extends LocalizationsDelegate<Testi> {

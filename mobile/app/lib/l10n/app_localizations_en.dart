@@ -1532,6 +1532,7 @@ class TestiEn extends Testi {
       'photo': 'Photo moved',
       'text': 'Text moved',
       'shape': 'Shape moved',
+      'caption': 'Subtitles moved',
       'other': 'Element moved',
     });
     return '$_temp0';
@@ -1543,6 +1544,7 @@ class TestiEn extends Testi {
       'photo': 'Photo resized',
       'text': 'Text resized',
       'shape': 'Shape resized',
+      'caption': 'Subtitles resized',
       'other': 'Element resized',
     });
     return '$_temp0';
@@ -1554,6 +1556,7 @@ class TestiEn extends Testi {
       'photo': 'Photo rotated',
       'text': 'Text rotated',
       'shape': 'Shape rotated',
+      'caption': 'Subtitles rotated',
       'other': 'Element rotated',
     });
     return '$_temp0';
@@ -1565,6 +1568,7 @@ class TestiEn extends Testi {
       'photo': 'Photo style',
       'text': 'Text style',
       'shape': 'Shape style',
+      'caption': 'Subtitle style',
       'other': 'Style',
     });
     return '$_temp0';
@@ -2681,4 +2685,164 @@ class TestiEn extends Testi {
 
   @override
   String get avvisoConvertitoCarosello => 'Project converted to carousel';
+
+  @override
+  String cambSottotitoliAggiunti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n subtitle blocks added',
+      one: 'Subtitles added',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambSottotitoliEliminati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n subtitle blocks deleted',
+      one: 'Subtitles deleted',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get cambSottotitoliModificati => 'Subtitles edited';
+
+  @override
+  String telaSottotitoli(String testo) {
+    return 'Subtitles: $testo';
+  }
+
+  @override
+  String get disegnoSottotitoli => 'Subtitles';
+
+  @override
+  String get strSottotitoli => 'Subtitles';
+
+  @override
+  String get strLarghezza => 'Width';
+
+  @override
+  String get sotTraduzione => 'Translation';
+
+  @override
+  String get sotMostraTraduzione => 'Show';
+
+  @override
+  String get sotColoreTraduzione => 'Translation color';
+
+  @override
+  String get sotDimensioneTraduzione => 'Translation size';
+
+  @override
+  String get sotChiudi => 'Close without saving';
+
+  @override
+  String get sotFatto => 'Done';
+
+  @override
+  String get sotTesto => 'Text';
+
+  @override
+  String get sotFileSrt => '.srt file';
+
+  @override
+  String get sotImportaSrt => 'Import .srt';
+
+  @override
+  String get sotCondividiSrt => 'Share .srt';
+
+  @override
+  String get sotSrtVuoto => 'No .srt subtitles found in the file.';
+
+  @override
+  String get sotSrtNiente => 'There are no timed sentences yet.';
+
+  @override
+  String sotImportaDomanda(int n) {
+    return 'The file has $n sentences. What should I do with them?';
+  }
+
+  @override
+  String get sotSostituisci => 'Replace the sentences';
+
+  @override
+  String get sotComeTraduzione => 'Use as translation';
+
+  @override
+  String get sotScartaDomanda =>
+      'Close without keeping the changes to the subtitles?';
+
+  @override
+  String get sotContinua => 'Keep editing';
+
+  @override
+  String get sotScarta => 'Discard';
+
+  @override
+  String get sotLetturaAudio => 'Reading the audio…';
+
+  @override
+  String get sotSenzaAudio =>
+      'The video has no audio: the timing is spread over the whole video.';
+
+  @override
+  String get sotAudioIlleggibile =>
+      'The audio can\'t be read: the timing is spread over the whole video.';
+
+  @override
+  String get sotStrisciaTempo => 'Timeline';
+
+  @override
+  String get sotIndietro3 => 'Back 3 seconds';
+
+  @override
+  String get sotAvanti3 => 'Forward 3 seconds';
+
+  @override
+  String sotVelocita(String v) {
+    return '$v×';
+  }
+
+  @override
+  String get sotScegliFrase => 'Tap a sentence on the timeline to adjust it';
+
+  @override
+  String get sotTempiAudio => 'Timing from audio';
+
+  @override
+  String get sotIniziaQui => 'Start here';
+
+  @override
+  String get sotFinisciQui => 'End here';
+
+  @override
+  String get sotDividiQui => 'Split here';
+
+  @override
+  String get sotUnisci => 'Join with next';
+
+  @override
+  String get sotInizio => 'Start';
+
+  @override
+  String get sotFine => 'End';
+
+  @override
+  String get sotMeno01 => '−0.1 s';
+
+  @override
+  String get sotPiu01 => '+0.1 s';
+
+  @override
+  String get sotVuoto => 'Write or paste the text, one sentence per line';
+
+  @override
+  String get sotIncolla => 'Paste';
+
+  @override
+  String get sotLinguaTraduzione => 'Translation language';
 }

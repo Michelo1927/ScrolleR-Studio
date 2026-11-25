@@ -7,7 +7,7 @@ import '../model/snapshot.dart';
 import '../util/py.dart';
 
 /// Tipo di elemento della tela (per l'accordo: spostata/spostato).
-enum ElementKind { photo, text, shape }
+enum ElementKind { photo, text, shape, caption }
 
 enum ChangeKind {
   /// Primo passaggio: nome scelto da chi apre la cronologia (`HistoryStart`).
@@ -64,6 +64,9 @@ enum ChangeKind {
   resized,
   rotated,
   textEdited,
+
+  /// Frasi dei sottotitoli cambiate (`Sottotitoli modificati`).
+  captionsEdited,
   photoColors,
   videoTrim,
   videoPoster,
@@ -123,6 +126,7 @@ const _kinds = {
   'items': ElementKind.photo,
   'texts': ElementKind.text,
   'shapes': ElementKind.shape,
+  'captions': ElementKind.caption,
 };
 
 Object? _get(Map<String, Object?> m, String k) => m[k];
@@ -141,11 +145,13 @@ ChangeLabel describeChange(Snapshot sa, Snapshot sb) {
   final changed = <(ElementKind, Set<String>, Map<String, Object?>)>[];
   for (final e in _kinds.entries) {
     final before = {
-      for (final s in (a[e.key]! as List).cast<Map<String, Object?>>())
+      for (final s
+          in ((a[e.key] ?? const []) as List).cast<Map<String, Object?>>())
         s['uid']: s,
     };
     final after = {
-      for (final s in (b[e.key]! as List).cast<Map<String, Object?>>())
+      for (final s
+          in ((b[e.key] ?? const []) as List).cast<Map<String, Object?>>())
         s['uid']: s,
     };
     added.addAll([
@@ -282,6 +288,9 @@ ChangeLabel describeChange(Snapshot sa, Snapshot sb) {
   }
   if (sub(diff, {'x', 'y', 'rotation'})) {
     return ChangeLabel(ChangeKind.rotated, element: kind);
+  }
+  if (diff.contains('phrases')) {
+    return const ChangeLabel(ChangeKind.captionsEdited);
   }
   if (diff.contains('text')) return const ChangeLabel(ChangeKind.textEdited);
   if (diff.contains('adjust')) return const ChangeLabel(ChangeKind.photoColors);

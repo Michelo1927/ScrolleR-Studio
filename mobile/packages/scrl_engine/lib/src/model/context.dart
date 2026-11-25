@@ -5,6 +5,7 @@ library;
 
 import 'dart:math' as math;
 
+import '../util/py.dart';
 import 'elements.dart';
 
 /// Misura in pixel dell'immagine di una foto; null = foto mancante.
@@ -12,6 +13,9 @@ typedef ImageSizeOf = ({int w, int h})? Function(PhotoItem photo);
 
 /// Larghezza e altezza del riquadro di un testo (`TextItem.text_rect`).
 typedef TextSizeOf = ({double w, double h}) Function(TextItem text);
+
+/// Larghezza e altezza del riquadro di un blocco di sottotitoli (`CaptionItem._content_size` più i margini).
+typedef CaptionSizeOf = ({double w, double h}) Function(CaptionItem caption);
 
 /// Avvisi per l'utente prodotti dal motore (i testi stanno nei file `.arb` dell'app).
 enum NoticeKind {
@@ -105,6 +109,7 @@ class Notice {
 class EngineContext {
   final ImageSizeOf imageSize;
   final TextSizeOf textSize;
+  final CaptionSizeOf captionSize;
 
   /// Pagine aggiunte in automatico da «A cavallo»: (pagine di prima, pagine impostate dalla disposizione).
   /// Stato dell'editor, fuori dallo snapshot come `_seam_added_frames` del desktop.
@@ -117,9 +122,13 @@ class EngineContext {
   int _nextTextUid = 1;
   int _nextShapeUid = 1;
 
-  EngineContext({ImageSizeOf? imageSize, TextSizeOf? textSize})
-    : imageSize = imageSize ?? _noImage,
-      textSize = textSize ?? estimateTextSize;
+  EngineContext({
+    ImageSizeOf? imageSize,
+    TextSizeOf? textSize,
+    CaptionSizeOf? captionSize,
+  }) : imageSize = imageSize ?? _noImage,
+       textSize = textSize ?? estimateTextSize,
+       captionSize = captionSize ?? estimateCaptionSize;
 
   static ({int w, int h})? _noImage(PhotoItem _) => null;
 
@@ -134,6 +143,19 @@ class EngineContext {
     return (w: w + 2 * t.pad, h: h + 2 * t.pad);
   }
 
+  /// Stima della misura di un blocco di sottotitoli: la larghezza scelta e lo spazio per due righe di frase
+  /// (più due di traduzione, se c'è), con l'interlinea stimata come in [estimateTextSize].
+  static ({double w, double h}) estimateCaptionSize(CaptionItem c) {
+    final t = c.stile;
+    final interlinea = t.size * 1.33;
+    var h = interlinea + interlinea * t.lineHeight / 100.0;
+    if (c.mostraTraduzione) {
+      final px = pyRound(t.size * c.trSize / 100.0);
+      h += t.size * 0.12 + (px > 4 ? px : 4) * 1.33 * 2;
+    }
+    return (w: c.wrapW + 2 * c.pad, h: h + 2 * c.pad);
+  }
+
   // ---------- Contatori degli uid (separati per foto, testi e forme) ----------
   /// Fa sapere al contesto gli uid già usati (progetto aperto, Annulla): i nuovi saranno più grandi.
   void observe(Iterable<CanvasElement> elementi) {
@@ -142,6 +164,8 @@ class EngineContext {
         case PhotoItem():
           _nextPhotoUid = math.max(_nextPhotoUid, e.uid + 1);
         case TextItem():
+          _nextTextUid = math.max(_nextTextUid, e.uid + 1);
+        case CaptionItem(): // Stesso contatore dei testi, come sul desktop
           _nextTextUid = math.max(_nextTextUid, e.uid + 1);
         case ShapeItem():
           _nextShapeUid = math.max(_nextShapeUid, e.uid + 1);

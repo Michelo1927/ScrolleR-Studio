@@ -7,6 +7,7 @@ import 'package:scrl_engine/scrl_engine.dart';
 
 import '../media/cache_media.dart';
 import '../media/importa.dart';
+import '../render/sottotitoli.dart' show misuraSottotitoli;
 import '../render/testo.dart';
 import 'archivio.dart';
 
@@ -56,6 +57,7 @@ Future<ProgettoCaricato> creaProgetto({
   final ctx = EngineContext(
     imageSize: (p) => misure[chiaveMedia(p)],
     textSize: misuraTesto,
+    captionSize: misuraSottotitoli,
   );
   var s = documentoVuoto(formato, tipo: tipo);
   if (scelte.isNotEmpty) {

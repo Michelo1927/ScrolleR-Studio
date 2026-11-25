@@ -1534,6 +1534,7 @@ class TestiIt extends Testi {
       'photo': 'Foto spostata',
       'text': 'Testo spostato',
       'shape': 'Forma spostata',
+      'caption': 'Sottotitoli spostati',
       'other': 'Elemento spostato',
     });
     return '$_temp0';
@@ -1545,6 +1546,7 @@ class TestiIt extends Testi {
       'photo': 'Foto ridimensionata',
       'text': 'Testo ridimensionato',
       'shape': 'Forma ridimensionata',
+      'caption': 'Sottotitoli ridimensionati',
       'other': 'Elemento ridimensionato',
     });
     return '$_temp0';
@@ -1556,6 +1558,7 @@ class TestiIt extends Testi {
       'photo': 'Foto ruotata',
       'text': 'Testo ruotato',
       'shape': 'Forma ruotata',
+      'caption': 'Sottotitoli ruotati',
       'other': 'Elemento ruotato',
     });
     return '$_temp0';
@@ -1567,6 +1570,7 @@ class TestiIt extends Testi {
       'photo': 'Stile della foto',
       'text': 'Stile del testo',
       'shape': 'Stile della forma',
+      'caption': 'Stile dei sottotitoli',
       'other': 'Stile',
     });
     return '$_temp0';
@@ -2688,4 +2692,165 @@ class TestiIt extends Testi {
 
   @override
   String get avvisoConvertitoCarosello => 'Progetto convertito in carosello';
+
+  @override
+  String cambSottotitoliAggiunti(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n sottotitoli aggiunti',
+      one: 'Sottotitoli aggiunti',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cambSottotitoliEliminati(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n sottotitoli eliminati',
+      one: 'Sottotitoli eliminati',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get cambSottotitoliModificati => 'Sottotitoli modificati';
+
+  @override
+  String telaSottotitoli(String testo) {
+    return 'Sottotitoli: $testo';
+  }
+
+  @override
+  String get disegnoSottotitoli => 'Sottotitoli';
+
+  @override
+  String get strSottotitoli => 'Sottotitoli';
+
+  @override
+  String get strLarghezza => 'Larghezza';
+
+  @override
+  String get sotTraduzione => 'Traduzione';
+
+  @override
+  String get sotMostraTraduzione => 'Mostra';
+
+  @override
+  String get sotColoreTraduzione => 'Colore della traduzione';
+
+  @override
+  String get sotDimensioneTraduzione => 'Dimensione della traduzione';
+
+  @override
+  String get sotChiudi => 'Chiudi senza salvare';
+
+  @override
+  String get sotFatto => 'Fatto';
+
+  @override
+  String get sotTesto => 'Testo';
+
+  @override
+  String get sotFileSrt => 'File .srt';
+
+  @override
+  String get sotImportaSrt => 'Importa .srt';
+
+  @override
+  String get sotCondividiSrt => 'Condividi .srt';
+
+  @override
+  String get sotSrtVuoto =>
+      'Nel file non ho trovato sottotitoli in formato .srt.';
+
+  @override
+  String get sotSrtNiente => 'Non ci sono ancora frasi con i tempi.';
+
+  @override
+  String sotImportaDomanda(int n) {
+    return 'Il file ha $n frasi. Cosa ne faccio?';
+  }
+
+  @override
+  String get sotSostituisci => 'Sostituisci le frasi';
+
+  @override
+  String get sotComeTraduzione => 'Usale come traduzione';
+
+  @override
+  String get sotScartaDomanda =>
+      'Chiudere senza tenere le modifiche ai sottotitoli?';
+
+  @override
+  String get sotContinua => 'Continua';
+
+  @override
+  String get sotScarta => 'Scarta';
+
+  @override
+  String get sotLetturaAudio => 'Lettura dell\'audio…';
+
+  @override
+  String get sotSenzaAudio =>
+      'Il video non ha audio: i tempi si distribuiscono su tutto il video.';
+
+  @override
+  String get sotAudioIlleggibile =>
+      'Audio non leggibile: i tempi si distribuiscono su tutto il video.';
+
+  @override
+  String get sotStrisciaTempo => 'Striscia del tempo';
+
+  @override
+  String get sotIndietro3 => 'Indietro di 3 secondi';
+
+  @override
+  String get sotAvanti3 => 'Avanti di 3 secondi';
+
+  @override
+  String sotVelocita(String v) {
+    return '$v×';
+  }
+
+  @override
+  String get sotScegliFrase => 'Tocca una frase sulla striscia per ritoccarla';
+
+  @override
+  String get sotTempiAudio => 'Tempi dall\'audio';
+
+  @override
+  String get sotIniziaQui => 'Inizia qui';
+
+  @override
+  String get sotFinisciQui => 'Finisci qui';
+
+  @override
+  String get sotDividiQui => 'Dividi qui';
+
+  @override
+  String get sotUnisci => 'Unisci alla successiva';
+
+  @override
+  String get sotInizio => 'Inizio';
+
+  @override
+  String get sotFine => 'Fine';
+
+  @override
+  String get sotMeno01 => '−0,1 s';
+
+  @override
+  String get sotPiu01 => '+0,1 s';
+
+  @override
+  String get sotVuoto => 'Scrivi o incolla il testo, una frase per riga';
+
+  @override
+  String get sotIncolla => 'Incolla';
+
+  @override
+  String get sotLinguaTraduzione => 'Lingua della traduzione';
 }

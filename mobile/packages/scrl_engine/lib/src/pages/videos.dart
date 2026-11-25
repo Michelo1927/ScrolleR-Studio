@@ -82,3 +82,19 @@ EngineResult keepVideosInPages(Snapshot s, EngineContext ctx) {
       ? EngineResult.done(sc)
       : EngineResult(s, applied: false);
 }
+
+/// `_drop_orphan_captions`: i sottotitoli di un video che non è più sulla tela se ne vanno con lui.
+Snapshot senzaSottotitoliOrfani(Snapshot s) {
+  if (s.captions.isEmpty) return s;
+  final video = {
+    for (final p in s.items)
+      if (p.isVideo) p.uid,
+  };
+  final restano = [
+    for (final c in s.captions)
+      if (video.contains(c.videoUid)) c,
+  ];
+  return restano.length == s.captions.length
+      ? s
+      : s.copyWith(captions: restano);
+}

@@ -18,6 +18,7 @@ import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
 import '../theme/tokens.dart';
 import 'forme.dart';
+import 'sottotitoli.dart';
 import 'testo.dart';
 
 /// Immagine pronta di una foto (o del fotogramma di un video): la foto intera, già con le regolazioni colore.
@@ -59,10 +60,17 @@ class EtichettaVideo {
   });
 }
 
-/// Risorse che sanno qualcosa dei video (durata, audio, riproduzione): servono all'etichetta a schermo.
+/// Risorse che sanno qualcosa dei video (durata, audio, riproduzione): servono all'etichetta a schermo e ai
+/// sottotitoli, che mostrano la frase del momento.
 abstract class RisorseVideo {
   /// Etichetta del video [p], o null se non va mostrata (video mancante).
   EtichettaVideo? etichettaVideo(PhotoItem p);
+
+  /// Secondo del video originale mostrato ora (riproduzione o esportazione), o null se si vede la copertina.
+  double? tempoVideo(PhotoItem p);
+
+  /// Il video gira sulla tela.
+  bool videoInRiproduzione(PhotoItem p);
 }
 
 /// Testi del disegno che dipendono dalla lingua (dai file `.arb`).
@@ -78,11 +86,15 @@ class TestiDisegno {
 
   /// «muto», nell'etichetta dei video.
   final String muto;
+
+  /// «Sottotitoli»: si vede in trasparenza in un blocco ancora senza frasi.
+  final String sottotitoli;
   const TestiDisegno({
     required this.fotoMancante,
     required this.originaleMancante,
     required this.di,
     this.muto = '',
+    this.sottotitoli = '',
   });
 }
 
@@ -114,7 +126,7 @@ class OpzioniDisegno {
 }
 
 /// Elementi nell'ordine in cui si disegnano: per `z`, a parità nell'ordine di entrata nella scena
-/// (foto, poi testi, poi forme, come li rimette `_restore_snapshot`).
+/// (foto, poi testi, poi sottotitoli, poi forme, come li rimette `_restore_snapshot`).
 List<CanvasElement> elementiInOrdine(Snapshot s) {
   final l = [...s.allElements];
   final idx = {for (var i = 0; i < l.length; i++) l[i]: i};
@@ -161,10 +173,38 @@ void disegnaPagina(
         _inPosizione(canvas, e.x, e.y, e.w, e.h, e.rotation, () {
           disegnaForma(canvas, e);
         });
+      case CaptionItem():
+        _sottotitoli(canvas, s, e, r, o);
     }
   }
   if (o.sovrimpressioni) _sovrimpressioni(canvas, c, o.testi);
   canvas.restore();
+}
+
+/// `CaptionItem.paint`: la frase del momento del video collegato (riproduzione o esportazione), altrimenti quella
+/// della copertina. Sulla tela, fuori dalle frasi e a video fermo, la prima frase in trasparenza.
+void _sottotitoli(
+  ui.Canvas canvas,
+  Snapshot s,
+  CaptionItem e,
+  RisorseDisegno r,
+  OpzioniDisegno o,
+) {
+  final v = videoDeiSottotitoli(s, e);
+  final rv = r is RisorseVideo ? r as RisorseVideo : null;
+  final tempo = v == null ? null : (rv?.tempoVideo(v) ?? v.poster);
+  final gira = v != null && (rv?.videoInRiproduzione(v) ?? false);
+  final l = ImpaginazioneSottotitoli.di(e);
+  _inPosizione(canvas, e.x, e.y, l.larghezza, l.altezza, e.rotation, () {
+    disegnaSottotitoli(
+      canvas,
+      e,
+      l,
+      tempo,
+      esempio: !o.senzaIndicazioni && !gira,
+      segnaposto: o.testi.sottotitoli,
+    );
+  });
 }
 
 /// Elemento in (x, y), ruotato di [gradi] attorno al centro del suo riquadro w × h (`transformOriginPoint`).

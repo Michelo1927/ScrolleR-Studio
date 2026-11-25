@@ -22,6 +22,7 @@ import '../render/risorse_pagina.dart';
 import '../theme/tokens.dart';
 import 'geometria_tela.dart';
 import 'menu_pressione_lunga.dart';
+import 'pagina_sottotitoli.dart';
 import 'semantica_tela.dart';
 import 'sessione.dart';
 import 'stato.dart';
@@ -370,9 +371,9 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
     final ts = _tsGiu;
     final prima = _tsUltimoTocco;
     final rif = e == null ? null : rifDi(e);
-    // Doppio tocco su un testo: apre la tastiera per scriverci
+    // Doppio tocco su un testo: apre la tastiera per scriverci; su un blocco di sottotitoli, la schermata
     final doppio =
-        e is TextItem &&
+        (e is TextItem || (e is CaptionItem && sottotitoliDisponibili)) &&
         prima != null &&
         rif == _rifUltimoTocco &&
         ts - prima <= _doppioTocco &&
@@ -384,7 +385,11 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
       _ctrl.deseleziona();
     } else if (doppio && !e.locked) {
       _ctrl.seleziona([rif!]);
-      _ctrl.apriStrumento(Strumento.testoModifica);
+      if (e is CaptionItem) {
+        unawaited(apriSottotitoli(context, ref, e.videoUid));
+      } else {
+        _ctrl.apriStrumento(Strumento.testoModifica);
+      }
     } else {
       _ctrl.seleziona(conGruppo(_stato.snapshot, e));
       HapticFeedback.selectionClick();
@@ -703,6 +708,16 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
           base,
           r.testo.copyWith(x: r.testo.x + dx, y: r.testo.y + dy),
         );
+      case CaptionItem():
+        final r = trasformaSottotitoli(
+          el,
+          _sessione.ctx,
+          scala: scala,
+          gradi: gradi,
+        );
+        agganciata = r.agganciata;
+        final c = r.sottotitoli;
+        nuovo = _conSottotitoli(base, c.withPosition(c.x + dx, c.y + dy));
     }
     if (agganciata && !_agganciataRotazione) HapticFeedback.selectionClick();
     _agganciataRotazione = agganciata;
@@ -720,6 +735,10 @@ class _TelaEditorState extends ConsumerState<TelaEditor>
 
   Snapshot _conTesto(Snapshot base, TextItem nuovo) => base.copyWith(
     texts: [for (final t in base.texts) t.uid == nuovo.uid ? nuovo : t],
+  );
+
+  Snapshot _conSottotitoli(Snapshot base, CaptionItem nuovo) => base.copyWith(
+    captions: [for (final c in base.captions) c.uid == nuovo.uid ? nuovo : c],
   );
 
   // ---------- Zoom della vista ----------

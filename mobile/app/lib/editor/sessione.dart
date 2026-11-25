@@ -18,6 +18,7 @@ import '../media/riproduzione_video.dart';
 import '../project/archivio.dart';
 import '../render/disegno.dart';
 import '../render/risorse_pagina.dart';
+import '../render/sottotitoli.dart' show misuraSottotitoli;
 import '../render/testo.dart';
 
 class SessioneEditor {
@@ -44,6 +45,7 @@ class SessioneEditor {
     ctx = EngineContext(
       imageSize: (p) => misure[chiaveMedia(p)],
       textSize: misuraTesto,
+      captionSize: misuraSottotitoli,
     );
   }
 

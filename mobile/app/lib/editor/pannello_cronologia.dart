@@ -73,6 +73,7 @@ IconData iconaCambio(ChangeKind k) => switch (k) {
   ChangeKind.resized => Icons.aspect_ratio_rounded,
   ChangeKind.rotated => Icons.rotate_right_rounded,
   ChangeKind.textEdited => Icons.title_rounded,
+  ChangeKind.captionsEdited => Icons.subtitles_outlined,
   ChangeKind.videoTrim ||
   ChangeKind.videoPoster ||
   ChangeKind.videoAudio => Icons.videocam_outlined,

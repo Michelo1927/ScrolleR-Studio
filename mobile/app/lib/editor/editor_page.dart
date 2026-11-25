@@ -17,6 +17,7 @@ import 'pagina_anteprima.dart';
 import 'pagina_panoramica.dart';
 import 'pannelli_forma.dart';
 import 'pannelli_foto.dart';
+import 'pannelli_sottotitoli.dart';
 import 'pannelli_testo.dart';
 import 'pannelli_video.dart';
 import 'pannello_aggiungi.dart';
@@ -435,6 +436,16 @@ class _ZonaInferioreState extends ConsumerState<_ZonaInferiore> {
       Strumento.videoCopertina => const PannelloCopertinaVideo(
         key: ValueKey('videoCopertina'),
       ),
+      Strumento.sottotitoliLarghezza => const PannelloLarghezzaSottotitoli(
+        key: ValueKey('sottotitoliLarghezza'),
+      ),
+      Strumento.sottotitoliColoreTraduzione => const PannelloColoreTraduzione(
+        key: ValueKey('sottotitoliColoreTraduzione'),
+      ),
+      Strumento.sottotitoliDimensioneTraduzione =>
+        const PannelloDimensioneTraduzione(
+          key: ValueKey('sottotitoliDimensioneTraduzione'),
+        ),
       Strumento.nessuno =>
         haSelezione
             ? BarraSelezione(

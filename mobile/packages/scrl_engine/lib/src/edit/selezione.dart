@@ -43,6 +43,7 @@ Snapshot _con(Snapshot s, Iterable<CanvasElement> nuovi) {
     items: [for (final e in s.items) sostituisci(e)],
     texts: [for (final e in s.texts) sostituisci(e)],
     shapes: [for (final e in s.shapes) sostituisci(e)],
+    captions: [for (final e in s.captions) sostituisci(e)],
   );
 }
 
@@ -50,6 +51,7 @@ CanvasElement _conBlocco(CanvasElement e, bool locked) => switch (e) {
   PhotoItem() => e.copyWith(locked: locked),
   TextItem() => e.copyWith(locked: locked),
   ShapeItem() => e.copyWith(locked: locked),
+  CaptionItem() => e.copyWith(stile: e.stile.copyWith(locked: locked)),
 };
 
 // ---------------------------------------------------------------- Gruppi
@@ -255,6 +257,8 @@ class AppuntiElementi {
             ElementKind.photo => 'photo',
             ElementKind.text => 'text',
             ElementKind.shape => 'shape',
+            ElementKind.caption =>
+              'caption', // Non capita: i sottotitoli non si copiano
           },
           'state': v.stato,
         },
@@ -284,13 +288,17 @@ class AppuntiElementi {
   }
 }
 
-/// `_copy_selected`: copia foto, testi e forme (in ordine di livello). Null se la selezione è vuota.
+/// `_copy_selected`: copia foto, testi e forme (in ordine di livello); i sottotitoli restano legati al loro
+/// video e non si copiano. Null se non resta niente da copiare.
 AppuntiElementi? copiaElementi(
   Snapshot s,
   Iterable<RifElemento> refs,
   EngineContext ctx,
 ) {
-  final sel = _selezionati(s, refs);
+  final sel = [
+    for (final e in _selezionati(s, refs))
+      if (e is! CaptionItem) e,
+  ];
   if (sel.isEmpty) return null;
   final sc = Scene(s, ctx);
   var r = sc.elementRect(sel.first);
@@ -384,6 +392,8 @@ Incollati incollaElementi(
         );
         sc.put(nuovo);
         nuovi.add(rifDi(nuovo));
+      case ElementKind.caption:
+        break; // I sottotitoli restano legati al loro video
       case ElementKind.photo:
         final p = PhotoItem.fromJson(stato);
         final dup = sc.spawnPhoto(

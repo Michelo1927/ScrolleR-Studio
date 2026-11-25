@@ -119,8 +119,13 @@ EngineResult duplicatePage(Snapshot s, int k, EngineContext ctx) {
   final firstGroup = sc.newGroupId();
   final groups = <int, int>{};
   final copies = <int>{};
+  final nuoviUid =
+      <int, int>{}; // Video copiati: i loro sottotitoli seguono la copia
+  // I sottotitoli dopo i video, così sanno a quale copia collegarsi
   final ordinati = [for (var j = 0; j < inside.length; j++) (j, inside[j])]
     ..sort((a, b) {
+      final ca = a.$2 is CaptionItem ? 1 : 0, cb = b.$2 is CaptionItem ? 1 : 0;
+      if (ca != cb) return ca.compareTo(cb);
       final c = a.$2.z.compareTo(b.$2.z);
       return c != 0 ? c : a.$1.compareTo(b.$1);
     });
@@ -130,6 +135,21 @@ EngineResult duplicatePage(Snapshot s, int k, EngineContext ctx) {
         ? groups.putIfAbsent(it.group, () => firstGroup + groups.length)
         : it.group;
     switch (it) {
+      case CaptionItem():
+        final dup = CaptionItem.nuovo(uid: ctx.newTextUid(), videoUid: 0);
+        sc.put(dup);
+        sc.put(
+          it.copyWith(
+            stile: it.stile.copyWith(
+              uid: dup.uid,
+              group: group,
+              z: sc.maxZ() + 1.0,
+              x: it.x + fw,
+              pageLocked: false,
+            ),
+            videoUid: nuoviUid[it.videoUid] ?? it.videoUid,
+          ),
+        );
       case TextItem():
         final dup = TextItem(uid: ctx.newTextUid());
         sc.put(dup);
@@ -161,6 +181,7 @@ EngineResult duplicatePage(Snapshot s, int k, EngineContext ctx) {
           asset: it.asset,
           isVideo: it.isVideo,
         );
+        nuoviUid[it.uid] = dup.uid;
         copies.add(dup.uid);
         sc.put(
           it.copyWith(

@@ -17,11 +17,13 @@ import 'selettore_colore.dart';
 import 'stato.dart';
 import 'widget_comuni.dart';
 
-/// Il testo principale tra quelli selezionati (i cursori ne mostrano i valori; i cambi valgono per tutti).
+/// Il testo principale tra quelli selezionati (i cursori ne mostrano i valori; i cambi valgono per tutti). Per un
+/// blocco di sottotitoli è il suo stile.
 final _testoPrincipale = Provider.autoDispose<TextItem?>((ref) {
   final sel = ref.watch(editorProvider.select((s) => s.elementiSelezionati));
   for (final e in sel) {
     if (e is TextItem) return e;
+    if (e is CaptionItem) return e.stile;
   }
   return null;
 }, dependencies: [editorProvider]);

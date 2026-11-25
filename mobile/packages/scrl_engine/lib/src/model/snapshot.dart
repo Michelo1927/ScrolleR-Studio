@@ -1,5 +1,5 @@
 /// Stato immutabile del documento, con la stessa forma di `HistoryMixin._snapshot()`:
-/// `{canvas, items, texts, shapes}`.
+/// `{canvas, items, texts, shapes}`, più `captions` quando ci sono sottotitoli.
 library;
 
 import '../util/py.dart';
@@ -16,17 +16,24 @@ class Snapshot {
   final List<TextItem> texts;
   final List<ShapeItem> shapes;
 
+  /// Blocchi di sottotitoli in ordine di `uid` (`get_canvas_captions`).
+  final List<CaptionItem> captions;
+
   Snapshot({
     required this.canvas,
     List<PhotoItem> items = const [],
     List<TextItem> texts = const [],
     List<ShapeItem> shapes = const [],
+    List<CaptionItem> captions = const [],
   }) : items = List.unmodifiable(sortPhotos(items)),
        texts = List.unmodifiable(
          List<TextItem>.of(texts)..sort((a, b) => a.uid.compareTo(b.uid)),
        ),
        shapes = List.unmodifiable(
          List<ShapeItem>.of(shapes)..sort((a, b) => a.uid.compareTo(b.uid)),
+       ),
+       captions = List.unmodifiable(
+         List<CaptionItem>.of(captions)..sort((a, b) => a.uid.compareTo(b.uid)),
        );
 
   /// Documento vuoto con le impostazioni di partenza del desktop.
@@ -38,6 +45,9 @@ class Snapshot {
     items: [for (final s in _list(json['items'])) PhotoItem.fromJson(s)],
     texts: [for (final s in _list(json['texts'])) TextItem.fromJson(s)],
     shapes: [for (final s in _list(json['shapes'])) ShapeItem.fromJson(s)],
+    captions: [
+      for (final s in _list(json['captions'])) CaptionItem.fromJson(s),
+    ],
   );
 
   static List<Object?> _list(Object? v) => v is List ? v : const [];
@@ -65,12 +75,16 @@ class Snapshot {
             'items': [for (final p in items) p.toJson()],
             'texts': [for (final t in texts) t.toJson()],
             'shapes': [for (final s in shapes) s.toJson()],
+            // Solo se ci sono: i progetti senza sottotitoli restano identici a prima
+            if (captions.isNotEmpty)
+              'captions': [for (final c in captions) c.toJson()],
           })!
           as Map<String, Object?>;
 
   Iterable<CanvasElement> get allElements sync* {
     yield* items;
     yield* texts;
+    yield* captions;
     yield* shapes;
   }
 
@@ -79,11 +93,13 @@ class Snapshot {
     List<PhotoItem>? items,
     List<TextItem>? texts,
     List<ShapeItem>? shapes,
+    List<CaptionItem>? captions,
   }) => Snapshot(
     canvas: canvas ?? this.canvas,
     items: items ?? this.items,
     texts: texts ?? this.texts,
     shapes: shapes ?? this.shapes,
+    captions: captions ?? this.captions,
   );
 
   /// Uguaglianza come tra i dict del desktop (valori arrotondati).
@@ -93,6 +109,11 @@ class Snapshot {
       (identical(this, other) || jsonEquals(toJson(), other.toJson()));
 
   @override
-  int get hashCode =>
-      Object.hash(canvas.layoutSeed, items.length, texts.length, shapes.length);
+  int get hashCode => Object.hash(
+    canvas.layoutSeed,
+    items.length,
+    texts.length,
+    shapes.length,
+    captions.length,
+  );
 }

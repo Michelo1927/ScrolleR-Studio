@@ -2078,43 +2078,43 @@
       }
     }
   },
-  "cambSpostato": "{tipo, select, photo{Foto spostata} text{Testo spostato} shape{Forma spostata} other{Elemento spostato}}",
+  "cambSpostato": "{tipo, select, photo{Foto spostata} text{Testo spostato} shape{Forma spostata} caption{Sottotitoli spostati} other{Elemento spostato}}",
   "@cambSpostato": {
     "description": "Nome di un passaggio",
     "placeholders": {
       "tipo": {
         "type": "String",
-        "example": "Esempio"
+        "example": "Ciao"
       }
     }
   },
-  "cambRidimensionato": "{tipo, select, photo{Foto ridimensionata} text{Testo ridimensionato} shape{Forma ridimensionata} other{Elemento ridimensionato}}",
+  "cambRidimensionato": "{tipo, select, photo{Foto ridimensionata} text{Testo ridimensionato} shape{Forma ridimensionata} caption{Sottotitoli ridimensionati} other{Elemento ridimensionato}}",
   "@cambRidimensionato": {
     "description": "Nome di un passaggio",
     "placeholders": {
       "tipo": {
         "type": "String",
-        "example": "Esempio"
+        "example": "Ciao"
       }
     }
   },
-  "cambRuotato": "{tipo, select, photo{Foto ruotata} text{Testo ruotato} shape{Forma ruotata} other{Elemento ruotato}}",
+  "cambRuotato": "{tipo, select, photo{Foto ruotata} text{Testo ruotato} shape{Forma ruotata} caption{Sottotitoli ruotati} other{Elemento ruotato}}",
   "@cambRuotato": {
     "description": "Nome di un passaggio",
     "placeholders": {
       "tipo": {
         "type": "String",
-        "example": "Esempio"
+        "example": "Ciao"
       }
     }
   },
-  "cambStile": "{tipo, select, photo{Stile della foto} text{Stile del testo} shape{Stile della forma} other{Stile}}",
+  "cambStile": "{tipo, select, photo{Stile della foto} text{Stile del testo} shape{Stile della forma} caption{Stile dei sottotitoli} other{Stile}}",
   "@cambStile": {
     "description": "Nome di un passaggio",
     "placeholders": {
       "tipo": {
         "type": "String",
-        "example": "Esempio"
+        "example": "Ciao"
       }
     }
   },
@@ -3692,5 +3692,215 @@
   "avvisoConvertitoCarosello": "Progetto convertito in carosello",
   "@avvisoConvertitoCarosello": {
     "description": "Messaggio dopo la conversione in carosello"
+  },
+  "cambSottotitoliAggiunti": "{n, plural, =1{Sottotitoli aggiunti} other{{n} sottotitoli aggiunti}}",
+  "@cambSottotitoliAggiunti": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambSottotitoliEliminati": "{n, plural, =1{Sottotitoli eliminati} other{{n} sottotitoli eliminati}}",
+  "@cambSottotitoliEliminati": {
+    "description": "Nome di un passaggio",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "cambSottotitoliModificati": "Sottotitoli modificati",
+  "@cambSottotitoliModificati": {
+    "description": "Nome di un passaggio: frasi dei sottotitoli cambiate"
+  },
+  "telaSottotitoli": "Sottotitoli: {testo}",
+  "@telaSottotitoli": {
+    "description": "Blocco di sottotitoli della tela, per i lettori di schermo",
+    "placeholders": {
+      "testo": {
+        "type": "String",
+        "example": "Ciao"
+      }
+    }
+  },
+  "disegnoSottotitoli": "Sottotitoli",
+  "@disegnoSottotitoli": {
+    "description": "Si vede in trasparenza in un blocco di sottotitoli ancora senza frasi"
+  },
+  "strSottotitoli": "Sottotitoli",
+  "@strSottotitoli": {
+    "description": "Voce della barra: sottotitoli del video selezionato (apre la schermata Sottotitoli)"
+  },
+  "strLarghezza": "Larghezza",
+  "@strLarghezza": {
+    "description": "Strumento del blocco di sottotitoli: larghezza massima delle righe in % della pagina"
+  },
+  "sotTraduzione": "Traduzione",
+  "@sotTraduzione": {
+    "description": "Sottotitoli: la traduzione delle frasi (categoria della barra, modo della schermata, campo)"
+  },
+  "sotMostraTraduzione": "Mostra",
+  "@sotMostraTraduzione": {
+    "description": "Sottotitoli, categoria Traduzione: mostra la traduzione sotto la frase (interruttore)"
+  },
+  "sotColoreTraduzione": "Colore della traduzione",
+  "@sotColoreTraduzione": {
+    "description": "Titolo del pannello del colore della traduzione"
+  },
+  "sotDimensioneTraduzione": "Dimensione della traduzione",
+  "@sotDimensioneTraduzione": {
+    "description": "Titolo del pannello della dimensione della traduzione rispetto alla frase"
+  },
+  "sotChiudi": "Chiudi senza salvare",
+  "@sotChiudi": {
+    "description": "Schermata Sottotitoli: pulsante ✕"
+  },
+  "sotFatto": "Fatto",
+  "@sotFatto": {
+    "description": "Schermata Sottotitoli: pulsante ✓, tiene le modifiche"
+  },
+  "sotTesto": "Testo",
+  "@sotTesto": {
+    "description": "Schermata Sottotitoli: modo in cui si scrive il testo, una frase per riga"
+  },
+  "sotFileSrt": "File .srt",
+  "@sotFileSrt": {
+    "description": "Schermata Sottotitoli: pulsante SRT (importa o condividi un file di sottotitoli)"
+  },
+  "sotImportaSrt": "Importa .srt",
+  "@sotImportaSrt": {
+    "description": "Legge le frasi da un file di sottotitoli .srt"
+  },
+  "sotCondividiSrt": "Condividi .srt",
+  "@sotCondividiSrt": {
+    "description": "Condivide le frasi come file .srt (e la traduzione in un secondo file)"
+  },
+  "sotSrtVuoto": "Nel file non ho trovato sottotitoli in formato .srt.",
+  "@sotSrtVuoto": {
+    "description": "Avviso: il file scelto non contiene sottotitoli .srt"
+  },
+  "sotSrtNiente": "Non ci sono ancora frasi con i tempi.",
+  "@sotSrtNiente": {
+    "description": "Avviso: niente da condividere come .srt"
+  },
+  "sotImportaDomanda": "Il file ha {n} frasi. Cosa ne faccio?",
+  "@sotImportaDomanda": {
+    "description": "Importazione di un .srt sopra frasi già scritte",
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "sotSostituisci": "Sostituisci le frasi",
+  "@sotSostituisci": {
+    "description": "Importazione .srt: le frasi del file prendono il posto di quelle scritte"
+  },
+  "sotComeTraduzione": "Usale come traduzione",
+  "@sotComeTraduzione": {
+    "description": "Importazione .srt: le frasi del file diventano la traduzione di quelle scritte"
+  },
+  "sotScartaDomanda": "Chiudere senza tenere le modifiche ai sottotitoli?",
+  "@sotScartaDomanda": {
+    "description": "Conferma alla chiusura con ✕ o indietro"
+  },
+  "sotContinua": "Continua",
+  "@sotContinua": {
+    "description": "Conferma di chiusura: resta nella schermata"
+  },
+  "sotScarta": "Scarta",
+  "@sotScarta": {
+    "description": "Conferma di chiusura: chiude senza tenere le modifiche"
+  },
+  "sotLetturaAudio": "Lettura dell'audio…",
+  "@sotLetturaAudio": {
+    "description": "Schermata Sottotitoli: l'audio del video si sta leggendo (si può già scrivere)"
+  },
+  "sotSenzaAudio": "Il video non ha audio: i tempi si distribuiscono su tutto il video.",
+  "@sotSenzaAudio": {
+    "description": "Schermata Sottotitoli: video senza audio"
+  },
+  "sotAudioIlleggibile": "Audio non leggibile: i tempi si distribuiscono su tutto il video.",
+  "@sotAudioIlleggibile": {
+    "description": "Schermata Sottotitoli: l'audio del video non si legge"
+  },
+  "sotStrisciaTempo": "Striscia del tempo",
+  "@sotStrisciaTempo": {
+    "description": "Lettore di schermo: la striscia con la forma d'onda e le frasi"
+  },
+  "sotIndietro3": "Indietro di 3 secondi",
+  "@sotIndietro3": {
+    "description": "Schermata Sottotitoli: salta indietro"
+  },
+  "sotAvanti3": "Avanti di 3 secondi",
+  "@sotAvanti3": {
+    "description": "Schermata Sottotitoli: salta avanti"
+  },
+  "sotVelocita": "{v}×",
+  "@sotVelocita": {
+    "description": "Velocità di riproduzione (un tocco passa alla successiva: 1×, 0,75×, 0,5×)",
+    "placeholders": {
+      "v": {
+        "type": "String",
+        "example": "Ciao"
+      }
+    }
+  },
+  "sotScegliFrase": "Tocca una frase sulla striscia per ritoccarla",
+  "@sotScegliFrase": {
+    "description": "Schermata Sottotitoli: suggerimento quando nessuna frase è scelta"
+  },
+  "sotTempiAudio": "Tempi dall'audio",
+  "@sotTempiAudio": {
+    "description": "Tutte le frasi tornano automatiche e si ridistribuiscono sulla voce"
+  },
+  "sotIniziaQui": "Inizia qui",
+  "@sotIniziaQui": {
+    "description": "La frase scelta comincia al punto della linea di lettura"
+  },
+  "sotFinisciQui": "Finisci qui",
+  "@sotFinisciQui": {
+    "description": "La frase scelta finisce al punto della linea di lettura"
+  },
+  "sotDividiQui": "Dividi qui",
+  "@sotDividiQui": {
+    "description": "Divide la frase scelta in due, al punto della linea di lettura"
+  },
+  "sotUnisci": "Unisci alla successiva",
+  "@sotUnisci": {
+    "description": "Unisce la frase scelta a quella dopo"
+  },
+  "sotInizio": "Inizio",
+  "@sotInizio": {
+    "description": "Tempo di inizio della frase"
+  },
+  "sotFine": "Fine",
+  "@sotFine": {
+    "description": "Tempo di fine della frase"
+  },
+  "sotMeno01": "−0,1 s",
+  "@sotMeno01": {
+    "description": "Sposta il bordo della frase di un decimo di secondo indietro"
+  },
+  "sotPiu01": "+0,1 s",
+  "@sotPiu01": {
+    "description": "Sposta il bordo della frase di un decimo di secondo avanti"
+  },
+  "sotVuoto": "Scrivi o incolla il testo, una frase per riga",
+  "@sotVuoto": {
+    "description": "Schermata Sottotitoli: casella del testo vuota"
+  },
+  "sotIncolla": "Incolla",
+  "@sotIncolla": {
+    "description": "Incolla il testo copiato, diviso in frasi corte"
+  },
+  "sotLinguaTraduzione": "Lingua della traduzione",
+  "@sotLinguaTraduzione": {
+    "description": "Sigla della lingua (en, es, fr…): serve al nome del file .srt della traduzione"
   }
 }

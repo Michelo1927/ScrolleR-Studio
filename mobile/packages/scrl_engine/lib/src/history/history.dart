@@ -62,7 +62,7 @@ class History {
   /// `_commit_history`: aggiunge [s] come passo nuovo (se diverso dall'attuale), togliendo i passi «avanti».
   HistoryCommit commit(Snapshot s, EngineContext ctx) {
     final sistemati = keepVideosInPages(s, ctx);
-    final snap = sistemati.snapshot;
+    final snap = senzaSottotitoliOrfani(sistemati.snapshot);
     if (states.isNotEmpty && states[index] == snap) {
       return HistoryCommit(this, snap, sistemati.notices, false);
     }

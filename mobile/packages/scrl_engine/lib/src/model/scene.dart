@@ -35,6 +35,7 @@ class Scene {
   final Map<int, PhotoItem> photos;
   final Map<int, TextItem> texts;
   final Map<int, ShapeItem> shapes;
+  final Map<int, CaptionItem> captions;
 
   Scene(Snapshot s, this.ctx)
     : _base = s.canvas,
@@ -55,7 +56,8 @@ class Scene {
       pageLocks = [...s.canvas.pageLocks],
       photos = {for (final p in s.items) p.uid: p},
       texts = {for (final t in s.texts) t.uid: t},
-      shapes = {for (final sh in s.shapes) sh.uid: sh} {
+      shapes = {for (final sh in s.shapes) sh.uid: sh},
+      captions = {for (final c in s.captions) c.uid: c} {
     ctx.observe(s.allElements);
   }
 
@@ -83,6 +85,7 @@ class Scene {
       items: photos.values.toList(),
       texts: texts.values.toList(),
       shapes: shapes.values.toList(),
+      captions: captions.values.toList(),
     );
   }
 
@@ -166,10 +169,15 @@ class Scene {
   List<ShapeItem> canvasShapes() =>
       shapes.values.toList()..sort((a, b) => a.uid.compareTo(b.uid));
 
-  /// `_all_elements`: foto, testi, forme.
+  /// `get_canvas_captions`.
+  List<CaptionItem> canvasCaptions() =>
+      captions.values.toList()..sort((a, b) => a.uid.compareTo(b.uid));
+
+  /// `_all_elements`: foto, testi, sottotitoli, forme.
   List<CanvasElement> allElements() => [
     ...canvasPhotos(),
     ...canvasTexts(),
+    ...canvasCaptions(),
     ...canvasShapes(),
   ];
 
@@ -189,6 +197,8 @@ class Scene {
         texts[e.uid] = e;
       case ShapeItem():
         shapes[e.uid] = e;
+      case CaptionItem():
+        captions[e.uid] = e;
     }
   }
 
@@ -200,6 +210,8 @@ class Scene {
         texts.remove(e.uid);
       case ShapeItem():
         shapes.remove(e.uid);
+      case CaptionItem():
+        captions.remove(e.uid);
     }
   }
 
@@ -208,6 +220,7 @@ class Scene {
     PhotoItem() => photos[e.uid]!,
     TextItem() => texts[e.uid]!,
     ShapeItem() => shapes[e.uid]!,
+    CaptionItem() => captions[e.uid]!,
   };
 
   void moveBy(CanvasElement e, double dx) {
@@ -221,6 +234,10 @@ class Scene {
     ShapeItem() => e.frameRect,
     TextItem() => () {
       final s = ctx.textSize(e);
+      return Rect.rotated(e.x, e.y, s.w, s.h, e.rotation);
+    }(),
+    CaptionItem() => () {
+      final s = ctx.captionSize(e);
       return Rect.rotated(e.x, e.y, s.w, s.h, e.rotation);
     }(),
   };

@@ -8,7 +8,12 @@ import 'package:scrollr_studio/editor/barra_selezione.dart';
 import 'package:scrollr_studio/editor/widget_comuni.dart';
 
 /// Categorie che agiscono subito, senza aprire un secondo livello.
-const _dirette = {'cat-modifica', 'cat-tipo', 'cat-ricollega'};
+const _dirette = {
+  'cat-modifica',
+  'cat-tipo',
+  'cat-ricollega',
+  'cat-sottotitoli',
+};
 
 final Finder _indietro = find.byKey(const ValueKey('barra-indietro'));
 

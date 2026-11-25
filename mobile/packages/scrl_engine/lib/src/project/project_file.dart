@@ -74,6 +74,7 @@ class ProjectFile {
     'items',
     'texts',
     'shapes',
+    'captions',
   };
 
   /// `_load_project_file`: legge il testo di un `.scrlproj`.
@@ -104,7 +105,8 @@ class ProjectFile {
     );
   }
 
-  /// `_project_data`: stessa forma del desktop (`version, canvas, library, items, texts, shapes`).
+  /// `_project_data`: stessa forma del desktop (`version, canvas, library, items, texts, shapes` e `captions`
+  /// se ci sono sottotitoli).
   Map<String, Object?> toJson() {
     final snap = snapshot.toJson();
     return <String, Object?>{
@@ -114,6 +116,7 @@ class ProjectFile {
       'items': snap['items'],
       'texts': snap['texts'],
       'shapes': snap['shapes'],
+      if (snap['captions'] != null) 'captions': snap['captions'],
       ...extra,
     };
   }

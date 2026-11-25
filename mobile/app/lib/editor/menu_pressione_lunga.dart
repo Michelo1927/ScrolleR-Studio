@@ -113,6 +113,9 @@ class _MenuElementoState extends ConsumerState<_MenuElemento> {
     final foto = sel.whereType<PhotoItem>().toList();
     final bloccati = sel.isNotEmpty && sel.every((e) => e.locked);
     final tutteLibere = foto.isNotEmpty && foto.every((p) => p.free);
+    // I sottotitoli non si copiano né si duplicano: ogni video ne ha un blocco solo
+    final soloSottotitoli =
+        sel.isNotEmpty && sel.every((e) => e is CaptionItem);
     if (_scegliPagina) {
       final n = stato.snapshot.canvas.numFrames;
       return _Livello(
@@ -140,27 +143,29 @@ class _MenuElementoState extends ConsumerState<_MenuElemento> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _FilaRapida([
-          _Rapida(
-            chiave: 'copia',
-            icona: Icons.copy_rounded,
-            etichetta: t.menuCopia,
-            onTap: _chiudiE(context, ctrl.copiaSelezione),
-          ),
-          _Rapida(
-            chiave: 'taglia',
-            icona: Icons.content_cut_rounded,
-            etichetta: t.menuTaglia,
-            onTap: _chiudiE(context, ctrl.tagliaSelezione),
-          ),
-          _Rapida(
-            chiave: 'duplica',
-            icona: Icons.control_point_duplicate_rounded,
-            etichetta: t.duplica,
-            onTap: _chiudiE(context, ctrl.duplicaSelezione),
-          ),
-        ]),
-        const SizedBox(height: MisureScrl.spazioPiccolo + 4),
+        if (!soloSottotitoli) ...[
+          _FilaRapida([
+            _Rapida(
+              chiave: 'copia',
+              icona: Icons.copy_rounded,
+              etichetta: t.menuCopia,
+              onTap: _chiudiE(context, ctrl.copiaSelezione),
+            ),
+            _Rapida(
+              chiave: 'taglia',
+              icona: Icons.content_cut_rounded,
+              etichetta: t.menuTaglia,
+              onTap: _chiudiE(context, ctrl.tagliaSelezione),
+            ),
+            _Rapida(
+              chiave: 'duplica',
+              icona: Icons.control_point_duplicate_rounded,
+              etichetta: t.duplica,
+              onTap: _chiudiE(context, ctrl.duplicaSelezione),
+            ),
+          ]),
+          const SizedBox(height: MisureScrl.spazioPiccolo + 4),
+        ],
         _Gruppo([
           _Riga(
             chiave: 'davanti',

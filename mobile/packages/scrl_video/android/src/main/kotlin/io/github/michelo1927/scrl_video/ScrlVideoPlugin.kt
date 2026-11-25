@@ -24,6 +24,9 @@ class ScrlVideoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private val principale = Handler(Looper.getMainLooper())
     private val lettori = HashMap<Int, LettoreFotogrammi>()
     private val scrittori = HashMap<Int, ScrittoreMp4>()
+
+    /** Audio della schermata Sottotitoli: si comanda dal thread principale (comandi brevi, mai in coda). */
+    private val ascolti = HashMap<Int, Ascolto>()
     private var prossimoId = 1
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -35,6 +38,8 @@ class ScrlVideoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         canale.setMethodCallHandler(null)
+        ascolti.values.forEach { it.ferma() }
+        ascolti.clear()
         lavoro?.execute {
             lettori.values.forEach { it.chiudi() }
             scrittori.values.forEach { it.annulla() }
@@ -48,6 +53,14 @@ class ScrlVideoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         if (call.method == "disponibile") {
             result.success(true)
+            return
+        }
+        if (call.method in COMANDI_ASCOLTO) {
+            try {
+                result.success(comandaAscolto(call))
+            } catch (e: Throwable) {
+                result.error("errore", e.message ?: e.javaClass.simpleName, null)
+            }
             return
         }
         val esecutore = lavoro
@@ -92,6 +105,12 @@ class ScrlVideoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             call.argument<Double>("inizio")!!,
             call.argument<Double>("fine")!!,
         )
+        "apriAscolto" -> Ascolto.apri(contesto, call.argument<String>("sorgente")!!)?.let { a ->
+            val id = prossimoId++
+            val dati = a.byte()
+            principale.post { ascolti[id] = a }
+            mapOf("id" to id, "pcm" to dati, "frequenza" to Ascolto.FREQUENZA)
+        }
         "apriScrittore" -> {
             val s = ScrittoreMp4(
                 call.argument<String>("percorso")!!,
@@ -123,6 +142,29 @@ class ScrlVideoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             null
         }
         else -> NON_IMPLEMENTATO
+    }
+
+    /** Comandi della riproduzione (thread principale): rispondono subito anche mentre si decodifica altro. */
+    private fun comandaAscolto(call: MethodCall): Any? {
+        val id = call.argument<Int>("id")!!
+        if (call.method == "chiudiAscolto") {
+            ascolti.remove(id)?.ferma()
+            return null
+        }
+        val a = ascolti[id] ?: throw IllegalStateException("Audio chiuso")
+        return when (call.method) {
+            "suona" -> {
+                a.suona(call.argument<Double>("t")!!, call.argument<Double>("velocita")!!)
+                null
+            }
+            "ferma" -> a.ferma()
+            "tempoAscolto" -> a.tempo()
+            "velocitaAscolto" -> {
+                a.cambiaVelocita(call.argument<Double>("velocita")!!)
+                null
+            }
+            else -> null
+        }
     }
 
     private fun info(sorgente: String): Map<String, Any> {
@@ -160,6 +202,7 @@ class ScrlVideoPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     companion object {
         private val NON_IMPLEMENTATO = Any()
+        private val COMANDI_ASCOLTO = setOf("suona", "ferma", "tempoAscolto", "velocitaAscolto", "chiudiAscolto")
 
         fun eUri(sorgente: String) = sorgente.startsWith("content://") || sorgente.startsWith("file://")
 

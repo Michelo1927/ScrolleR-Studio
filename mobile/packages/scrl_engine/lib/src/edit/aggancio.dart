@@ -34,6 +34,7 @@ Rect? _riquadroAggancio(CanvasElement e) => switch (e) {
   PhotoItem() => e.cellRect,
   ShapeItem() => e.frameRect,
   TextItem() => null,
+  CaptionItem() => null,
 };
 
 /// Quanto agganciare [riquadro] (l'ingombro dell'elemento trascinato, già nella nuova posizione).

@@ -574,6 +574,263 @@ def sagoma() -> dict:
             "specchi": specchi}
 
 
+# Larghezze finte dei caratteri per le prove dei sottotitoli: le stesse in Dart (`sottotitoli.json`, chiave `larghezze`)
+LARGHEZZE_PROVA = {" ": 5, "i": 4, "l": 4, ".": 4, ",": 4, "!": 4, "'": 3, "m": 15, "w": 14, "M": 16, "W": 18}
+
+TESTI_SOTTOTITOLI = [
+    "Ciao a tutti! Oggi vi porto a vedere il mare.",
+    "Questa è una frase molto lunga che non sta assolutamente in due righe di sottotitoli e va spezzata, "
+    "magari vicino a una virgola oppure prima di una congiunzione come ma o perché.",
+    "Prima riga\nSeconda riga\r\n\r\nTerza   riga con   spazi\tstrani",
+    "«Allora», disse lui, «andiamo?» Sì… andiamo; ma piano: piano!",
+    "Parole parole parole parole parole parole parole parole parole parole parole parole parole parole",
+    "Una frase con emoji 😀 e accenti àèìòù che deve restare intera.",
+    "",
+    "   ",
+    "Uno.",
+    "Supercalifragilistichespiralidosoeancoradipiùsenzaspazi",
+    "And this is English, but we still want short lines so that people can read them when they scroll fast.",
+    "Primo pezzo — secondo pezzo — terzo pezzo — quarto pezzo — quinto pezzo — sesto pezzo — settimo",
+    "Il sole era alto e il mare calmo e noi eravamo felici e stanchi e pieni di sabbia fino alle orecchie.",
+]
+
+
+def _larghezza_prova(s: str) -> float:
+    return float(sum(LARGHEZZE_PROVA.get(c, 10) for c in s))
+
+
+def sottotitoli() -> dict:
+    """
+    Funzioni di `scrollr/captions.py` (frasi, divisione del testo, righe bilanciate, merge_lines, tempi
+    automatici, .srt, forma d'onda e pause) su casi fissi e casuali, per il motore mobile.
+    """
+    import base64
+    import copy
+    from array import array
+
+    from scrollr import captions as C
+
+    rnd = random.Random(20261125)
+    out = {"larghezze": LARGHEZZE_PROVA}
+
+    # ---- Divisione del testo e righe ----
+    split = []
+    for testo in TESTI_SOTTOTITOLI:
+        split.append({"testo": testo, "limite": None, "frasi": C.split_text(testo)})
+        for limite in (200, 320, 500):
+            split.append({"testo": testo, "limite": limite, "frasi": C.split_text(
+                testo, lambda s, m=limite: C.fits_two_lines(s, _larghezza_prova, m))})
+    out["split_text"] = split
+    righe = []
+    for testo in TESTI_SOTTOTITOLI + [f for t in TESTI_SOTTOTITOLI for f in C.split_text(t)]:
+        for max_w in (80, 150, 260, 400, 900):
+            righe.append({"testo": testo, "max_w": max_w,
+                          "righe": C.balance_lines(testo, _larghezza_prova, max_w),
+                          "stanno": C.fits_two_lines(testo, _larghezza_prova, max_w)})
+    out["balance_lines"] = righe
+
+    # ---- Frasi ----
+    def frase_casuale(i):
+        parole = rnd.choice(TESTI_SOTTOTITOLI[:6] + TESTI_SOTTOTITOLI[10:]).split()
+        a = rnd.randrange(0, max(1, len(parole) - 1))
+        testo = " ".join(parole[a:a + rnd.randint(1, 7)]) or f"frase {i}"
+        p = C.make_phrase(testo, tr=rnd.choice(["", "", f"translation {i}"]))
+        return p
+
+    def frasi_casuali(n, lo=0.0, hi=30.0):
+        ps = [frase_casuale(i) for i in range(n)]
+        t = lo + rnd.random() * 2
+        for p in ps:
+            r = rnd.random()
+            if r < 0.25:
+                continue  # Senza tempi
+            d = 0.4 + rnd.random() * 3
+            p["start"], p["end"] = round(t, 3), round(min(hi, t + d), 3)
+            if r < 0.7:
+                p["auto"] = True
+            t += d + rnd.random() * 0.8
+        return ps
+
+    sporche = [
+        {"start": "1.5", "end": 2, "text": "testo", "tr": None},
+        {"start": 3, "end": 2.995, "text": 5},
+        {"start": -1, "end": None, "text": "neg"},
+        {"start": None, "end": 4, "auto": True},
+        {"start": 1, "end": 2, "auto": True, "words": [{"w": "ciao", "s": 1.0}]},
+        {"start": 1, "end": 2, "auto": "si"},
+        {"text": None},
+        "non una frase",
+        {"start": True, "end": "x", "text": "bool"},
+        {"start": 1.23456789, "end": 9.87654321, "text": "arrotonda", "tr": "round"},
+    ]
+    out["clean_phrases"] = {"dati": sporche, "frasi": C.clean_phrases(sporche),
+                            "stato": [C.phrase_state(p) for p in C.clean_phrases(sporche)]}
+
+    dividi, unisci, indici, posti = [], [], [], []
+    for k in range(60):
+        ps = frasi_casuali(rnd.randint(1, 8))
+        p = ps[0]
+        if k % 7 == 0:
+            p["text"] = rnd.choice(["parola", "", "due parole", "uno, due tre quattro", "a, b"])
+        a, b = C.split_phrase(copy.deepcopy(p))
+        dividi.append({"frase": p, "a": a, "b": b})
+        if len(ps) > 1:
+            unisci.append({"a": ps[0], "b": ps[1], "frase": C.join_phrases(ps[0], ps[1])})
+        for t in (0.0, rnd.random() * 30, rnd.random() * 30, 15.0):
+            indici.append({"frasi": ps, "t": t, "indice": C.phrase_index_at(ps, t)})
+            posti.append({"frasi": ps, "start": t, "indice": C.insert_index(ps, t)})
+    out["split_phrase"], out["join_phrases"] = dividi, unisci
+    out["phrase_index_at"], out["insert_index"] = indici, posti
+
+    # ---- merge_lines: la casella di testo riscritta ----
+    def varia(righe):
+        r = list(righe)
+        op = rnd.choice(["uguale", "correggi", "dividi", "unisci", "togli", "aggiungi", "riscrivi", "scambia",
+                         "dividi2", "unisci3"])
+        if not r:
+            return ["nuova riga"]
+        i = rnd.randrange(len(r))
+        if op == "correggi":
+            r[i] = r[i] + rnd.choice([" ok", "!", " e poi"])
+        elif op in ("dividi", "dividi2"):
+            parole = r[i].split()
+            if len(parole) > 1:
+                k = rnd.randrange(1, len(parole))
+                r[i:i + 1] = [" ".join(parole[:k]), " ".join(parole[k:])]
+        elif op == "unisci" and i + 1 < len(r):
+            r[i:i + 2] = [r[i] + " " + r[i + 1]]
+        elif op == "unisci3" and i + 2 < len(r):
+            r[i:i + 3] = [" ".join(r[i:i + 3])]
+        elif op == "togli":
+            del r[i]
+        elif op == "aggiungi":
+            r.insert(i, "riga del tutto nuova")
+        elif op == "riscrivi":
+            r[i] = "completamente diverso"
+        elif op == "scambia" and i + 1 < len(r):
+            r[i], r[i + 1] = r[i + 1], r[i]
+        return r
+
+    fusioni = []
+    for k in range(150):
+        vecchie = frasi_casuali(rnd.randint(0, 9))
+        righe_n = [p["text"] for p in vecchie]
+        for _ in range(rnd.randint(1, 3)):
+            righe_n = varia(righe_n)
+        fusioni.append({"vecchie": vecchie, "righe": righe_n,
+                        "frasi": C.merge_lines(copy.deepcopy(vecchie), righe_n)})
+    out["merge_lines"] = fusioni
+
+    # ---- Tempi leggibili e .srt ----
+    out["format_clock"] = [[t, C.format_clock(t)] for t in
+                           (None, 0.0, -3.0, 0.004, 0.005, 0.015, 7.25, 59.995, 61.5, 3599.999, 3600.5, 12.345)]
+    out["parse_clock"] = [[s, C.parse_clock(s)] for s in
+                          ("1:02,5", "62.5", "0:01:02,500", "", "  ", "abc", "1:2:3:4", "-1", "1:-2",
+                           "  3,25 ", "1:00:00", "0,1", "1e2", "1:")]
+    srt_frasi = [frasi_casuali(rnd.randint(0, 8)) for _ in range(15)]
+    out["to_srt"] = [{"frasi": ps, "campo": campo, "srt": C.to_srt(ps, campo)}
+                     for ps in srt_frasi for campo in ("text", "tr")]
+    srt_testi = [C.to_srt(ps) for ps in srt_frasi] + [
+        "﻿1\r\n00:00:01,000 --> 00:00:02,500\r\n<i>Ciao</i> {\\an8}a tutti\r\nseconda riga\r\n\r\n"
+        "2\r\n00:00:03.2 --> 00:00:03,30\r\nbreve\r\n",
+        "1\n00:00:05,000 --> 00:00:04,000\nal contrario\n\n\n\nsenza tempi\n\n3\n1:2:3,4 --> 1:2:4,5\nore\n",
+        "solo testo senza nulla",
+        "",
+        "1\n00:00:01,000 --> \nmezza riga\n",
+    ]
+    out["parse_srt"] = [{"srt": s, "frasi": C.parse_srt(s)} for s in srt_testi]
+
+    # ---- Forma d'onda e pause ----
+    inviluppi = []
+    for k in range(6):
+        rate = rnd.choice([2000, 2400, 3000])
+        n = rnd.randint(0, rate * 2)
+        a = array("h", [0] * n)
+        for i in range(n):
+            forte = (i // (rate // 4)) % 3 != 0
+            v = int(rnd.gauss(0, 9000 if forte else 120)) if forte or rnd.random() < 0.9 else 0
+            a[i] = max(-32768, min(32767, v))
+        if n and k == 0:
+            a[0], a[-1] = -32768, 32767
+        pcm = a.tobytes() + (b"\x01" if k == 1 else b"")
+        inviluppi.append({"pcm": base64.b64encode(pcm).decode("ascii"), "rate": rate,
+                          "env": C.envelope(pcm, rate)})
+    out["envelope"] = inviluppi
+
+    pause = []
+    for k in range(40):
+        n = rnd.randint(0, 900)
+        env, i = [], 0
+        while i < n:
+            tratto = rnd.randint(5, 120)
+            silenzio = rnd.random() < 0.4
+            env += [rnd.random() * (0.02 if silenzio else 0.9) for _ in range(tratto)]
+            i += tratto
+        env = env[:n]
+        min_len = rnd.choice([0.25, 0.25, 0.1, 0.5])
+        pause.append({"env": env, "min_len": min_len, "pause": C.find_pauses(env, min_len=min_len)})
+    out["find_pauses"] = pause
+
+    def pause_casuali(lo, hi):
+        ps, t = [], lo + rnd.random() * 0.5
+        while t < hi:
+            d = rnd.choice([0.1, 0.3, 0.5, 0.9, 1.5])
+            if rnd.random() < 0.6:
+                ps.append((round(t, 2), round(min(hi + 1, t + d), 2)))
+            t += d + rnd.random() * 3
+        return ps
+
+    aggancio, parlato, automatici, ridistribuiti = [], [], [], []
+    for k in range(80):
+        lo = rnd.choice([0.0, 0.0, round(rnd.random() * 5, 2)])
+        hi = lo + rnd.choice([0.2, 2.0, 10.0, 30.0, 60.0, 300.0]) * (0.5 + rnd.random())
+        ps = pause_casuali(lo - 1, hi)
+        punti = C.snap_points(ps)
+        for _ in range(3):
+            t, tol = lo + rnd.random() * (hi - lo), rnd.choice([0.05, 0.2, 1.0])
+            aggancio.append({"t": t, "punti": punti, "tol": tol, "r": C.snap(t, punti, tol)})
+        parlato.append({"pause": ps, "lo": lo, "hi": hi, "tratti": C.speech_spans(ps, lo, hi)})
+        pesi = [C.phrase_weight(frase_casuale(i)) for i in range(rnd.randint(0, 14))]
+        automatici.append({"pesi": pesi, "pause": ps, "lo": lo, "hi": hi, "tempi": C.auto_times(pesi, ps, lo, hi)})
+        frasi = frasi_casuali(rnd.randint(0, 12), lo, hi)
+        reset = k % 5 == 0
+        dopo = copy.deepcopy(frasi)
+        C.retime(dopo, ps, lo, hi, reset)
+        ridistribuiti.append({"frasi": frasi, "pause": ps, "lo": lo, "hi": hi, "reset": reset, "dopo": dopo})
+    out["snap"], out["speech_spans"] = aggancio, parlato
+    out["auto_times"], out["retime"] = automatici, ridistribuiti
+    out["phrase_weight"] = [[t, C.phrase_weight({"text": t})] for t in TESTI_SOTTOTITOLI]
+    return out
+
+
+def scrivi_sottotitoli(uscita: str):
+    os.makedirs(uscita, exist_ok=True)
+    with open(os.path.join(uscita, "sottotitoli.json"), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(sottotitoli(), f, ensure_ascii=False)
+    print(f"sottotitoli.json in {os.path.relpath(uscita, ROOT)}")
+
+
+def scrivi_sottotitoli_tela(win, foto: list, tmp: str, uscita: str, aggiorna_indice: bool = False) -> dict:
+    """Scrive `sottotitoli_tela.jsonl` e `progetti/sottotitoli.scrlproj`; restituisce il progetto."""
+    progetto, casi = sottotitoli_tela(win, foto, crea_video(tmp))
+    with open(os.path.join(uscita, "sottotitoli_tela.jsonl"), "w", encoding="utf-8", newline="\n") as f:
+        for caso in casi:
+            f.write(json.dumps(caso, ensure_ascii=False, separators=(",", ":")) + "\n")
+    cartella = os.path.join(uscita, "progetti")
+    os.makedirs(cartella, exist_ok=True)
+    with open(os.path.join(cartella, "sottotitoli.scrlproj"), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(progetto, f, ensure_ascii=False, indent=1)
+    if aggiorna_indice:
+        percorso = os.path.join(uscita, "indice.json")
+        with open(percorso, encoding="utf-8") as f:
+            indice = json.load(f)
+        indice["progetti"] = sorted(set(indice["progetti"]) | {"sottotitoli.scrlproj"})
+        with open(percorso, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(indice, f, ensure_ascii=False, indent=1)
+    print(f"{len(casi)} casi di sottotitoli sulla tela e il progetto sottotitoli.scrlproj")
+    return progetto
+
+
 def geometria() -> list:
     """Geometria del disegno di `PhotoItem` (cover/contain, ritaglio, rotazione, ombra, lato da leggere)."""
     from scrollr.canvas.photo_item import PhotoItem
@@ -672,6 +929,10 @@ def stato_completo(win) -> dict:
     for s in snap["texts"]:
         r = testi[s["uid"]].text_rect()
         s["text_size"] = [r.width(), r.height()]
+    blocchi = {c.uid: c for c in win.get_canvas_captions()}
+    for s in snap.get("captions", []):
+        r = blocchi[s["uid"]].text_rect()
+        s["caption_size"] = [r.width(), r.height()]
     return arrotonda(snap)
 
 
@@ -898,6 +1159,113 @@ def casi_cronologia(win, foto: list) -> list:
     passo("nome-file", lambda: setattr(win, "export_name", "vacanze"))
     passo("niente", lambda: None)
     return out
+
+
+# ================= SOTTOTITOLI SULLA TELA =================
+def crea_video(cartella: str) -> str:
+    """Video di prova di 4 s (320×240, 30 fps) con l'audio: voce finta a tratti, separati da silenzi."""
+    import av
+    from array import array
+    path = os.path.join(cartella, "video_prova.mp4")
+    with av.open(path, "w") as c:
+        v = c.add_stream("libx264", rate=30)
+        v.width, v.height, v.pix_fmt = 320, 240, "yuv420p"
+        a = c.add_stream("aac", rate=44100)
+        a.layout = "mono"
+        for i in range(120):
+            img = Image.new("RGB", (320, 240), ((i * 2) % 256, 120, 200 - i))
+            for pkt in v.encode(av.VideoFrame.from_image(img)):
+                c.mux(pkt)
+        n = 1024
+        for k in range(0, 44100 * 4, n):
+            campioni = array("h", [int(12000 * math.sin(2 * math.pi * 220 * (k + j) / 44100.0))
+                                   if ((k + j) / 44100.0) % 1.0 < 0.7 else 0 for j in range(n)])
+            fr = av.AudioFrame(format="s16", layout="mono", samples=n)
+            fr.planes[0].update(campioni.tobytes())
+            fr.sample_rate = 44100
+            fr.pts = k
+            for pkt in a.encode(fr):
+                c.mux(pkt)
+        for pkt in list(v.encode()) + list(a.encode()):
+            c.mux(pkt)
+    return path
+
+
+FRASI_PROVA = [
+    {"start": 0.0, "end": 0.7, "text": "Ciao a tutti!", "tr": "Hi everyone!", "auto": True},
+    {"start": 1.0, "end": 1.7, "text": "Oggi vi porto al mare", "tr": ""},
+    {"start": 2.0, "end": 2.7, "text": "e vi faccio vedere una spiaggia bellissima, lunga e piena di sole",
+     "tr": "and I show you a beach", "auto": True, "words": [{"w": "e", "s": 2.0, "e": 2.1}]},
+    {"start": None, "end": None, "text": "Frase senza tempi", "tr": ""},
+]
+
+
+def sottotitoli_tela(win, foto: list, video: str) -> tuple:
+    """
+    Un video con il suo blocco di sottotitoli: il progetto salvato (da rileggere identico col motore) e azioni
+    vere del desktop con lo stato prima e dopo e il nome del passaggio.
+    """
+    import copy
+    casi = []
+
+    def prepara():
+        tela_iniziale(win, foto, tela(0, None, 2, "grid"), 2)
+        v = win._spawn_photo_item(video)
+        v.set_free(True)
+        v.set_cell_size(540, 720)
+        v.setPos(1080 + 270, 300)
+        v.set_trim(0.5, 3.5)
+        c = win._spawn_caption_item(v.uid)
+        win._place_new_caption(c, v)
+        c.setZValue(win._max_z() + 1.0)
+        c.set_phrases(copy.deepcopy(FRASI_PROVA))
+        c.tr_lang = "en"
+        win._flush_pending_commit()
+        win._restore_snapshot(win._snapshot())
+        return v, c
+
+    def passo(nome, azione, op=None):
+        prepara()
+        a = stato_completo(win)
+        azione()
+        win._flush_pending_commit()
+        win._commit_history()
+        b = stato_completo(win)
+        casi.append({"id": nome, "nome": None, "op": op, "prima": a, "dopo": b})
+
+    cap = win.get_canvas_captions
+    passo("sottotitoli-spostati", lambda: cap()[0].moveBy(0, -40), None)
+    passo("sottotitoli-modificati", lambda: cap()[0].set_phrases(FRASI_PROVA[:2]), None)
+    passo("sottotitoli-stile", lambda: (setattr(cap()[0], "tr_size", 55), cap()[0].relayout()), None)
+    passo("sottotitoli-larghezza", lambda: (setattr(cap()[0], "wrap_w", 600.0), cap()[0].relayout()), None)
+    passo("pagina-duplicata", lambda: win._duplicate_page(1), ["duplica_pagina", 1])
+    passo("pagina-eliminata", lambda: win._delete_page(1), ["elimina_pagina", 1])
+    passo("video-eliminato", lambda: win.scene.removeItem(win.get_canvas_videos()[0]), ["elimina_video"])
+    passo("tela-svuotata", lambda: win.clear_canvas_photos(), ["svuota"])
+    for caso in casi:
+        caso["nome"] = win._describe_change(_senza_misure(caso["prima"]), _senza_misure(caso["dopo"]))
+
+    prepara()
+    c = cap()[0]
+    c.tr_color = QColor("#80FF0000")
+    c.tr_italic, c.tr_show, c.lang = False, True, "it"
+    c.font_size, c.box, c.outline = 64.0, True, 2.0
+    c.relayout()
+    win._flush_pending_commit()
+    data = win._project_data(win._snapshot(), os.path.dirname(foto[0]))
+    for s in data["items"]:
+        s["path"] = s["rel"] = os.path.basename(s["path"])
+    data["library"] = []
+    return json.loads(json.dumps(data)), casi
+
+
+def _senza_misure(stato: dict) -> dict:
+    """Stato completo senza i campi delle prove (`image`, `text_size`, `caption_size`), per `_describe_change`."""
+    s = json.loads(json.dumps(stato))
+    for k, campo in (("items", "image"), ("texts", "text_size"), ("captions", "caption_size")):
+        for e in s.get(k, []):
+            e.pop(campo, None)
+    return s
 
 
 # ================= SELEZIONE MULTIPLA, APPUNTI, LIVELLI =================
@@ -1266,6 +1634,8 @@ def main():
     ap.add_argument("--senza-immagini", action="store_true", help="non esporta le pagine campione")
     ap.add_argument("--solo-selezione", action="store_true",
                     help="scrive soltanto selezione.jsonl (gli altri dati di riferimento restano com'erano)")
+    ap.add_argument("--solo-sottotitoli", action="store_true",
+                    help="scrive soltanto sottotitoli.json (gli altri dati di riferimento restano com'erano)")
     ap.add_argument("--verifica", metavar="CARTELLA",
                     help="invece di generare: apre nel desktop i .scrlproj della cartella e li confronta col file")
     ap.add_argument("--verifica-zip", metavar="FILE.zip",
@@ -1306,6 +1676,11 @@ def main():
             raise SystemExit(f"Foto di prova non caricate: {errors}")
 
         os.makedirs(args.uscita, exist_ok=True)
+        if args.solo_sottotitoli:
+            scrivi_sottotitoli(args.uscita)
+            scrivi_sottotitoli_tela(win, foto, tmp, args.uscita, aggiorna_indice=True)
+            win.close()
+            return
         if args.solo_selezione:
             selezione = casi_selezione(win, foto)
             with open(os.path.join(args.uscita, "selezione.jsonl"), "w", encoding="utf-8", newline="\n") as f:
@@ -1332,6 +1707,7 @@ def main():
             json.dump(strumenti_foto(), f)
         with open(os.path.join(args.uscita, "sagoma.json"), "w", encoding="utf-8", newline="\n") as f:
             json.dump(sagoma(), f)
+        scrivi_sottotitoli(args.uscita)
         immagini = []
         if not args.senza_immagini:
             immagini = esporta_immagini(win, foto, os.path.join(args.uscita, "immagini"))
@@ -1347,6 +1723,7 @@ def main():
         cartella_progetti = os.path.join(args.uscita, "progetti")
         os.makedirs(cartella_progetti, exist_ok=True)
         progetti = progetti_desktop(win, foto)
+        progetti["sottotitoli"] = scrivi_sottotitoli_tela(win, foto, tmp, args.uscita)
         for nome, data in progetti.items():
             with open(os.path.join(cartella_progetti, f"{nome}.scrlproj"), "w", encoding="utf-8", newline="\n") as f:
                 json.dump(data, f, ensure_ascii=False, indent=1)

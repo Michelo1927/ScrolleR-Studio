@@ -147,8 +147,18 @@ Future<EsitoVideo> esportaPaginaVideo({
     if (annullato?.call() ?? false) {
       return EsitoVideo(null, tempo: cronometro.elapsed);
     }
-    final zLo = video.map((v) => v.p.z).reduce(math.min);
-    final zHi = video.map((v) => v.p.z).reduce(math.max);
+    // I sottotitoli dei video della pagina cambiano frase a ogni fotogramma: stanno nello strato di mezzo
+    final perUid = {for (final v in video) v.p.uid: v};
+    final sottotitoli = [
+      for (final c in s.captions)
+        if (perUid.containsKey(c.videoUid)) c,
+    ];
+    final livelli = [
+      for (final v in video) v.p.z,
+      for (final c in sottotitoli) c.z,
+    ];
+    final zLo = livelli.reduce(math.min);
+    final zHi = livelli.reduce(math.max);
     sotto = await _strato(
       s,
       k,
@@ -235,6 +245,9 @@ Future<EsitoVideo> esportaPaginaVideo({
           f.altezza,
         );
       }
+      for (final v in video) {
+        risorse.tempiVideo[v.p.uid] = v.p.trimStart + t % v.durata;
+      }
       final rec = ui.PictureRecorder();
       final c = ui.Canvas(rec);
       c.drawImage(sotto, ui.Offset.zero, ui.Paint());
@@ -275,6 +288,7 @@ Future<EsitoVideo> esportaPaginaVideo({
       f.dispose();
     }
     risorse.fotogrammi.clear();
+    risorse.tempiVideo.clear();
     // Originali, copertine e strati letti per questa pagina si liberano subito
     risorse.termina();
     if (scrittore != null) {

@@ -177,7 +177,7 @@ class RiproduzioneVideo {
         img.dispose();
         return;
       }
-      risorse.impostaFotogramma(g.video.uid, img);
+      risorse.impostaFotogramma(g.video.uid, img, tempo: t);
     } on Exception catch (e) {
       debugPrint('Fotogramma del video ${g.video.uid}: $e');
       if (!g.fermo && !_chiusa) {

@@ -27,6 +27,9 @@ String nomeElemento(Testi t, Snapshot s, CanvasElement e) {
               1 + s.items.where((p) => !p.isVideo).toList().indexOf(e),
             ),
     TextItem() => t.telaTesto(_riassunto(e.text)),
+    CaptionItem() => t.telaSottotitoli(
+      _riassunto(fraseDiEsempio(e)?.testo ?? ''),
+    ),
     ShapeItem() => t.telaForma(1 + s.shapes.indexOf(e)),
   };
   return e.pageLocked ? t.telaBloccato(nome) : nome;

@@ -123,18 +123,21 @@ String testoCambio(
   String tipo(ElementKind? k) => switch (k) {
     ElementKind.photo => 'photo',
     ElementKind.text => 'text',
+    ElementKind.caption => 'caption',
     ElementKind.shape => 'shape',
     null => 'other',
   };
   String aggiunti() => switch (c.element) {
     ElementKind.photo => t.cambFotoAggiunte(c.count),
     ElementKind.text => t.cambTestiAggiunti(c.count),
+    ElementKind.caption => t.cambSottotitoliAggiunti(c.count),
     ElementKind.shape => t.cambFormeAggiunte(c.count),
     null => t.cambElementiAggiunti(c.count),
   };
   String eliminati() => switch (c.element) {
     ElementKind.photo => t.cambFotoEliminate(c.count),
     ElementKind.text => t.cambTestiEliminati(c.count),
+    ElementKind.caption => t.cambSottotitoliEliminati(c.count),
     ElementKind.shape => t.cambFormeEliminate(c.count),
     null => t.cambElementiEliminati(c.count),
   };
@@ -182,6 +185,7 @@ String testoCambio(
     ChangeKind.resized => t.cambRidimensionato(tipo(c.element)),
     ChangeKind.rotated => t.cambRuotato(tipo(c.element)),
     ChangeKind.textEdited => t.cambTestoModificato,
+    ChangeKind.captionsEdited => t.cambSottotitoliModificati,
     ChangeKind.photoColors => t.cambColoriFoto,
     ChangeKind.videoTrim => t.cambTaglioVideo,
     ChangeKind.videoPoster => t.cambCopertinaVideo,

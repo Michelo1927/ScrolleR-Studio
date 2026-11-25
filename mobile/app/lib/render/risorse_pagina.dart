@@ -62,6 +62,9 @@ class RisorsePagina extends ChangeNotifier
   /// Video in riproduzione sulla tela (per l'etichetta ▶/pausa).
   final Set<int> _inRiproduzione = {};
 
+  /// Secondo del video originale mostrato da [fotogrammi] (uid → tempo): i sottotitoli mostrano quella frase.
+  final Map<int, double> tempiVideo = {};
+
   /// Durata e audio dei video per chiave di sorgente (null = file non leggibile).
   final Map<String, InfoVideo?> _infoVideo = {};
   final Map<String, Future<InfoVideo?>> _infoInCorso = {};
@@ -161,13 +164,21 @@ class RisorsePagina extends ChangeNotifier
     );
   }
 
+  @override
+  double? tempoVideo(PhotoItem p) => tempiVideo[p.uid];
+
+  @override
+  bool videoInRiproduzione(PhotoItem p) => _inRiproduzione.contains(p.uid);
+
   /// Riproduzione sulla tela: mostra [img] al posto della copertina del video [uid] (la precedente si libera).
-  void impostaFotogramma(int uid, ui.Image img) {
+  /// [tempo] è il secondo del video originale del fotogramma.
+  void impostaFotogramma(int uid, ui.Image img, {double? tempo}) {
     if (_chiuso) {
       img.dispose();
       return;
     }
     _inRiproduzione.add(uid);
+    if (tempo != null) tempiVideo[uid] = tempo;
     final vecchio = fotogrammi[uid];
     fotogrammi[uid] = img;
     _avvisa();
@@ -180,6 +191,7 @@ class RisorsePagina extends ChangeNotifier
   /// Fine della riproduzione del video [uid]: torna la copertina.
   void togliFotogramma(int uid) {
     final f = fotogrammi.remove(uid);
+    tempiVideo.remove(uid);
     final c = _inRiproduzione.remove(uid);
     if (f != null) Timer(const Duration(milliseconds: 200), f.dispose);
     if (f != null || c) _avvisa();

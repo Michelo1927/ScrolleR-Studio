@@ -68,7 +68,12 @@ enum Strumento {
 
   // Video (Fase 8): Taglia (inizio e fine) e Copertina del video selezionato
   videoTaglia,
-  videoCopertina;
+  videoCopertina,
+
+  // Sottotitoli (S2): larghezza delle righe, colore e dimensione della traduzione del blocco selezionato
+  sottotitoliLarghezza,
+  sottotitoliColoreTraduzione,
+  sottotitoliDimensioneTraduzione;
 
   /// Strumento Foto che lavora sulla foto selezionata.
   bool get eFoto => index >= inquadra.index && index <= ruota.index;
@@ -86,8 +91,14 @@ enum Strumento {
   /// Strumento Video che lavora sul video selezionato.
   bool get eVideo => this == videoTaglia || this == videoCopertina;
 
+  /// Strumento che lavora sul blocco di sottotitoli selezionato.
+  bool get eSottotitoli =>
+      index >= sottotitoliLarghezza.index &&
+      index <= sottotitoliDimensioneTraduzione.index;
+
   /// Strumento che lavora sull'elemento selezionato: la selezione resta ferma finché è aperto.
-  bool get suElemento => eFoto || eTesto || eForma || eDisposizione || eVideo;
+  bool get suElemento =>
+      eFoto || eTesto || eForma || eDisposizione || eVideo || eSottotitoli;
 
   /// Lo stile scelto con questo strumento diventa quello delle prossime forme (`_remember_shape_style`).
   bool get ricordaStileForma =>
@@ -862,22 +873,84 @@ class ControlloEditor extends Notifier<StatoEditor> {
   }
 
   /// Applica [f] ai testi selezionati e mostra il risultato come bozza (non entra in Annulla finché non c'è ✓).
+  /// Gli strumenti del testo valgono anche per lo stile dei blocchi di sottotitoli selezionati.
   void modificaTestiSelezionati(TextItem Function(TextItem) f) {
+    final s = _conStileTesti(state.snapshot, f);
+    if (s != null) anteprima(s);
+  }
+
+  /// [s] con [f] applicato ai testi e allo stile dei sottotitoli selezionati (null se non ce ne sono).
+  Snapshot? _conStileTesti(Snapshot s, TextItem Function(TextItem) f) {
     final uids = [for (final t in testiSelezionati) t.uid];
-    if (uids.isEmpty) return;
-    anteprima(modificaTesti(state.snapshot, uids, f));
+    final cap = [for (final c in sottotitoliSelezionati) c.uid];
+    if (uids.isEmpty && cap.isEmpty) return null;
+    var out = uids.isEmpty ? s : modificaTesti(s, uids, f);
+    if (cap.isNotEmpty) {
+      out = modificaSottotitoli(
+        out,
+        cap,
+        (c) => conStileSottotitoli(c, f, _s.ctx),
+      );
+    }
+    return out;
   }
 
   /// Comando singolo: ombra del testo accesa o spenta, subito, in un passo di cronologia.
   void alternaOmbraTesto() {
-    final t = testiSelezionati;
-    if (t.isEmpty) return;
-    final acceso = !t.first.shadow;
-    _commit(
-      modificaTesti(state.snapshot, [
-        for (final x in t) x.uid,
-      ], (x) => conOmbraTesto(x, acceso)),
-    );
+    final primo =
+        testiSelezionati.firstOrNull?.shadow ??
+        sottotitoliSelezionati.firstOrNull?.stile.shadow;
+    if (primo == null) return;
+    final acceso = !primo;
+    final s = _conStileTesti(state.snapshot, (x) => conOmbraTesto(x, acceso));
+    if (s != null) _commit(s);
+  }
+
+  // ---------- Sottotitoli (S2) ----------
+  /// I blocchi di sottotitoli selezionati, come nel documento che si vede.
+  List<CaptionItem> get sottotitoliSelezionati =>
+      state.elementiSelezionati.whereType<CaptionItem>().toList();
+
+  /// Applica [f] ai blocchi selezionati e mostra il risultato come bozza (Larghezza, colore e dimensione della
+  /// traduzione: con ✓ un passo di cronologia).
+  void modificaSottotitoliSelezionati(
+    CaptionItem Function(CaptionItem, EngineContext) f,
+  ) {
+    final uids = [for (final c in sottotitoliSelezionati) c.uid];
+    if (uids.isEmpty) return;
+    anteprima(modificaSottotitoli(state.snapshot, uids, (c) => f(c, _s.ctx)));
+  }
+
+  /// Comando singolo sui blocchi selezionati (mostra la traduzione, corsivo), subito, in un passo di cronologia.
+  void comandoSottotitoli(CaptionItem Function(CaptionItem, EngineContext) f) {
+    final uids = [for (final c in sottotitoliSelezionati) c.uid];
+    if (uids.isEmpty) return;
+    _commit(modificaSottotitoli(state.snapshot, uids, (c) => f(c, _s.ctx)));
+  }
+
+  /// Per la schermata Sottotitoli del video [videoUid]: il documento con il suo blocco (quello che c'è, o uno
+  /// nuovo messo come `_place_new_caption`, che entra nel progetto solo con ✓ e qualche frase). Null se il video
+  /// non c'è più. I video sulla tela si fermano, come `_stop_all_videos`.
+  ({Snapshot snapshot, CaptionItem sottotitoli, bool nuovo})?
+  preparaSottotitoli(int videoUid) {
+    final r = aggiungiSottotitoli(state.snapshot, videoUid, _s.ctx);
+    if (r == null) return null;
+    fermaTuttiVideo();
+    final c = elementoDi(r.snapshot, r.ref)! as CaptionItem;
+    return (snapshot: r.snapshot, sottotitoli: c, nuovo: r.nuovo);
+  }
+
+  /// ✓ della schermata Sottotitoli: le frasi e la lingua della traduzione nel blocco del video, in un solo passo
+  /// di cronologia, con il blocco selezionato. Un blocco nuovo senza frasi non resta.
+  void applicaSottotitoli(int videoUid, List<Frase> frasi, String trLang) {
+    final r = aggiungiSottotitoli(state.snapshot, videoUid, _s.ctx);
+    if (r == null || (r.nuovo && frasi.isEmpty)) return;
+    final uid = r.ref.uid;
+    final s = modificaSottotitoli(r.snapshot, [
+      uid,
+    ], (c) => conFrasi(c, frasi, _s.ctx).copyWith(trLang: trLang));
+    if (!r.nuovo && s == state.snapshot) return;
+    _commit(s, selezione: {r.ref});
   }
 
   // ---------- Forme (Fase 5) ----------

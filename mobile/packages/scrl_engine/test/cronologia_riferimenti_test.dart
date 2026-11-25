@@ -23,6 +23,7 @@ const _nomi = {
   ElementKind.photo: ('Foto', 'f', 'foto'),
   ElementKind.text: ('Testo', 'm', 'testi'),
   ElementKind.shape: ('Forma', 'f', 'forme'),
+  ElementKind.caption: ('Sottotitoli', 'mp', 'sottotitoli'),
 };
 
 const _disposizioni = {
@@ -36,7 +37,11 @@ const _disposizioni = {
 
 String italiano(ChangeLabel l) {
   String accorda(ElementKind e, String parola) =>
-      '${_nomi[e]!.$1} $parola${_nomi[e]!.$2 == 'f' ? 'a' : 'o'}';
+      '${_nomi[e]!.$1} $parola${switch (_nomi[e]!.$2) {
+        'f' => 'a',
+        'mp' => 'i',
+        _ => 'o',
+      }}';
   String quanti(String verbo) {
     final e = l.element;
     if (e == null) return '${l.count} elementi ${verbo}i';
@@ -87,6 +92,7 @@ String italiano(ChangeLabel l) {
     ChangeKind.resized => accorda(l.element!, 'ridimensionat'),
     ChangeKind.rotated => accorda(l.element!, 'ruotat'),
     ChangeKind.textEdited => 'Testo modificato',
+    ChangeKind.captionsEdited => 'Sottotitoli modificati',
     ChangeKind.photoColors => 'Colori della foto',
     ChangeKind.videoTrim => 'Taglio del video',
     ChangeKind.videoPoster => 'Copertina del video',
@@ -98,6 +104,7 @@ String italiano(ChangeLabel l) {
       ElementKind.photo => 'Stile della foto',
       ElementKind.text => 'Stile del testo',
       ElementKind.shape => 'Stile della forma',
+      ElementKind.caption => 'Stile dei sottotitoli',
     },
   };
 }

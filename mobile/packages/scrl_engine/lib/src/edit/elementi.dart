@@ -15,8 +15,10 @@ import '../model/elements.dart';
 import '../model/result.dart';
 import '../model/scene.dart';
 import '../model/snapshot.dart';
+import '../pages/videos.dart' show senzaSottotitoliOrfani;
 
-/// Riferimento a un elemento: foto, testi e forme hanno contatori di `uid` separati.
+/// Riferimento a un elemento: foto, testi e forme hanno contatori di `uid` separati (i sottotitoli usano quello
+/// dei testi, ma hanno un tipo a sé).
 typedef RifElemento = ({ElementKind tipo, int uid});
 
 RifElemento rifDi(CanvasElement e) => (
@@ -24,6 +26,7 @@ RifElemento rifDi(CanvasElement e) => (
     PhotoItem() => ElementKind.photo,
     TextItem() => ElementKind.text,
     ShapeItem() => ElementKind.shape,
+    CaptionItem() => ElementKind.caption,
   },
   uid: e.uid,
 );
@@ -34,6 +37,7 @@ CanvasElement? elementoDi(Snapshot s, RifElemento r) {
     ElementKind.photo => s.items,
     ElementKind.text => s.texts,
     ElementKind.shape => s.shapes,
+    ElementKind.caption => s.captions,
   };
   for (final e in l) {
     if (e.uid == r.uid) return e;
@@ -71,30 +75,39 @@ Snapshot spostaElementi(
     items: [for (final e in s.items) muovi(e, rifDi(e))],
     texts: [for (final e in s.texts) muovi(e, rifDi(e))],
     shapes: [for (final e in s.shapes) muovi(e, rifDi(e))],
+    captions: [for (final e in s.captions) muovi(e, rifDi(e))],
   );
 }
 
 /// `_delete_selected`: toglie gli elementi dalla tela (senza ridisporre le altre foto, come il desktop).
+/// I sottotitoli di un video tolto se ne vanno con lui (`_drop_orphan_captions`).
 Snapshot eliminaElementi(Snapshot s, Iterable<RifElemento> refs) {
   final set = refs.toSet();
-  return Snapshot(
-    canvas: s.canvas,
-    items: [
-      for (final e in s.items)
-        if (!set.contains(rifDi(e))) e,
-    ],
-    texts: [
-      for (final e in s.texts)
-        if (!set.contains(rifDi(e))) e,
-    ],
-    shapes: [
-      for (final e in s.shapes)
-        if (!set.contains(rifDi(e))) e,
-    ],
+  return senzaSottotitoliOrfani(
+    Snapshot(
+      canvas: s.canvas,
+      items: [
+        for (final e in s.items)
+          if (!set.contains(rifDi(e))) e,
+      ],
+      texts: [
+        for (final e in s.texts)
+          if (!set.contains(rifDi(e))) e,
+      ],
+      shapes: [
+        for (final e in s.shapes)
+          if (!set.contains(rifDi(e))) e,
+      ],
+      captions: [
+        for (final e in s.captions)
+          if (!set.contains(rifDi(e))) e,
+      ],
+    ),
   );
 }
 
 /// `_duplicate_selected`: copie spostate di 30 unità, davanti a tutto; la copia di un gruppo è un gruppo nuovo.
+/// I sottotitoli non si duplicano: restano legati al loro video.
 /// Restituisce lo stato nuovo e i riferimenti delle copie (che diventano la selezione).
 ({Snapshot snapshot, List<RifElemento> copie}) duplicaElementi(
   Snapshot s,
@@ -106,6 +119,7 @@ Snapshot eliminaElementi(Snapshot s, Iterable<RifElemento> refs) {
   final gruppi = <int, int>{};
   final copie = <RifElemento>[];
   for (final e in elementiDi(s, refs)) {
+    if (e is CaptionItem) continue;
     final gruppo = e.group == 0
         ? 0
         : gruppi.putIfAbsent(e.group, () => primoGruppo + gruppi.length);
@@ -149,6 +163,8 @@ Snapshot eliminaElementi(Snapshot s, Iterable<RifElemento> refs) {
         );
         sc.put(d);
         copie.add(rifDi(d));
+      case CaptionItem():
+        break;
     }
   }
   return (snapshot: sc.toSnapshot(), copie: copie);
@@ -167,6 +183,10 @@ Snapshot svuotaTela(Snapshot s) => Snapshot(
   ],
   shapes: [
     for (final e in s.shapes)
+      if (e.pageLocked) e,
+  ],
+  captions: [
+    for (final e in s.captions)
       if (e.pageLocked) e,
   ],
 );

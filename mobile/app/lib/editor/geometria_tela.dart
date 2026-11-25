@@ -10,6 +10,7 @@ import 'dart:ui';
 
 import 'package:scrl_engine/scrl_engine.dart' hide Rect;
 
+import '../render/sottotitoli.dart' show misuraSottotitoli;
 import '../theme/tokens.dart';
 
 /// Altezza riservata sopra la pagina all'etichetta («Pagina 2 · …»).
@@ -147,6 +148,7 @@ class GeometriaTela {
       PhotoItem() => (w: e.w, h: e.h),
       ShapeItem() => (w: e.w, h: e.h),
       TextItem() => misura(e),
+      CaptionItem() => misuraSottotitoli(e),
     };
 
 /// I quattro angoli dell'elemento in coordinate della striscia (rotazione compresa), in senso orario

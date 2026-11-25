@@ -4,6 +4,7 @@ library;
 
 import 'dart:math' as math;
 
+import '../edit/sottotitoli.dart';
 import '../util/py.dart';
 import 'argb.dart';
 import 'json_read.dart';
@@ -813,6 +814,163 @@ class TextItem extends CanvasElement {
     pageLocked: pageLocked ?? this.pageLocked,
     group: group ?? this.group,
     extra: extra ?? this.extra,
+  );
+}
+
+/// Blocco di sottotitoli collegato a un video (`CaptionItem`, sottoclasse di `TextItem` sul desktop).
+///
+/// Lo stile è quello di un testo ([stile], con il testo sempre vuoto); le frasi sono nei tempi del video
+/// originale. Si salva nella chiave `captions` del progetto, accanto a `texts`, e usa gli stessi `uid` dei testi.
+class CaptionItem extends CanvasElement {
+  /// `THEME["caption_translation"]`: giallo, come nei reel.
+  static const int coloreTraduzione = 0xFFFFD43B;
+
+  /// Lo stato di testo del blocco (posizione, carattere, colore, ombra…); `text` è sempre vuoto.
+  final TextItem stile;
+  final int videoUid;
+  final String lang;
+  final String trLang;
+
+  /// Larghezza massima delle righe, in pixel della tela (`wrap_w`).
+  final double wrapW;
+  final int trColor;
+
+  /// Dimensione della traduzione in % di quella della frase.
+  final int trSize;
+  final bool trItalic;
+  final bool trShow;
+  final List<Frase> frasi;
+
+  CaptionItem({
+    required this.stile,
+    this.videoUid = 0,
+    this.lang = 'it',
+    this.trLang = 'en',
+    this.wrapW = 860.0,
+    this.trColor = coloreTraduzione,
+    this.trSize = 70,
+    this.trItalic = true,
+    this.trShow = true,
+    List<Frase> frasi = const [],
+  }) : frasi = List.unmodifiable(frasi);
+
+  /// Blocco nuovo (`CaptionItem.__init__`): grassetto, ombra e dimensione 58.
+  factory CaptionItem.nuovo({required int uid, required int videoUid}) =>
+      CaptionItem(
+        stile: TextItem(uid: uid, text: '', size: 58.0),
+        videoUid: videoUid,
+      );
+
+  static const _noti = {
+    'kind',
+    'video_uid',
+    'lang',
+    'tr_lang',
+    'wrap_w',
+    'tr_color',
+    'tr_size',
+    'tr_italic',
+    'tr_show',
+    'phrases',
+  };
+
+  factory CaptionItem.fromJson(Object? json) {
+    final s = asMap(json);
+    final wrap = readDouble(s, 'wrap_w', 860.0);
+    return CaptionItem(
+      stile: TextItem.fromJson(<String, Object?>{
+        for (final e in s.entries)
+          if (!_noti.contains(e.key)) e.key: e.value,
+      }),
+      videoUid: readInt(s, 'video_uid', 0),
+      lang: readString(s, 'lang', 'it'),
+      trLang: readString(s, 'tr_lang', 'en'),
+      wrapW: wrap > 40.0 ? wrap : 40.0,
+      trColor: parseArgb(s['tr_color'], coloreTraduzione),
+      trSize: readInt(s, 'tr_size', 70),
+      trItalic: readBool(s, 'tr_italic', true),
+      trShow: readBool(s, 'tr_show', true),
+      frasi: pulisciFrasi(s['phrases']),
+    );
+  }
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    ...stile.toJson(),
+    'text': '',
+    'kind': 'caption',
+    'video_uid': videoUid,
+    'lang': lang,
+    'tr_lang': trLang,
+    'wrap_w': pyRoundTo(wrapW, 1),
+    'tr_color': formatArgb(trColor),
+    'tr_size': trSize,
+    'tr_italic': trItalic,
+    'tr_show': trShow,
+    'phrases': [for (final p in frasi) p.toJson()],
+  };
+
+  @override
+  int get uid => stile.uid;
+  @override
+  double get x => stile.x;
+  @override
+  double get y => stile.y;
+  @override
+  double get rotation => stile.rotation;
+  @override
+  double get z => stile.z;
+  @override
+  bool get locked => stile.locked;
+  @override
+  bool get pageLocked => stile.pageLocked;
+  @override
+  int get group => stile.group;
+  @override
+  Map<String, Object?> get extra => stile.extra;
+
+  /// `has_translation`.
+  bool get haTraduzione => frasi.any((p) => pyStrip(p.tr).isNotEmpty);
+
+  /// `_show_tr`: la traduzione occupa posto nel riquadro.
+  bool get mostraTraduzione => trShow && haTraduzione;
+
+  /// Margine interno del riquadro (lo stesso di un testo).
+  double get pad => stile.pad;
+
+  @override
+  CaptionItem withPosition(double x, double y) =>
+      copyWith(stile: stile.withPosition(x, y));
+  @override
+  CaptionItem withZ(double z) => copyWith(stile: stile.withZ(z));
+  @override
+  CaptionItem withGroup(int group) => copyWith(stile: stile.withGroup(group));
+  @override
+  CaptionItem withPageLocked(bool on) =>
+      copyWith(stile: stile.withPageLocked(on));
+
+  CaptionItem copyWith({
+    TextItem? stile,
+    int? videoUid,
+    String? lang,
+    String? trLang,
+    double? wrapW,
+    int? trColor,
+    int? trSize,
+    bool? trItalic,
+    bool? trShow,
+    List<Frase>? frasi,
+  }) => CaptionItem(
+    stile: stile ?? this.stile,
+    videoUid: videoUid ?? this.videoUid,
+    lang: lang ?? this.lang,
+    trLang: trLang ?? this.trLang,
+    wrapW: wrapW ?? this.wrapW,
+    trColor: trColor ?? this.trColor,
+    trSize: trSize ?? this.trSize,
+    trItalic: trItalic ?? this.trItalic,
+    trShow: trShow ?? this.trShow,
+    frasi: frasi ?? this.frasi,
   );
 }
 
