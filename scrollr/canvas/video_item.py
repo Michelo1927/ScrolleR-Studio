@@ -256,6 +256,7 @@ class VideoItem(PhotoItem):
         self._live = None
         self._live_src = None
         self.update()
+        self.notify_captions()
         self.playing_changed.emit(self)
 
     def current_time(self) -> float:
@@ -275,6 +276,16 @@ class VideoItem(PhotoItem):
             self._live_src = img
             self._live = QPixmap.fromImage(pil_to_qimage(img))
             self.update()
+        self.notify_captions()
+
+    def notify_captions(self):
+        """I sottotitoli collegati seguono il tempo del video (riproduzione o copertina)."""
+        scene = self.scene()
+        if scene is None:
+            return
+        for it in scene.items():
+            if getattr(it, "video_uid", None) == self.uid and hasattr(it, "refresh_time"):
+                it.refresh_time()
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemSceneHasChanged and value is None:

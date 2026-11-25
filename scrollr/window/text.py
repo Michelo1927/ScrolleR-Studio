@@ -5,6 +5,7 @@ from PyQt6.QtCore import QPointF
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QColorDialog
 
+from scrollr.canvas.caption_item import CaptionItem
 from scrollr.canvas.text_item import TextItem
 from scrollr.theme import is_light
 
@@ -60,7 +61,8 @@ class TextMixin:
             return
         txt = self.edit_text.toPlainText()
         for t in self._selected_texts():
-            t.set_text(txt)
+            if not isinstance(t, CaptionItem):  # I sottotitoli hanno le frasi, non un testo libero
+                t.set_text(txt)
         self._schedule_commit()
 
     def _on_text_prop(self, prop: str, value):

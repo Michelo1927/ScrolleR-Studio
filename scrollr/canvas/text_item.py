@@ -155,16 +155,21 @@ class TextItem(QGraphicsObject):
         """Ricalcola il riquadro dopo una modifica; il centro del testo resta dov'era."""
         old_center = self._rect.center() if not self._rect.isNull() else None
         self.prepareGeometryChange()
-        fm = QFontMetricsF(self._font())
-        lines = self._lines()
-        w = max(fm.horizontalAdvance(line) for line in lines)
-        h = fm.lineSpacing() + self._line_step(fm) * (len(lines) - 1)
+        w, h = self._content_size()
         self._pad = self.font_size * (0.35 if self.box else 0.08) + self.outline
         self._rect = QRectF(0, 0, w + 2 * self._pad, h + 2 * self._pad)
         self.setTransformOriginPoint(self._rect.center())
         if keep_center and old_center is not None:
             self.setPos(self.pos() + old_center - self._rect.center())
         self.update()
+
+    def _content_size(self):
+        """Larghezza e altezza del testo, senza margini."""
+        fm = QFontMetricsF(self._font())
+        lines = self._lines()
+        w = max(fm.horizontalAdvance(line) for line in lines)
+        h = fm.lineSpacing() + self._line_step(fm) * (len(lines) - 1)
+        return w, h
 
     def view_scale_changed(self):
         # Il margine di selezione ha misura costante sullo schermo: il boundingRect cambia con lo zoom

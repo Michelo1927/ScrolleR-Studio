@@ -33,6 +33,8 @@ THEME = {
     "snap": "#FF3DCB",
     "checker_light": "#CACACA",  # Scacchiera della trasparenza (anteprima dello scontorno): casella chiara
     "checker_dark": "#9C9C9C",   # ... e casella scura
+    "caption_translation": "#FFD43B",  # Traduzione dei sottotitoli (contenuto): giallo, come nei reel
+    "waveform": "#5E8FC7",       # Forma d'onda dell'audio nella finestra Sottotitoli
 }
 
 # Colori rapidi per forme e disegni (contenuto del collage, non dell'interfaccia)

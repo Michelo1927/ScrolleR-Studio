@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPixmap, QImage, QPainter
 from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox
 
+from scrollr.canvas.caption_item import CaptionItem
 from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
@@ -107,9 +108,14 @@ class PagesMixin:
         first_group = self._new_group_id()
         groups = {}
         copies = []
-        for it in sorted(inside, key=lambda x: x.zValue()):
+        new_uids = {}  # Video copiati: i loro sottotitoli seguono la copia
+        # I sottotitoli dopo i video, così sanno a quale copia collegarsi
+        for it in sorted(inside, key=lambda x: (isinstance(x, CaptionItem), x.zValue())):
             state = it.get_state()
-            if isinstance(it, TextItem):
+            if isinstance(it, CaptionItem):
+                dup = self._spawn_caption_item()
+                state["video_uid"] = new_uids.get(it.video_uid, it.video_uid)
+            elif isinstance(it, TextItem):
                 dup = self._spawn_text_item()
             elif isinstance(it, ShapeItem):
                 dup = self._spawn_shape_item(it.kind)
@@ -118,6 +124,7 @@ class PagesMixin:
                 state.update(layout_index=dup.layout_index, free=it.free or not split)
             if it.group:
                 state["group"] = groups.setdefault(it.group, first_group + len(groups))
+            new_uids[it.uid] = dup.uid
             state.update(uid=dup.uid, z=self._max_z() + 1.0, x=state["x"] + fw, page_locked=False)
             dup.set_state(state)
             copies.append(dup)

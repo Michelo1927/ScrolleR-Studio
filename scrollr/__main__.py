@@ -62,8 +62,9 @@ def main():
             (a for a in sys.argv[1:] if a.lower().endswith(PROJECT_EXT) and os.path.isfile(a)), None)
         if project:
             window._load_project_file(project)
-        else:
-            window.offer_recovery()
+        elif not window.offer_recovery():
+            # Né un progetto da aprire né lavoro recuperato: si chiede che progetto fare
+            window.show_start_dialog()
         window.check_updates_on_startup()
 
     QTimer.singleShot(300, open_startup_project)

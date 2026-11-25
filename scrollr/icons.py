@@ -138,6 +138,10 @@ def icon_pixmap(name: str, color: str, size: int) -> QPixmap:
     elif name == "video":
         rr(3.5, 6, 12, 12, 2.2)
         poly((15.5, 10.5), (20.5, 7.5), (20.5, 16.5), (15.5, 13.5))
+    elif name == "captions":
+        rr(3, 5, 18, 14, 2.4)
+        line(7, 12.5, 17, 12.5)
+        line(9, 15.5, 15, 15.5)
     elif name == "export":
         poly((4.5, 13.5), (4.5, 19.5), (19.5, 19.5), (19.5, 13.5))
         line(12, 4, 12, 15)

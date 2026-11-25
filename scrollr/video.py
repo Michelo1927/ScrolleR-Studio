@@ -12,6 +12,7 @@ from PIL import Image, ImageMath
 
 try:
     import av
+    import av.filter  # Rallentamento dell'audio (atempo) nella finestra Sottotitoli
 except ImportError:  # Senza PyAV i video non compaiono tra i formati accettati (vedi config)
     av = None
 
@@ -202,6 +203,82 @@ def read_audio(path: str, start: float, end: float) -> Optional[bytes]:
     pcm = bytes(out[skip:skip + take])
     # Audio più corto del video: si completa col silenzio, così il giro successivo resta a tempo
     return pcm + bytes(take - len(pcm))
+
+
+LISTEN_RATE = 24000          # Audio da ascoltare nella finestra Sottotitoli: mono, leggero, basta per la voce
+
+
+def read_audio_mono(path: str, rate: int = LISTEN_RATE) -> Optional[bytes]:
+    """
+    Tutto l'audio del video, PCM s16 mono a `rate`, allineato al secondo 0 del video (se l'audio parte
+    dopo, davanti c'è silenzio). None se il video non ha audio.
+    """
+    with av.open(path) as c:
+        if not c.streams.audio:
+            return None
+        a = c.streams.audio[0]
+        s0 = _stream_start(c.streams.video[0]) if c.streams.video else _stream_start(a)
+        resampler = av.AudioResampler(format="s16", layout="mono", rate=rate)
+        out = bytearray()
+        first_t = None
+        try:
+            for frame in c.decode(a):
+                if first_t is None:
+                    first_t = (frame.time - s0) if frame.time is not None else 0.0
+                for rf in resampler.resample(frame):
+                    out += bytes(rf.planes[0])[:rf.samples * 2]
+        except av.error.FFmpegError:
+            pass  # Audio rovinato in fondo: si tiene quello letto
+        for rf in resampler.resample(None):
+            out += bytes(rf.planes[0])[:rf.samples * 2]
+    if first_t is None:
+        return None
+    shift = round(first_t * rate) * 2
+    if shift > 0:
+        return bytes(shift) + bytes(out)
+    return bytes(out[-shift:])
+
+
+def stretch_audio(pcm: bytes, rate: int, tempo: float) -> bytes:
+    """
+    Audio mono s16 più lento (tempo < 1) o più veloce, senza cambiare il tono della voce
+    (filtro atempo di FFmpeg). Esce lungo len/tempo, completato col silenzio se serve.
+    """
+    if abs(tempo - 1.0) < 1e-3 or not pcm:
+        return pcm
+    graph = av.filter.Graph()
+    src = graph.add_abuffer(format="s16", sample_rate=rate, layout="mono", time_base=f"1/{rate}")
+    node = graph.add("atempo", f"{tempo:.4f}")
+    sink = graph.add("abuffersink")
+    src.link_to(node)
+    node.link_to(sink)
+    graph.configure()
+    out = bytearray()
+
+    def drain():
+        while True:
+            try:
+                f = sink.pull()
+            except (av.error.BlockingIOError, av.error.EOFError):
+                return
+            out.extend(bytes(f.planes[0])[:f.samples * 2])
+
+    chunk = 8192 * 2
+    pts = 0
+    for off in range(0, len(pcm), chunk):
+        part = pcm[off:off + chunk]
+        frame = av.AudioFrame(format="s16", layout="mono", samples=len(part) // 2)
+        frame.planes[0].update(part)
+        frame.sample_rate = rate
+        frame.time_base = Fraction(1, rate)
+        frame.pts = pts
+        pts += len(part) // 2
+        src.push(frame)
+        drain()
+    src.push(None)
+    drain()
+    want = round(len(pcm) / 2 / tempo) * 2
+    return bytes(out[:want]) + bytes(max(0, want - len(out)))
 
 
 def loop_audio(pcm: bytes, seconds: float) -> bytes:

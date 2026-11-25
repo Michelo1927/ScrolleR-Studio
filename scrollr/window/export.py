@@ -87,8 +87,9 @@ class ExportMixin:
     def _export_video_page(self, k: int, path: str, progress: QProgressDialog, step: int) -> Optional[bool]:
         """
         Pagina k come MP4. Ciò che sta sotto e sopra i video si disegna una volta sola; a ogni fotogramma
-        si ridisegnano solo i video (e gli elementi tra un video e l'altro). I video più corti ripartono
-        da capo; l'audio dei video non muti si sovrappone. None = annullata dall'utente.
+        si ridisegnano solo i video e i loro sottotitoli (e gli elementi tra l'uno e l'altro). I video più
+        corti ripartono da capo, con i loro sottotitoli; l'audio dei video non muti si sovrappone.
+        None = annullata dall'utente.
         """
         fw, fh = self.scene.frame_w, self.scene.frame_h
         out_w, out_h = output_size(fw, fh)
@@ -96,8 +97,11 @@ class ExportMixin:
         videos = self._page_videos(k)
         n = self._video_page_frames(k)
         seconds = n / VIDEO_FPS
-        z_lo = min(v.zValue() for v in videos)
-        z_hi = max(v.zValue() for v in videos)
+        by_uid = {v.uid: v for v in videos}
+        captions = [c for c in self.get_canvas_captions()
+                    if c.video_uid in by_uid and c.isVisible() and self._painted_rect(c).intersects(source)]
+        z_lo = min(it.zValue() for it in videos + captions)
+        z_hi = max(it.zValue() for it in videos + captions)
         below = self._render_layer(source, out_w, out_h, lambda it: it.zValue() < z_lo, True, False)
         above = self._render_layer(source, out_w, out_h, lambda it: it.zValue() > z_hi, False, True)
         if below is None or above is None:
@@ -127,6 +131,9 @@ class ExportMixin:
                 t = i / VIDEO_FPS
                 for v in videos:
                     v.set_export_frame(readers[v].frame_at(v.trim_start + t % v.clip_length()))
+                for c in captions:
+                    v = by_uid[c.video_uid]
+                    c.set_export_time(v.trim_start + t % v.clip_length())
                 middle = self._render_layer(source, out_w, out_h, lambda it: z_lo <= it.zValue() <= z_hi, False, False)
                 if middle is None:
                     return False
@@ -154,6 +161,8 @@ class ExportMixin:
         finally:
             for v in videos:
                 v.set_export_frame(None)
+            for c in captions:
+                c.set_export_time(None)
             for r in readers.values():
                 r.close()
             if writer is not None:

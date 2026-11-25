@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QMimeData, QPointF, QRectF
 from PyQt6.QtGui import QBrush, QColor, QFont, QIcon, QPainter, QPixmap, QRadialGradient
 from PyQt6.QtWidgets import QApplication, QColorDialog, QDialog, QMenu
 
+from scrollr.canvas.caption_item import CaptionItem
 from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
@@ -94,9 +95,10 @@ class InspectorMixin:
     # ---------- Copia, taglia e incolla elementi ----------
     def _copy_selected(self) -> bool:
         """Copia foto, testi e forme selezionati negli appunti (vale anche tra due progetti)."""
-        selected = self._selected_elements()
+        selected = [it for it in self._selected_elements() if not isinstance(it, CaptionItem)]
         if not selected:
-            self.statusBar().showMessage("Seleziona prima gli elementi da copiare", 3000)
+            self.statusBar().showMessage("Seleziona prima gli elementi da copiare (i sottotitoli restano "
+                                         "legati al loro video)", 3000)
             return False
         entries = []
         for it in sorted(selected, key=lambda x: x.zValue()):
@@ -199,6 +201,7 @@ class InspectorMixin:
         if item is None and texts:
             self.insp_stack.setCurrentIndex(2)
             self._sync_text_inspector(texts[0], len(texts))
+            self._sync_caption_inspector(texts[0])
             self.lbl_hint.setText("Trascina il testo per spostarlo.   Doppio clic: modifica il testo.   "
                                   "Frecce: sposta di 1 px (Shift: 10 px).")
         elif item is None and shapes:
@@ -701,7 +704,7 @@ class InspectorMixin:
             self._schedule_commit()
 
     def _duplicate_selected(self):
-        selected = self._selected_elements()
+        selected = [it for it in self._selected_elements() if not isinstance(it, CaptionItem)]
         if not selected:
             return
         duplicates = []
@@ -789,6 +792,8 @@ class InspectorMixin:
              else "Rendi foto libera (fuori dalla disposizione)", self._toggle_free_selected, has_photo),
             ("swap", "Scambia le 2 foto selezionate", self.swap_two_selected_photos, n_photos == 2),
             ("crop", "Ritaglia o scontorna foto…", self._crop_photo, has_photo),
+            *([("captions", "Sottotitoli…", self.add_captions_to_video, True)]
+              if self._selected_videos() or self._selected_captions() else []),
             *([("download", "Salva sagoma come PNG…", self._save_cutout_png, True),
                ("reset", "Togli sagoma", self._remove_cutout_selected, True)]
               if any(p.has_cutout for p in self._selected_photos()) else []),

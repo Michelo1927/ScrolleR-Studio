@@ -4,12 +4,14 @@ import os
 import tempfile
 from typing import List
 
-from PyQt6.QtCore import QSettings, QStandardPaths
+from PyQt6.QtCore import QRectF, QSettings, QStandardPaths
+from PyQt6.QtGui import QImage, QPainter
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
 from scrollr.config import PROJECT_EXT, PROJECT_VERSION
 from scrollr.dialogs import NewProjectDialog
 from scrollr.imaging import IMAGE_CACHE, normalize_path
+from scrollr.start_dialog import THUMB_SIDE, StartDialog, prune_thumbnails, thumbnail_dir, thumbnail_path
 
 
 class ProjectMixin:
@@ -101,6 +103,7 @@ class ProjectMixin:
             "items": [dict(s, rel=rel(s["path"])) for s in snap["items"]],
             "texts": snap.get("texts", []),
             "shapes": snap.get("shapes", []),
+            **({"captions": snap["captions"]} if snap.get("captions") else {}),
         }
 
     def _write_project(self, path: str) -> bool:
@@ -117,6 +120,7 @@ class ProjectMixin:
         self._saved_snapshot = snap
         self._update_title()
         self._add_recent(path)
+        self._save_thumbnail(path)
         self._remove_autosave()
         self.statusBar().showMessage(f"Progetto salvato: {os.path.basename(path)}", 3000)
         return True
@@ -171,6 +175,7 @@ class ProjectMixin:
             items = data["items"]
             texts = data.get("texts", [])
             shapes = data.get("shapes", [])
+            captions = data.get("captions", [])
             library = data.get("library", [])
         except (OSError, ValueError, KeyError) as e:
             QMessageBox.critical(self, "Progetto non aperto", f"Il file non è un progetto valido:\n{e}")
@@ -196,7 +201,7 @@ class ProjectMixin:
         all_paths = list(dict.fromkeys(lib_paths + [s["path"] for s in items]))
 
         self._remove_all_photos()
-        for t in self.get_canvas_texts() + self.get_canvas_shapes():
+        for t in self.get_canvas_texts() + self.get_canvas_captions() + self.get_canvas_shapes():
             self.scene.removeItem(t)
         self.loaded_library.clear()
         self.list_library.clear()
@@ -208,7 +213,8 @@ class ProjectMixin:
         self._missing_library = [p for p in dict.fromkeys(lib_paths) if not os.path.isfile(p)]
         _, errors = self._load_into_library(found, "Apertura progetto…")
 
-        self._restore_snapshot({"canvas": canvas, "items": items, "texts": texts, "shapes": shapes})
+        self._restore_snapshot({"canvas": canvas, "items": items, "texts": texts, "shapes": shapes,
+                                **({"captions": captions} if captions else {})})
         # Progetti di prima della divisione carosello/reel: sono caroselli, i video oltre 60 s usano il primo minuto
         trimmed = self._keep_videos_in_limit()
         self._reset_history("Lavoro recuperato" if recovered else "Progetto aperto")
@@ -222,6 +228,8 @@ class ProjectMixin:
             self.project_path = path
             self._saved_snapshot = self._history[-1]
             self._add_recent(path)
+            if not os.path.isfile(thumbnail_path(path)):  # Progetti salvati prima delle miniature
+                self._save_thumbnail(path)
         self._update_title()
         self.fit_canvas_in_view()
         self._update_canvas_count()
@@ -249,6 +257,7 @@ class ProjectMixin:
         path = os.path.abspath(path)
         recent = [p for p in self._recent_projects() if os.path.normcase(p) != os.path.normcase(path)]
         self._settings().setValue("recent_projects", [path] + recent[:7])
+        prune_thumbnails([path] + recent[:7])
 
     def _rebuild_recent_menu(self):
         menu = self.menu_recent
@@ -268,6 +277,52 @@ class ProjectMixin:
     def _open_recent(self, path: str):
         if self._confirm_discard_changes():
             self._load_project_file(path)
+
+    def _save_thumbnail(self, path: str):
+        """Miniatura della prima pagina per la finestra di avvio: a parte, nella cartella dati dell'app."""
+        fw, fh = self.scene.frame_w, self.scene.frame_h
+        scale = THUMB_SIDE / max(fw, fh)
+        w, h = max(1, round(fw * scale)), max(1, round(fh * scale))
+        img = QImage(w, h, QImage.Format.Format_ARGB32_Premultiplied)
+        if img.isNull():
+            return
+        img.fill(self.scene.bg_color)
+        self.scene.clean_render = True  # Niente guide, etichette né selezione
+        try:
+            painter = QPainter(img)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+            self.scene.render(painter, QRectF(0, 0, w, h), QRectF(0, 0, fw, fh))
+            painter.end()
+        finally:
+            self.scene.clean_render = False
+            self.scene.update()
+        try:
+            os.makedirs(thumbnail_dir(), exist_ok=True)
+        except OSError:
+            return
+        img.save(thumbnail_path(path), "PNG")
+
+    # ---------- Finestra di avvio ----------
+    def show_start_dialog(self):
+        """
+        All'avvio: progetti recenti e formati per uno nuovo. Chiusa senza scegliere resta il
+        carosello vuoto; se un progetto non si apre, la finestra torna.
+        """
+        c = self._blank_snapshot["canvas"]
+        while True:
+            recent = [p for p in self._recent_projects() if os.path.isfile(p)]
+            dlg = StartDialog(recent, self.ASPECT_RATIOS, (c["frame_w"], c["frame_h"]),
+                              (c["custom_w"], c["custom_h"]), c["num_frames"], self.MAX_PAGES, self)
+            if not dlg.exec():
+                return
+            action, path = dlg.choice()
+            if action == "new":
+                panel = dlg.panel
+                self._start_new_project(panel.kind(), panel.ratio_index(), panel.frame_size(), panel.pages())
+                return
+            if self._load_project_file(path):
+                return
 
     # ---------- Salvataggio automatico ----------
     @staticmethod
@@ -295,18 +350,23 @@ class ProjectMixin:
         except OSError:
             pass
 
-    def offer_recovery(self):
-        """All'avvio: se l'app si era chiusa senza salvare, propone di recuperare il lavoro."""
+    def offer_recovery(self) -> bool:
+        """
+        All'avvio: se l'app si era chiusa senza salvare, propone di recuperare il lavoro.
+        Dice se il lavoro è stato recuperato (allora la finestra di avvio non serve).
+        """
         path = self._autosave_path()
         if not os.path.isfile(path):
-            return
+            return False
+        recovered = False
         answer = QMessageBox.question(
             self, "Recuperare il lavoro?",
             "L'ultima volta ScrolleR Studio si è chiuso senza salvare.\n"
             "Vuoi recuperare il collage su cui stavi lavorando?")
         if answer == QMessageBox.StandardButton.Yes:
-            self._load_project_file(path, recovered=True)
+            recovered = self._load_project_file(path, recovered=True)
         self._remove_autosave()
+        return recovered
 
     def _confirm_discard_changes(self) -> bool:
         self._flush_pending_commit()

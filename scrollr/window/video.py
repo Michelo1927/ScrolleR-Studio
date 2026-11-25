@@ -44,6 +44,8 @@ class VideoMixin:
         self.chk_video_audio.setToolTip("Con più video sulla stessa pagina, l'audio di quelli accesi si sovrappone")
         self.chk_video_audio.toggled.connect(self._set_video_audio)
         lay.addWidget(self.chk_video_audio)
+        lay.addWidget(self._icon_button("captions", "Scrivi i sottotitoli del video e sincronizzali ascoltandolo",
+                                        lambda: self.add_captions_to_video(), "Sottotitoli…", "SoftButton"))
         self.lbl_video_info = self._label("", "Hint")
         self.lbl_video_info.setWordWrap(True)
         lay.addWidget(self.lbl_video_info)
@@ -130,6 +132,7 @@ class VideoMixin:
             else:
                 v.poster = max(0.0, min(seconds, v.duration))
                 v.update()
+                v.notify_captions()  # Sulla tela i sottotitoli mostrano la frase della copertina
         primary = self._get_primary_selected()
         if isinstance(primary, VideoItem):
             # Inizio e fine non si incrociano: l'altro cursore segue

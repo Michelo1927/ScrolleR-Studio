@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt, QRectF, QPointF, QSize
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QMessageBox, QMenu, QProgressDialog
 
+from scrollr.canvas.caption_item import CaptionItem
 from scrollr.canvas.photo_item import PhotoItem
 from scrollr.canvas.shape_item import ShapeItem
 from scrollr.canvas.text_item import TextItem
@@ -325,7 +326,7 @@ class LibraryMixin:
     def clear_canvas_photos(self):
         """Svuota la tela; le pagine bloccate restano come sono."""
         self._remove_all_photos(keep_locked=True)
-        for t in self.get_canvas_texts() + self.get_canvas_shapes():
+        for t in self.get_canvas_texts() + self.get_canvas_captions() + self.get_canvas_shapes():
             if not t.page_locked:
                 self.scene.removeItem(t)
         if self._any_page_locked():
@@ -343,7 +344,8 @@ class LibraryMixin:
         return [it for it in self.scene.selectedItems() if isinstance(it, PhotoItem)]
 
     def get_canvas_texts(self) -> List[TextItem]:
-        items = [it for it in self.scene.items() if isinstance(it, TextItem)]
+        """Caselle di testo, senza i sottotitoli (che hanno un elenco a sé: get_canvas_captions)."""
+        items = [it for it in self.scene.items() if isinstance(it, TextItem) and not isinstance(it, CaptionItem)]
         items.sort(key=lambda t: t.uid)
         return items
 
@@ -363,7 +365,7 @@ class LibraryMixin:
         return [it for it in self.scene.selectedItems() if isinstance(it, (PhotoItem, TextItem, ShapeItem))]
 
     def _all_elements(self) -> list:
-        return self.get_canvas_photos() + self.get_canvas_texts() + self.get_canvas_shapes()
+        return self.get_canvas_photos() + self.get_canvas_texts() + self.get_canvas_captions() + self.get_canvas_shapes()
 
     @staticmethod
     def _element_rect(it) -> QRectF:

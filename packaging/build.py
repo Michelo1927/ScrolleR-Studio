@@ -103,6 +103,28 @@ def run_pyinstaller(icon: str, extra: list):
     subprocess.run(cmd, check=True, cwd=ROOT)
 
 
+def drop_qt_ffmpeg(root: str):
+    """
+    Qt Multimedia serve solo per l'audio della finestra Sottotitoli (QAudioSink), che usa il backend del
+    sistema: il plugin FFmpeg di Qt e le sue librerie (~20 MB, un secondo FFmpeg oltre a quello di PyAV)
+    non servono. Si tolgono solo dalla cartella di PyQt6: l'FFmpeg di PyAV resta.
+    """
+    removed = 0
+    for folder, _dirs, files in os.walk(root):
+        if "PyQt6" not in folder.replace("\\", "/").split("/"):
+            continue
+        for name in files:
+            low = name.lower()
+            if "ffmpegmediaplugin" in low or (
+                    low.startswith(("av", "libav", "sw", "libsw"))
+                    and low.split(".")[0].split("-")[0].lstrip("lib") in
+                    ("avcodec", "avformat", "avutil", "avfilter", "avdevice", "swresample", "swscale")):
+                path = os.path.join(folder, name)
+                removed += os.path.getsize(path)
+                os.remove(path)
+    print(f"Tolto l'FFmpeg di Qt Multimedia: {removed / 1e6:.1f} MB")
+
+
 # ================= WINDOWS =================
 def find_iscc() -> str:
     candidates = [
@@ -136,6 +158,7 @@ def build_windows():
     make_ico(icon)
     make_version_file(version_file)
     run_pyinstaller(icon, ["--version-file", version_file])
+    drop_qt_ffmpeg(os.path.join(DIST, APP_NAME))
     if "--no-setup" not in sys.argv:
         run_inno_setup(icon)
     print(f"\nFatto. App: {os.path.join(DIST, APP_NAME, APP_NAME + '.exe')}")
@@ -191,6 +214,7 @@ def build_mac():
     make_icns(icon)
     run_pyinstaller(icon, ["--osx-bundle-identifier", BUNDLE_ID])
     app = os.path.join(DIST, APP_NAME + ".app")
+    drop_qt_ffmpeg(app)
     patch_info_plist(app)
     # Info.plist modificato: va rifirmata (firma "ad hoc", senza certificato Apple)
     subprocess.run(["codesign", "--force", "--deep", "--sign", "-", app], check=True)

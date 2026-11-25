@@ -14,6 +14,7 @@ from scrollr.icons import app_icon
 from scrollr.imaging import IMAGE_CACHE, image_paths_from_mime
 from scrollr.theme import build_stylesheet
 from scrollr.widgets import WheelGuard
+from scrollr.window.captions import CaptionsMixin
 from scrollr.window.export import ExportMixin
 from scrollr.window.history import HistoryMixin
 from scrollr.window.inspector import InspectorMixin
@@ -32,7 +33,7 @@ from scrollr.window.video import VideoMixin
 
 class MainWindow(UiMixin, PanelsMixin, LibraryMixin, LayoutMixin, InspectorMixin, TextMixin, ShapesMixin,
                  PagesMixin, HistoryMixin, ProjectMixin, MissingMixin, ExportMixin, UpdatesMixin, VideoMixin,
-                 QMainWindow):
+                 CaptionsMixin, QMainWindow):
     """Finestra principale. Le funzioni sono divise nei mixin del pacchetto window."""
 
     ASPECT_RATIOS = {

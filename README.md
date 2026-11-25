@@ -7,10 +7,26 @@ Videos can go on the canvas too: a page that contains a video is exported as an 
 muted and given a cover frame; shorter videos on the same page loop until the longest one ends.
 A video always stays inside one page (it cannot straddle two).
 
+Videos can have **subtitles**, written by hand (no automatic transcription): select a video and choose
+**Subtitles…**. Write or paste the whole text, one phrase per line (pasted text is split into short phrases, at most
+two balanced lines on screen), while the video plays with its sound (Ctrl+Space, even while typing; also at 0.75× or
+0.5×). The timing is set automatically from the audio: the phrases are spread over the stretches of speech in
+proportion to their length, with the cuts on the pauses. A timeline with the waveform lets you drag the phrase edges
+to fix them; a phrase fixed by hand stays put and the others rearrange around it. Each phrase can have a
+hand-written translation, drawn smaller under it.
+Subtitles are moved and styled like a text (default: bold white with a soft shadow, yellow italic translation, in the
+reel safe zone), change frame by frame in the exported MP4, and can be imported or exported as `.srt` files.
+
 A new project is either a **carousel** (one or more pages; videos up to 60 s, the limit of an Instagram carousel
 slide) or a **reel** (a single page, 9:16 suggested; videos up to 5 minutes): in **File → New project** the page
 formats are grouped by type, so one click picks both. In a reel, the Guides switch also
 shows the safe zone that Instagram's interface does not cover. A project can be converted later from the File menu.
+
+At launch a **start window** asks what to work on: recent projects with a thumbnail of their first page (one click
+opens them), **Open project…**, and the same formats as File → New project. Closing it without a choice leaves an
+empty carousel. It does not appear when the app is opened by double-clicking a project or after recovering unsaved
+work. Thumbnails are kept in the app's data folder (`miniature`), not in the `.scrlproj` file: they are written
+whenever a project is saved or opened.
 
 Photos can be cut out by hand: in the crop window, **Shape** mode lets you click points around the subject
 (or drag to draw freehand) and everything outside becomes transparent, with a soft edge. The cut-out keeps the
@@ -121,13 +137,17 @@ scrollr/
   imaging.py            photo loading (EXIF, ICC → sRGB), color adjustments, cache
   video.py              videos with PyAV: info, frames, audio, MP4 writing
   widgets.py            ToggleSwitch, DropZone, library delegate
-  dialogs.py            carousel preview, page order, pages to export, background dialog
+  dialogs.py            new project formats, carousel preview, page order, pages to export, background dialog
+  start_dialog.py       start window at launch: recent projects with thumbnails, new project, open project
   crop_dialog.py        "Crop photo" window: crop area with handles and aspect ratios, or a hand-drawn cut-out shape
+  captions.py           subtitles without Qt: phrases, splitting the text, balanced lines, .srt, pauses, auto timing
+  caption_dialog.py     "Subtitles" window: player with sound, full text, phrase list, timeline
   cutout.py             cut-out shapes: masks with a soft edge, tight crop, point simplification
   canvas/
     photo_item.py       photos on the canvas (crop, cut-out, inner zoom, borders, sticker outline, snapping)
     video_item.py       videos on the canvas: a photo item with trim, cover frame, mute and playback
     text_item.py        text boxes
+    caption_item.py     subtitles of a video: a text item whose phrase changes with the video's time
     shape_item.py       shapes, lines and arrows (resize handles, rotate handle, endpoints)
     snap.py             magnetic snapping shared by photos and shapes
     scene.py            pages, background, guides
@@ -142,10 +162,11 @@ scrollr/
     text.py, pages.py   carousel texts and pages
     shapes.py           inserting shapes and editing their fill, border and opacity
     history.py          undo / redo
-    project.py          save / open, recent files, autosave
+    project.py          save / open, recent files and their thumbnails, start window, autosave
     missing.py          missing photos: placeholders, relinking, collect project into a folder
     export.py           high-resolution export; pages with a video become MP4 files
     video.py            video section of the inspector, playback, keeping videos inside one page
+    captions.py         subtitles: blocks on the canvas, their properties, the Subtitles window, .srt files
     updates.py          new-version notice (checks the latest GitHub release)
 ```
 

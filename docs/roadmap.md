@@ -16,7 +16,7 @@ Le scelte segnate come **decise** sono state prese con l'autore; le **idee** res
 
 - **Scelta del tipo dentro la scelta del formato.** I formati sono divisi in due gruppi, «Carosello o foto» e «Reel»: una tessera sceglie insieme tipo e formato.
   - Carosello: tutti i formati (in cima 4:5, 3:4, 1:1) e il personalizzato. Reel: 9:16 «consigliato», 4:5, 1:1.
-  - PC: finestra `NewProjectDialog` (`scrollr/dialogs.py`) a File → Nuovo progetto, carosello a sinistra con il campo Pagine e reel a destra. All'avvio l'app apre un carosello, come prima.
+  - PC: finestra `NewProjectDialog` (`scrollr/dialogs.py`) a File → Nuovo progetto, carosello a sinistra con il campo Pagine e reel a destra. Gli stessi formati sono nella finestra di avvio (dal 2026-11-25), con i progetti recenti e le loro miniature.
   - Telefono: primo passo di «Nuovo progetto», carosello sopra e reel sotto.
 - **Conversione** (un passo di Annulla).
   - PC: File → Converti in reel / in carosello. Telefono: Pagine → Formato.
@@ -34,49 +34,62 @@ Le scelte segnate come **decise** sono state prese con l'autore; le **idee** res
 - nuovo reel, conversione nei due sensi, guida;
 - esportazione di un video da 5 minuti: l'audio sta tutto in memoria, circa 53 MB per traccia.
 
-## 1. Sottotitoli automatici (deciso, prossimo lavoro)
+## 1. Sottotitoli (deciso, prossimo lavoro)
 
-Trascrizione **offline** con **whisper.cpp**, la stessa su PC e telefono: stesso modello, stesso risultato, audio mai fuori dal dispositivo.
+Sottotitoli **scritti a mano** e sincronizzati dall'utente, prima sul PC e poi sul telefono. Niente trascrizione automatica: la prova S1 ([`prova-whisper-s1.md`](prova-whisper-s1.md)) ha dato testi da correggere quasi frase per frase, attese lunghe e modelli pesanti. Nessun modello, download o dipendenza nuova per la trascrizione.
 
 ### Scelte decise
-- **Stile della prima versione:** frasi corte, una o due righe che cambiano. I tempi delle singole parole si salvano già, per poter aggiungere più avanti lo stile «parola evidenziata».
-- **Lingua:** italiano proposto, ma si può sceglierne un'altra o lasciarla riconoscere al modello.
-- **Modello:** scaricato alla prima trascrizione da una release GitHub di questa repo, non incluso nell'installer.
-  - Tag dedicato, per esempio `modelli-whisper-1`: mai `v*` né `mobile-v*`.
-  - Release mai segnata «latest»: il desktop cerca gli aggiornamenti su `releases/latest`.
-- **Modello predefinito:** `ggml-small-q5_1.bin` (190 MB). Pulsante per cancellarlo.
-- **Un blocco di sottotitoli per video.** Si sposta e si stila come un testo.
-- **Nell'MP4 i sottotitoli sono dentro l'immagine.** Import ed export `.srt` come extra.
-
-### Numeri (stime da verificare nella prova S1)
-| | PC (i5-13500H) | Pixel 7 |
-|---|---|---|
-| Peso aggiunto all'app | +8–12 MB installer, +25–35 MB installata | +3–5 MB APK |
-| Modello small | 190 MB su disco, ~0,5–0,8 GB di memoria mentre trascrive | uguale |
-| 60 s di video | ~10–20 s | ~40–90 s (con «base» ~15–30 s) |
+- **Un blocco di sottotitoli per video.** Elemento `CaptionItem`, sottoclasse di `TextItem`, collegato al video: si sposta e si stila come un testo.
+- **Frasi corte, una per riga**, al massimo due righe bilanciate a schermo. Ogni frase ha inizio, fine, testo e traduzione, nei tempi del video originale (non del taglio).
+- **Formato pronto per un motore futuro.** Le frasi sono una lista semplice: un motore (whisper.cpp o Parakeet) potrà riempirla più avanti, anche con i tempi delle singole parole in un campo facoltativo. Ora quel campo non si scrive.
+- **Nel progetto:** chiave `captions` accanto a `texts`, scritta solo se ci sono sottotitoli (il telefono 1.2.0 conserva le chiavi che non conosce). Ogni blocco ha lo stato di un testo più `video_uid`, `lang`, `tr_lang`, `wrap_w`, `tr_color`, `tr_size` (% della frase), `tr_italic`, `tr_show` e `phrases: [{start, end, text, tr, auto}]`, con `start`/`end` a `null` per le frasi senza tempi e `auto: true` (scritto solo se vero) per i tempi messi dall'app.
+- **Si scrive tutto il testo, con il video che gira.** Una casella con tutto il testo, una frase per riga: quello incollato si divide da solo in frasi corte. Il video si avvia e si ferma anche mentre si scrive (Ctrl+Spazio), anche a 0,75× o 0,5×, e la riga della frase a schermo si colora. Niente sincronizzazione «dal vivo» a tasti (provata il 2026-11-25 e scartata dall'autore: poco intuitiva).
+- **Tempi automatici dall'audio.** L'app trova i tratti di parlato dal volume e ci distribuisce le frasi in proporzione alla lunghezza, con gli stacchi spostati sulle pause vicine. Si ridistribuiscono a ogni modifica del testo. Una frase ritoccata a mano (bordi trascinati, tempo scritto nell'elenco, Invio) resta ferma e le automatiche si sistemano intorno; «Tempi dall'audio» rende di nuovo tutto automatico.
+- **Ritocco.** Elenco delle frasi sincronizzato col video (clic = salta lì; modifica, dividi, unisci, aggiungi, elimina, traduzione) e striscia del tempo con la forma d'onda dell'audio. Le frasi sono blocchi (tratteggiati se automatici) a cui si trascinano i bordi, che si agganciano alle pause trovate dal volume.
+- **Traduzione manuale.** Per ogni frase una seconda colonna (per esempio inglese), disegnata sotto la frase.
+- **Stile predefinito**, come i reel sui social:
+  - frase bianca, grassetto, ombra morbida scura (non un contorno spesso), centrata, due righe bilanciate;
+  - traduzione sotto, più piccola, gialla e corsiva;
+  - verso il centro-basso dentro la zona sicura reel sulle pagine 9:16.
+- **Sulla tela** si vede la frase della copertina o quella del momento durante la riproduzione.
+- **Nell'MP4 i sottotitoli sono dentro l'immagine**: il testo cambia fotogramma per fotogramma. Import ed export `.srt`.
 
 ### Passi
-1. **S1 – Prova del motore (PC).**
-   - Fuori dall'app, `pywhispercpp` + modello small su un video italiano dell'autore.
-   - Misurare qualità, tempi e memoria.
-   - Decidere se «small» basta.
-2. **S2 – Desktop.**
-   - Elemento `CaptionItem`, sottoclasse di `TextItem`, collegato al video: frasi con inizio, fine e testo, più i tempi delle parole, nei tempi del video originale.
-   - Sulla tela mostra la frase della copertina o della riproduzione.
-   - Finestra «Sottotitoli» per correggere testo e tempi, unire, dividere, aggiungere e togliere frasi.
-   - Nell'esportazione MP4 il testo cambia fotogramma per fotogramma: va ridisegnato con lo strato di mezzo in `_export_video_page`.
-   - Posizione predefinita: in basso dentro la zona sicura reel sulle pagine 9:16.
-   - `get_state`/`set_state` con default; Annulla/Ripeti.
-3. **S3 – Download del modello e build.**
-   - Download con avanzamento e annullamento.
-   - Controllo della build con PyInstaller, su Windows e Mac.
-4. **S4 – Telefono, motore.**
-   - whisper.cpp compilato nel plugin `scrl_video` (CMake/NDK, arm64 prima di tutto).
-   - Audio a 16 kHz mono da `LettoreAudio.kt`.
-   - Modello dati nel motore, confrontato col desktop con i riferimenti.
-5. **S5 – Telefono, interfaccia.**
-   - Strumento Sottotitoli in stile Snapseed, modifica delle frasi, disegno in `disegno.dart`, esportazione MP4.
-6. **S6 – Prova sul Pixel 7 e rilascio** (desktop 1.12.0, mobile 1.3.0).
+1. **S1 – Desktop** (fatto il 2026-11-25, da provare nell'app vera). Modello dati e `CaptionItem`, finestra «Sottotitoli» con testo, video, tempi automatici e ritocco, audio nella riproduzione, esportazione MP4, `.srt`.
+   - Tasti. Anche mentre si scrive: Ctrl+Spazio avvia/ferma, Alt+←/→ indietro/avanti di 3 s, Esc = pausa. Fuori dalla casella: Spazio avvia/ferma, ←/→ un fotogramma, Invio/Shift+Invio = inizio/fine della frase scelta.
+   - La finestra ha un Annulla suo; con «Fatto» le modifiche diventano un solo passo di Annulla del progetto.
+   - Audio solo nella finestra (`QAudioSink` con il PCM di PyAV; 0,75× e 0,5× col filtro atempo). Sulla tela la riproduzione resta muta, ma la frase cambia. La build toglie il plugin FFmpeg di Qt Multimedia (~20 MB), che non serve.
+2. **S2 – Telefono** (progettato e fatto il 2026-11-25, da provare sul Pixel 7). Stesso formato letto e scritto dal motore (`scrl_engine`), confrontato col desktop con i riferimenti; disegno in `disegno.dart` ed esportazione MP4. Scelte:
+   - **Schermata intera «Sottotitoli»**, come il Ritaglio: ✕ / ✓ in alto e Annulla interno. Con ✓ le modifiche diventano un solo passo di Annulla del progetto; ✕ o «indietro» con modifiche chiedono conferma.
+   - **Creazione.** Con un video selezionato, la sua striscia di strumenti ha la voce «Sottotitoli»: crea il blocco, se manca, e apre la schermata.
+     - Il blocco si posiziona come `_place_new_caption` del desktop: centro-basso, 80% della pagina, dentro la zona sicura sulle pagine 9:16.
+     - La striscia del blocco selezionato ha: Sottotitoli (riapre la schermata), Larghezza, Traduzione (mostra, colore, dimensione, corsivo), poi gli strumenti del testo (Carattere, Dimensione, Colore, Ombra, Disponi, Elimina).
+   - **Due disposizioni, che seguono la tastiera.**
+     - Tastiera aperta = si scrive: video piccolo in alto, con la frase del momento, e casella del testo sotto.
+     - Tastiera chiusa = si ritocca: video più grande, striscia del tempo e comandi della frase scelta.
+     - Schermata vuota: «Scrivi o incolla il testo, una frase per riga», con i pulsanti «Incolla» e «Importa .srt».
+   - **Barra sopra la tastiera:** ↺ 3 s · ▶/⏸ grande · 3 s ↻ · velocità 1× / 0,75× / 0,5× (un tocco cambia).
+     - Il video continua mentre si scrive e la riga della frase a schermo si colora.
+     - Tocco sul video = avvia/ferma. Tocco su una riga a video fermo = salta all'inizio della frase.
+   - **Striscia del tempo** come negli editor video per telefono:
+     - la linea di lettura è fissa al centro e la striscia con la forma d'onda scorre sotto il dito;
+     - pizzico = zoom, con circa 8 s visibili all'inizio;
+     - tocco su un blocco = sceglie la frase e mostra due maniglie grandi (≥ 48 dp). Le maniglie si agganciano alle pause con uno scatto aptico e la frase diventa manuale.
+     - Con una frase scelta: «Inizia qui» / «Finisci qui» (il bordo va sulla linea di lettura), «Dividi qui», «Unisci alla successiva», «Elimina».
+     - Tocco sul tempo della frase (`0:12,4 – 0:15,1`): −0,1 s / +0,1 s per inizio e fine. Sostituisce i tempi scritti in cifre del desktop.
+   - **Niente elenco a parte: la casella del testo fa da elenco.** Andare a capo divide o aggiunge una frase, cancellare l'a capo unisce, cancellare la riga elimina. Tempi e traduzioni restano con `merge_lines`.
+   - **Traduzione:** interruttore Testo | Traduzione in alto. Ogni frase è una riga: sopra l'originale in grigio, sotto il campo della traduzione.
+   - **SRT subito:** pulsante «SRT» nella barra in alto, con un foglio dal basso che offre «Importa .srt» e «Condividi .srt». Importare sopra un testo esistente chiede conferma.
+   - **Audio nativo nel plugin `scrl_video`, senza pacchetti nuovi.**
+     - Il PCM viene da `LettoreAudio.kt` e va a un `AudioTrack`; 0,75× e 0,5× con `setPlaybackParams`, che non cambia il tono.
+     - L'audio fa da orologio e i fotogrammi lo seguono.
+     - Lettura in sottofondo («Lettura dell'audio…»): si scrive subito e i tempi arrivano quando l'audio è pronto.
+     - Video senza audio: avviso, e i tempi si distribuiscono su tutto il taglio.
+   - **Motore e prove.** `captions.py` si porta in `scrl_engine` così com'è, con le prove scritte prima.
+     - `genera_riferimenti.py` si estende con: disegno di una frase, due righe bilanciate, `retime` sulle stesse pause, fotogrammi dell'MP4.
+     - Un progetto con `captions` deve uscire identico dopo lettura e riscrittura.
+   - **Solo Android**, come le altre funzioni nuove: su iOS la voce non compare.
+3. **S3 – Prova sul Pixel 7 e rilascio** (desktop 1.12.0, mobile 1.3.0).
 
 ## 2. Musica di sottofondo (deciso, dopo i sottotitoli)
 
@@ -90,6 +103,11 @@ Una traccia audio per la pagina video: si sceglie un file (mp3, m4a, wav).
 - **Linea del tempo** (clip una dopo l'altra). Più avanti, senza posto fisso. È un lavoro grande.
 - **Sagoma automatica** con l'AI: propone i punti, l'utente li corregge.
 - **Rifinitura grafica mobile**: `docs/brief-grafico-app-mobile.md`.
+- **Sottotitoli automatici** (whisper.cpp o Parakeet), vedi [`prova-whisper-s1.md`](prova-whisper-s1.md).
+  - Il motore riempirebbe le frasi dei sottotitoli manuali, con i tempi delle parole nel campo facoltativo.
+  - Dalla prova: small 30–80 s per minuto di video sul PC, turbo ~100 s, Parakeet ~11 s ma 1,2 GB di RAM e niente punteggiatura; testo da correggere quasi frase per frase.
+  - Modello da scaricare alla prima trascrizione da una release dedicata (per esempio `modelli-whisper-1`, mai `v*` né `mobile-v*`, mai «latest»), non nell'installer.
+  - Restano da fare: download con avanzamento e Annulla, build PyInstaller su Windows e Mac, motore sul telefono (whisper.cpp nel plugin `scrl_video`, audio a 16 kHz da `LettoreAudio.kt`).
 
 ## 4. Fermo
 

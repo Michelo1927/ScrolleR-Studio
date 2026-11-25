@@ -11,7 +11,8 @@ from scrollr.keys import kb
 from scrollr.theme import THEME
 
 # Nome, genere (per l'accordo: spostata/spostato) e plurale degli elementi della tela
-_KINDS = {"items": ("Foto", "f", "foto"), "texts": ("Testo", "m", "testi"), "shapes": ("Forma", "f", "forme")}
+_KINDS = {"items": ("Foto", "f", "foto"), "texts": ("Testo", "m", "testi"), "shapes": ("Forma", "f", "forme"),
+          "captions": ("Sottotitoli", "mp", "sottotitoli")}
 
 
 class HistoryMixin:
@@ -19,7 +20,7 @@ class HistoryMixin:
 
     # ================= ANNULLA / RIPETI =================
     def _snapshot(self) -> dict:
-        return {
+        snap = {
             "canvas": {
                 "ratio_index": self.combo_ratio.currentIndex(),
                 "custom_w": self.spin_custom_w.value(),
@@ -62,6 +63,10 @@ class HistoryMixin:
             "texts": [t.get_state() for t in self.get_canvas_texts()],
             "shapes": [sh.get_state() for sh in self.get_canvas_shapes()],
         }
+        captions = self.get_canvas_captions()
+        if captions:  # Solo se ci sono: i progetti senza sottotitoli restano identici a prima
+            snap["captions"] = [c.get_state() for c in captions]
+        return snap
 
     def _restore_snapshot(self, snap: dict):
         self._restoring = True
@@ -143,6 +148,7 @@ class HistoryMixin:
             for uid, t in existing_texts.items():
                 if uid not in wanted_texts:
                     self.scene.removeItem(t)
+            self._restore_captions(snap.get("captions", []))
             existing_shapes = {sh.uid: sh for sh in self.get_canvas_shapes()}
             wanted_shapes = set()
             for ss in snap.get("shapes", []):
@@ -177,6 +183,7 @@ class HistoryMixin:
         self._commit_timer.stop()
         self._keep_videos_in_pages()
         self._keep_videos_in_limit()
+        self._drop_orphan_captions()
         snap = self._snapshot()
         if self._history and self._history[self._history_index] == snap:
             return
@@ -234,8 +241,8 @@ class HistoryMixin:
     # ---------- Descrizione dei passaggi ----------
     @staticmethod
     def _agree(gender: str, word: str) -> str:
-        """Participio accordato: «spostat» → spostata (Foto, Forma) o spostato (Testo)."""
-        return word + ("a" if gender == "f" else "o")
+        """Participio accordato: «spostat» → spostata (Foto, Forma), spostato (Testo), spostati (Sottotitoli)."""
+        return word + {"f": "a", "mp": "i"}.get(gender, "o")
 
     def _describe_change(self, a: dict, b: dict) -> str:
         """Nome breve della modifica tra due stati, per il pannello Cronologia."""
@@ -325,6 +332,8 @@ class HistoryMixin:
             return f"{name} {self._agree(gender, 'ridimensionat')}"
         if diff <= {"x", "y", "rotation"}:
             return f"{name} {self._agree(gender, 'ruotat')}"
+        if diff & {"phrases"}:
+            return "Sottotitoli modificati"
         if diff & {"text"}:
             return "Testo modificato"
         if diff & {"adjust"}:
@@ -339,7 +348,8 @@ class HistoryMixin:
             return "Inquadratura della foto"
         if diff & {"free"}:
             return "Foto libera" if any(s.get("free") for s in b.get("items", [])) else "Foto nella disposizione"
-        return {"items": "Stile della foto", "texts": "Stile del testo", "shapes": "Stile della forma"}[key]
+        return {"items": "Stile della foto", "texts": "Stile del testo", "shapes": "Stile della forma",
+                "captions": "Stile dei sottotitoli"}[key]
 
     # ---------- Pannello Cronologia ----------
     def show_history_panel(self):

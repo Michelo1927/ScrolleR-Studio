@@ -779,10 +779,11 @@ class BackgroundDialog(QDialog):
         self.adjustSize()
 
 
-class NewProjectDialog(QDialog):
+class NewProjectPanel(QWidget):
     """
-    File → Nuovo progetto: i formati divisi tra «Carosello o foto» (a sinistra) e «Reel» (a destra).
+    I formati di un nuovo progetto divisi tra «Carosello o foto» (a sinistra) e «Reel» (a destra).
     Una tessera sceglie insieme il tipo di progetto e il formato; le pagine valgono solo per il carosello.
+    Sta in File → Nuovo progetto e nella finestra di avvio.
     """
 
     # Formati del carosello a righe di tre (in cima i post: 4:5, 3:4, e il quadrato) e del reel (9:16 proposto)
@@ -795,14 +796,13 @@ class NewProjectDialog(QDialog):
     def __init__(self, ratios: Dict[str, Optional[Tuple[int, int]]], size: Tuple[int, int], custom: Tuple[int, int],
                  pages: int, max_pages: int, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Nuovo progetto")
         self._ratios = list(ratios.items())
         self._choice: Dict[QToolButton, Tuple[str, Optional[Tuple[int, int]]]] = {}
         self.group = QButtonGroup(self)
         self.group.setExclusive(True)
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(16, 16, 16, 12)
+        lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(12)
         cols = QHBoxLayout()
         cols.setSpacing(16)
@@ -885,18 +885,6 @@ class NewProjectDialog(QDialog):
         self.lbl_hint.setWordWrap(True)
         lay.addWidget(self.lbl_hint)
 
-        buttons = QHBoxLayout()
-        buttons.addStretch()
-        cancel = QPushButton("Annulla")
-        cancel.clicked.connect(self.reject)
-        self.btn_create = QPushButton("Crea")
-        self.btn_create.setObjectName("Primary")
-        self.btn_create.setDefault(True)
-        self.btn_create.clicked.connect(self.accept)
-        buttons.addWidget(cancel)
-        buttons.addWidget(self.btn_create)
-        lay.addLayout(buttons)
-
         # Di partenza il formato del carosello indicato (il personalizzato se non è tra le tessere)
         carousel = {wh: b for b, (k, wh) in self._choice.items() if k == "carousel"}
         carousel.get(size, carousel[None]).setChecked(True)
@@ -967,3 +955,41 @@ class NewProjectDialog(QDialog):
 
     def pages(self) -> int:
         return self.spin_pages.value() if self.kind() == "carousel" else 1
+
+
+class NewProjectDialog(QDialog):
+    """File → Nuovo progetto: il pannello dei formati con Annulla e Crea."""
+
+    def __init__(self, ratios: Dict[str, Optional[Tuple[int, int]]], size: Tuple[int, int], custom: Tuple[int, int],
+                 pages: int, max_pages: int, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Nuovo progetto")
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 16, 16, 12)
+        lay.setSpacing(12)
+        self.panel = NewProjectPanel(ratios, size, custom, pages, max_pages, self)
+        lay.addWidget(self.panel)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch()
+        cancel = QPushButton("Annulla")
+        cancel.clicked.connect(self.reject)
+        self.btn_create = QPushButton("Crea")
+        self.btn_create.setObjectName("Primary")
+        self.btn_create.setDefault(True)
+        self.btn_create.clicked.connect(self.accept)
+        buttons.addWidget(cancel)
+        buttons.addWidget(self.btn_create)
+        lay.addLayout(buttons)
+
+    def kind(self) -> str:
+        return self.panel.kind()
+
+    def ratio_index(self) -> int:
+        return self.panel.ratio_index()
+
+    def frame_size(self) -> Tuple[int, int]:
+        return self.panel.frame_size()
+
+    def pages(self) -> int:
+        return self.panel.pages()

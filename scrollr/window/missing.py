@@ -179,7 +179,8 @@ class MissingMixin:
             return {"canvas": canvas,
                     "items": [dict(s, path=mapping.get(s["path"], s["path"])) for s in snap["items"]],
                     "texts": snap.get("texts", []),
-                    "shapes": snap.get("shapes", [])}
+                    "shapes": snap.get("shapes", []),
+                    **({"captions": snap["captions"]} if snap.get("captions") else {})}
 
         # Copie nuove degli snapshot: quello salvato resta diverso, così il progetto risulta da salvare
         self._history = [remap_snap(s) for s in self._history]

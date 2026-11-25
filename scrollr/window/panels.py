@@ -660,6 +660,7 @@ class PanelsMixin:
         lay.addWidget(self.text_tabs)
 
         tp, tl = self._tab_page()
+        tl.addWidget(self._caption_inspector_box())
         self.edit_text = QPlainTextEdit()
         self.edit_text.setPlaceholderText("Scrivi qui il testo… (Invio per andare a capo)")
         self.edit_text.setFixedHeight(72)
